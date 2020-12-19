@@ -63,17 +63,17 @@ class REPS_con(BlackBoxOptimization):
                        args=(W, theta, mu_t, sig_t, n, self.eps, self.kappa),
                        method=None)
         eta_opt, omg_opt  = res.x[0], res.x[1]
-        print('\neta_opt', eta_opt, 'omg_opt', omg_opt, 'optimizer success', res.success)
+        # print('\neta_opt', eta_opt, 'omg_opt', omg_opt, 'optimizer success', res.success)
 
         # find closed form mu_t1 and sig_t1 using optimal eta and omg
-        mu_t1, sig_t1 = REPS_con.closed_form_mu_t1_sig_t1(W, theta, mu_t, sig_t, n, self.eps, self.kappa, eta_opt, omg_opt)
+        mu_t1, sig_t1 = REPS_con.closed_form_mu_t1_sig_t1(W, theta, mu_t, sig_t, n, self.eps, eta_opt, omg_opt, self.kappa)
 
         # check entropy constraint
         (sign_sig_t, logdet_sig_t) = np.linalg.slogdet(sig_t)
         (sign_sig_t1, logdet_sig_t1) = np.linalg.slogdet(sig_t1)
         H_t = REPS_con.closed_form_entropy(logdet_sig_t, n)
         H_t1 = REPS_con.closed_form_entropy(logdet_sig_t1, n)
-        print('H_t', H_t, 'H_t1', H_t1)
+        # print('H_t', H_t, 'H_t1', H_t1)
         if not H_t-self.kappa <= H_t1:
             print('entropy constraint violated', 'H_t', H_t, 'H_t1', H_t1, 'kappa', self.kappa)
 
@@ -81,7 +81,7 @@ class REPS_con(BlackBoxOptimization):
         sig_t_inv = np.linalg.inv(sig_t)
         sig_t1_inv = np.linalg.inv(sig_t1)
         kl = REPS_con.closed_form_KL(mu_t, mu_t1, sig_t, sig_t1, sig_t_inv, sig_t1_inv, logdet_sig_t, logdet_sig_t1, n)
-        print('KL', kl)
+        # print('KL', kl)
         if not kl <= self.eps:
             print('KL constraint violated', 'kl', kl, 'eps', self.eps)
 
@@ -167,13 +167,6 @@ class REPS_con(BlackBoxOptimization):
         # beta = H_t - kappa
         # sum3 = omg * (H_t1 - beta)
         sum3 = omg * (REPS_con.closed_form_entropy(logdet_sig_t1, n) - REPS_con.closed_form_entropy(logdet_sig_t, n) + kappa)
-
-        # Puze's impl
-        sum = - 0.5 * W @ np.einsum('ij, jk, ik->i', (theta - mu_t1), sig_t1_inv, (theta - mu_t1)) \
-              - 0.5 * eta * np.trace(sig_t1_inv @ sig_t) - 0.5 * eta * (mu_t1 - mu_t) @ sig_t1_inv @ (mu_t1 - mu_t) \
-              + 0.5 * (omg - eta - np.sum(W)) * logdet_sig_t1 + 0.5 * eta * (n + logdet_sig_t + eps * 2) \
-              + 0.5 * omg * (c + n - 2 * (REPS_con.closed_form_entropy(logdet_sig_t, n) - kappa)) \
-              - 0.5 * np.sum(W) * c
 
         return sum1 + sum2 + sum3
 
