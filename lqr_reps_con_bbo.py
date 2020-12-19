@@ -25,7 +25,7 @@ def experiment(alg, params, n_epochs, fit_per_run, ep_per_run):
     np.random.seed()
 
     # MDP
-    mdp = LQR.generate(dimensions=2, episodic=True)
+    mdp = LQR.generate(dimensions=2, episodic=True, max_pos=10., max_action=1.)
 
     approximator = Regressor(LinearApproximator,
                              input_shape=mdp.info.observation_space.shape,
@@ -34,7 +34,7 @@ def experiment(alg, params, n_epochs, fit_per_run, ep_per_run):
     policy = DeterministicPolicy(mu=approximator)
 
     mu = np.zeros(policy.weights_size)
-    sigma = 1e-3 * np.eye(policy.weights_size)
+    sigma = 1 * np.eye(policy.weights_size)
     distribution = GaussianCholeskyDistribution(mu, sigma)
 
     # Agent

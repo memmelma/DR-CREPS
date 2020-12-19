@@ -102,14 +102,15 @@ class REPS_con(BlackBoxOptimization):
         
         W, theta, mu_t, sig_t, n, eps, eta, omg, kappa = args
         W_sum = np.sum(W)
-        
-        mu_t1 = (np.sum(W@theta) + eta * mu_t) / (W_sum + eta)
+
+        mu_t1 = (W @ theta + eta * mu_t) / (W_sum + eta)
+        # mu_t1 = (np.sum(W@theta) + eta * mu_t) / (W_sum + eta)
         # mu_t1 = (np.sum([w_i*theta_i for w_i, theta_i in zip(W, theta)]) + eta * mu_t) / (W_sum + eta)
         
         sig_wa = (theta - mu_t1).T @ np.diag(W) @ (theta - mu_t1) # moved .T to first part
         # sig_wa_ = np.sum([w_i*(theta_i - mu_t1)@(theta_i - mu_t1).T for w_i, theta_i in zip(W, theta)]) # (theta - mu_t1).T @ np.diag(W) @ (theta - mu_t1) # moved .T to first part
         
-        sig_t1 = (sig_wa + eta * sig_t + eta * (mu_t1 - mu_t) @ (mu_t1 - mu_t).T) / (W_sum + eta - omg) 
+        sig_t1 = (sig_wa + eta * sig_t + eta * (mu_t1 - mu_t) @ (mu_t1 - mu_t).T) / (W_sum + eta - omg)
 
         return mu_t1, sig_t1
 
@@ -166,6 +167,13 @@ class REPS_con(BlackBoxOptimization):
         # beta = H_t - kappa
         # sum3 = omg * (H_t1 - beta)
         sum3 = omg * (REPS_con.closed_form_entropy(logdet_sig_t1, n) - REPS_con.closed_form_entropy(logdet_sig_t, n) + kappa)
+
+        # Puze's impl
+        sum = - 0.5 * W @ np.einsum('ij, jk, ik->i', (theta - mu_t1), sig_t1_inv, (theta - mu_t1)) \
+              - 0.5 * eta * np.trace(sig_t1_inv @ sig_t) - 0.5 * eta * (mu_t1 - mu_t) @ sig_t1_inv @ (mu_t1 - mu_t) \
+              + 0.5 * (omg - eta - np.sum(W)) * logdet_sig_t1 + 0.5 * eta * (n + logdet_sig_t + eps * 2) \
+              + 0.5 * omg * (c + n - 2 * (REPS_con.closed_form_entropy(logdet_sig_t, n) - kappa)) \
+              - 0.5 * np.sum(W) * c
 
         return sum1 + sum2 + sum3
 
