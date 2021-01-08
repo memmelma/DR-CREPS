@@ -11,7 +11,7 @@ import traceback
 
 class REPS_con(BlackBoxOptimization):
     """
-    Episodic Relative Entropy Policy Search algorithm.
+    Episodic Relative Entropy Policy Search algorithm with Constrained Policy Update (M-Projection Constraint).
     "A Survey on Policy Search for Robotics", Deisenroth M. P., Neumann G.,
     Peters J.. 2013.
 
