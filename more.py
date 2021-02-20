@@ -5,18 +5,20 @@ from mushroom_rl.algorithms.policy_search.black_box_optimization import BlackBox
 from mushroom_rl.approximators import Regressor
 from mushroom_rl.approximators.parametric import LinearApproximator
 from mushroom_rl.features.basis.polynomial import PolynomialBasis
+from mushroom_rl.features import Features
 
 import autograd.numpy as np
 from autograd import grad
 
 import traceback
+from tqdm import tqdm
 
 class MORE(BlackBoxOptimization):
     """
     "Model-Based Relative Entropy Stochastic Search"
     Abdolmaleki, Abbas & Lioutikov, Rudolf & Peters, Jan & Lau, Nuno & Reis, Luís & Neumann, Gerhard.
     """
-    def __init__(self, mdp_info, distribution, policy, eps, beta, features=None):
+    def __init__(self, mdp_info, distribution, policy, eps, features=None):
         """
         Constructor.
 
@@ -24,11 +26,10 @@ class MORE(BlackBoxOptimization):
             eps (float): the maximum admissible value for the Kullback-Leibler
                 divergence between the new distribution and the
                 previous one at each update step.
-            beta (float): the upper bound for the entropy of the new policy.
+            kappa (float): the upper bound for the entropy of the new policy.
 
         """
         self.eps = eps
-        self.beta = beta
 
         self._add_save_attr(eps='primitive')
 
@@ -44,16 +45,19 @@ class MORE(BlackBoxOptimization):
         chol_sig_empty[np.tril_indices(n)] = dist_params[n:]
         sig_t = chol_sig_empty.dot(chol_sig_empty.T)
 
+        tqdm.write(f'entropy {MORE._closed_form_entropy(sig_t, n)}')
+
         # set beta as specified in paper -> MORE page 4
         gamma = 0.99
         entropy_policy_min = -75
-        entropy_policy = MORE.closed_form_entropy(sig_t, n)
-        self.beta = gamma * (entropy_policy - entropy_policy_min) + entropy_policy_min
-        # print('\nbeta', self.beta)
+        entropy_policy = MORE._closed_form_entropy(sig_t, n)
+        kappa = gamma * (entropy_policy - entropy_policy_min) + entropy_policy_min
+        # tqdm.write(f'\nkappa {kappa}')
 
         # create polynomial features
         poly_basis = PolynomialBasis().generate(2, theta.shape[1])
-        features = np.array([[poly(t_i) for poly in poly_basis] for t_i in theta])
+        phi = Features(basis_list=poly_basis)
+        features = phi(theta)
 
         # fit linear regression
         regressor = Regressor(LinearApproximator,
@@ -62,83 +66,66 @@ class MORE(BlackBoxOptimization):
         regressor.fit(features, Jep)
 
         # get quadratic surrogate model from learned regression
-        R, r, r_0 = MORE.get_quadratic_model_from_regressor(regressor, theta) # MORE.get_surrogate(theta, Jep)
+        R, r, r_0 = MORE._get_quadratic_model_from_regressor(regressor, theta, features) # MORE.get_surrogate(theta, Jep)
 
         # MORE lagrangian -> bounds from MORE page 3
         eta_omg_start = np.ones(2)
         res = minimize(MORE._dual_function, eta_omg_start,
                        jac=grad(MORE._dual_function),
                        bounds=((np.finfo(np.float32).eps, np.inf),(np.finfo(np.float32).eps, np.inf)),
-                       args=(self.eps, self.beta, sig_t, mu_t, R, r, Jep, theta),
-                       method=None)
+                       args=(sig_t, mu_t, R, r, r_0, self.eps, kappa, n),
+                       method='SLSQP')
         eta_opt, omg_opt = res.x[0], res.x[1]
         if not res.success:
-            print('\neta_opt', eta_opt, 'omg_opt', omg_opt, 'optimizer success', res)
+            tqdm.write(f'eta_opt {eta_opt} omg_opt {omg_opt} no optimizer success {res}')
 
-        ## MLE update using mushroom -> REPS Compendium page 17 (between equations 76 and 77)
-
-        # get parameters for MLE
-        R_theta = regressor.predict(features)
-        d = np.exp(R_theta / (eta_opt+omg_opt)).squeeze()
-
-        pwr = (eta_opt/(eta_opt+omg_opt))
-        theta_pwr = np.sign(theta) * (np.abs(theta)) ** pwr
-
-        # update distribution
-        self.distribution.mle(theta_pwr, d)
-        return
-
-        ## MLE update using closed form solution -> REPS Compendium page 17 equation 77
+        # # MLE update using closed form solution -> REPS Compendium page 17 equation 77
 
         # calculate closed form solution
-        mu_t1, sig_t1 = MORE.closed_form_mu_t1_sig_t1(sig_t, mu_t, R, r, eta_opt, omg_opt)
+        mu_t1, sig_t1 = MORE._closed_form_mu_t1_sig_t1(sig_t, mu_t, R, r, eta_opt, omg_opt)
 
-        try:
-            dist_params = np.concatenate((mu_t1.flatten(), np.linalg.cholesky(sig_t1)[np.tril_indices(n)].flatten()))
-        except np.linalg.LinAlgError:
-            traceback.print_exc()
-            print('error in setting dist_params - sig_t1 not positive definite')
-            print('mu_t1', mu_t1)
-            print('sig_t1', sig_t1)
-            print('eta_opt', eta_opt, 'omg_opt', omg_opt)
-            exit(42)
+        # check entropy constraint
+        H_t1 = MORE._closed_form_entropy(sig_t1, n)
+        if not H_t1 >= kappa:
+            tqdm.write(f'entropy constraint violated kappa {kappa} >= H_t1 {H_t1}')
+
+        # check KL constraint
+        kl = MORE._closed_form_KL(mu_t1, mu_t, sig_t1, sig_t, n)
+        if not kl <= self.eps:
+            tqdm.write(f'KL constraint violated KL {kl} eps {self.eps}')
+
+        dist_params = np.concatenate((mu_t1.flatten(), np.linalg.cholesky(sig_t1)[np.tril_indices(n)].flatten()))
 
         # update distribution
         self.distribution.set_parameters(dist_params)
 
     @staticmethod
-    def _dual_function(lag_array, *args):
+    def _dual_function(lag_array, Q, b, R, r, r_0, eps, kappa, n):
         eta, omg = lag_array[0], lag_array[1]
-        eps, beta, Q, b, R, r, Jep, theta = args
-
-        F, f = MORE.get_F_f(Q, b, R, r, eta)
+        F, f = MORE._get_F_f(Q, b, R, r, eta)
         
-        term1 = (f.T @ F @ f) - eta * (b.T @ np.linalg.inv(Q) @ b) - eta * (np.linalg.slogdet(2*np.pi*Q)[1]) + (eta + omg) * (np.linalg.slogdet(2*np.pi*(eta + omg) * F)[1])
+        # REPS compendium
+        term1 = (f.T @ F @ f) - eta * (b.T @ np.linalg.inv(Q) @ b) - eta * (np.linalg.slogdet(((2*np.pi)**n)*Q)[1]) + (eta + omg) * (np.linalg.slogdet(((2*np.pi)**n)*(eta + omg) * F)[1]) + r_0
+        # original paper
+        # term1 = (f.T @ F @ f) - eta * (b.T @ np.linalg.inv(Q) @ b) - eta * (np.linalg.slogdet(((2*np.pi))*Q)[1]) + (eta + omg) * (np.linalg.slogdet(((2*np.pi))*(eta + omg) * F)[1])
 
-        return eta * eps - beta * omg + 0.5 * term1
+        return eta * eps - omg * kappa + 0.5 * term1
 
     @staticmethod
-    def closed_form_mu_t1_sig_t1(*args):
-        # sig, mu, R, r, eta, beta
-        Q, b, R, r, eta, omg = args
-
-        F, f = MORE.get_F_f(Q, b, R, r, eta)
-
+    def _closed_form_mu_t1_sig_t1(Q, b, R, r, eta, omg):
+        F, f = MORE._get_F_f(Q, b, R, r, eta)
         mu_t1 = F @ f
         sig_t1 = F * (eta + omg)
-
         return mu_t1, sig_t1
 
     @staticmethod
-    def get_F_f(*args):
-        Q, b, R, r, eta = args
+    def _get_F_f(Q, b, R, r, eta):
         F = np.linalg.inv(eta * np.linalg.inv(Q) - 2 * R)
         f = eta * np.linalg.inv(Q) @ b + r
-
         return F, f
     
     @staticmethod
-    def get_quadratic_model_from_regressor(regressor, theta):
+    def _get_quadratic_model_from_regressor(regressor, theta, features):
 
         # get parameter vector beta
         beta = regressor.get_weights()
@@ -146,7 +133,6 @@ class MORE(BlackBoxOptimization):
         # reconstruct components for quadratic surrogate model from beta
         r_0 = beta[0]
         r = beta[1:theta.shape[1]+1][:,np.newaxis]
-
         R = np.zeros((theta.shape[1],theta.shape[1]))
         beta_ctr = 1 + theta.shape[1]  
         for i in range(theta.shape[1]):
@@ -158,29 +144,33 @@ class MORE(BlackBoxOptimization):
                     R[j][i] = beta[beta_ctr]/2
                 beta_ctr += 1
 
-        # verification that components got reconstructed correctly 
+        # verification that components got reconstructed correctly
         # theta_pred = np.atleast_2d(theta[0])
         # quadratic_pred = theta_pred @ R @ theta_pred.T + theta_pred @ r + r_0
         # regressor_pred = regressor.predict(features)[0]
-        # print('equal?', quadratic_pred == regressor_pred, 'quadratic model', quadratic_pred, 'regressor', regressor_pred)
+        # tqdm.write(f'equal? {round(quadratic_pred[0][0],10) == round(regressor_pred[0],10)} quadratic model {quadratic_pred[0][0]} regressor {regressor_pred[0]}')
 
         return R, r, r_0
 
-
     # calculate entropy of policy
     @staticmethod
-    def closed_form_entropy(*args):
+    def _closed_form_entropy(sig, n):
         '''
         Taken from page 11 of REPS compendium
         '''
-        sig, n = args
-        logdet_sig, _ = np.linalg.slogdet(sig)
-        c = MORE.get_c(n)
+        _, logdet_sig= np.linalg.slogdet(sig)
+        c = MORE._get_c(n)
         return 0.5 * (logdet_sig + c + n)
     
     @staticmethod
-    def get_c(args):
-        n = args
+    def _closed_form_KL(mu_t, mu_t1, sig_t, sig_t1, n):
+        _, logdet_sig_t = np.linalg.slogdet(sig_t)
+        _, logdet_sig_t1 = np.linalg.slogdet(sig_t1)
+        sig_t1_inv = np.linalg.inv(sig_t1)
+        return 0.5*(np.trace(sig_t1_inv@sig_t) - n + logdet_sig_t1 - logdet_sig_t + (mu_t1 - mu_t).T @ sig_t1_inv @ (mu_t1 - mu_t))
+
+    @staticmethod
+    def _get_c(n):
         return n * np.log(2*np.pi)
 
 
