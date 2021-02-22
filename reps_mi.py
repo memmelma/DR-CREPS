@@ -82,8 +82,8 @@ class REPS_MI(BlackBoxOptimization):
         mu_new[top_k_mi] = mu_mi
         std_new[top_k_mi] = std_mi
 
-        KL_full = REPS_MI._closed_form_KL(mu, mu_new, np.diag(std), np.diag(std_new), len(mu))
-        KL_reduced = REPS_MI._closed_form_KL(mu[top_k_mi], mu_new[top_k_mi], np.diag(std[top_k_mi]), np.diag(std_new[top_k_mi]), len(top_k_mi))
+        # KL_full = REPS_MI._closed_form_KL(mu, mu_new, np.diag(std), np.diag(std_new), len(mu))
+        # KL_reduced = REPS_MI._closed_form_KL(mu[top_k_mi], mu_new[top_k_mi], np.diag(std[top_k_mi]), np.diag(std_new[top_k_mi]), len(top_k_mi))
         # print('Equal?', round(KL_full,6) == round(KL_reduced,6), '| KL_full', KL_full, '| KL_reduced', KL_reduced)
 
         rho = np.concatenate((mu_new,std_new))
