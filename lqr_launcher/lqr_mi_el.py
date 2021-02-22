@@ -17,7 +17,7 @@ from mushroom_rl.solvers.lqr import compute_lqr_feedback_gain
 
 # from constrained_REPS import constrained_REPS
 # from more import MORE
-# from reps_mi import REPS_MI
+from reps_mi import REPS_MI
 
 import matplotlib.pyplot as plt
 
@@ -25,10 +25,15 @@ import joblib
 from mushroom_rl.environments import Environment
 from mushroom_rl.algorithms.policy_search.black_box_optimization import BlackBoxOptimization
 
-def experiment(alg, lqr_dim, params, n_epochs, fit_per_epoch, ep_per_fit, seed=42, results_dir='results', quiet=True):
+def experiment(alg, lqr_dim, eps, k, n_epochs, fit_per_epoch, ep_per_fit, seed=42, results_dir='results', quiet=True):
 
     if alg == 'REPS':
         alg = REPS
+        params = {'eps': eps}
+    elif alg == 'REPS_MI':
+        alg = REPS_MI
+        params = {'eps': eps, 'k': k}
+
     mdp = LQR.generate(dimensions=lqr_dim, episodic=True)
 
     init_params = locals()
@@ -76,17 +81,23 @@ def experiment(alg, lqr_dim, params, n_epochs, fit_per_epoch, ep_per_fit, seed=4
     gain_lqr = compute_lqr_feedback_gain(mdp)
     gain_policy = policy.get_weights()
 
+    mi_avg = None
+    if alg.__name__ == 'REPS_MI':
+        mi_avg = agent.mi_avg
+
     dump_dict = dict({
         'returns_mean': returns_mean,
         'returns_std': returns_std,
         'agent': agent,
         'gain_lqr': gain_lqr,
         'gain_policy': gain_policy,
-        'init_params': init_params
+        'init_params': init_params,
+        'alg': alg,
+        'mi_avg': mi_avg
     })
 
     joblib.dump(dump_dict, os.path.join(results_dir, f'{alg.__name__}_{seed}'))
-
+    
     filename = os.path.join(results_dir, f'log_{alg.__name__}_{seed}.txt')
     os.makedirs(results_dir, exist_ok=True)
     with open(filename, 'w') as file:
@@ -96,12 +107,13 @@ def experiment(alg, lqr_dim, params, n_epochs, fit_per_epoch, ep_per_fit, seed=4
 
 def default_params():
     defaults = dict(
-        alg = 'REPS', 
+        alg = 'REPS_MI', 
         lqr_dim = 3, 
-        params = {'eps': 0.1}, 
-        n_epochs = 100, 
-        fit_per_epoch = 100, 
-        ep_per_fit = 1, 
+        eps = 0.1,
+        k = 3,
+        n_epochs = 10, 
+        fit_per_epoch = 1, 
+        ep_per_fit = 10, 
         seed = 42, 
         results_dir = 'results', 
         quiet = True
@@ -125,13 +137,14 @@ def parse_args():
     # arg_default.add_argument('--results-dir', type=str)
 
     parser.add_argument('--alg', type=str)
-    parser.add_argument('--mdp', type=int)
-    parser.add_argument('--params', type=dict)
-    parser.add_argument('--n_epochs', type=int)
-    parser.add_argument('--fit_per_epoch', type=int)
-    parser.add_argument('--ep_per_fit', type=int)
+    parser.add_argument('--lqr-dim', type=int)
+    parser.add_argument('--eps', type=float)
+    parser.add_argument('--k', type=int)
+    parser.add_argument('--n-epochs', type=int)
+    parser.add_argument('--fit-per-epoch', type=int)
+    parser.add_argument('--ep-per-fit', type=int)
     parser.add_argument('--seed', type=int)
-    parser.add_argument('--results_dir', type=str)
+    parser.add_argument('--results-dir', type=str)
     parser.add_argument('--quiet', type=bool)
 
     parser.set_defaults(**default_params())
