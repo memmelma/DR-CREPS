@@ -15,7 +15,7 @@ class REPS_MI(BlackBoxOptimization):
     Peters J.. 2013.
 
     """
-    def __init__(self, mdp_info, distribution, policy, eps, k, lr=1, features=None):
+    def __init__(self, mdp_info, distribution, policy, eps, k, features=None):
         """
         Constructor.
 
@@ -29,9 +29,7 @@ class REPS_MI(BlackBoxOptimization):
         self.k = k
 
         self.mis = []
-
         self.mi_avg = np.zeros(len(distribution._mu))
-        self.lr = lr
         self.alpha = ExponentialParameter(1, exp=0.5)
 
         self._add_save_attr(eps='primitive')
@@ -41,17 +39,15 @@ class REPS_MI(BlackBoxOptimization):
     def _update(self, Jep, theta):
         
         mi = mutual_info_regression(theta, Jep)
-        self.mi_avg = self.mi_avg + self.lr * self.alpha() * ( mi - self.mi_avg )
+        self.mi_avg = self.mi_avg + self.alpha() * ( mi - self.mi_avg )
         self.mis += [self.mi_avg]
       
         # print('\nMI for theta Jep: ',mi)
         # print('\nMI_avg for theta Jep: ',self.mi_avg)
         
-        # top_k_mi = self.mi_avg > (np.sum(self.mi_avg)/len(self.mi_avg))
-        
         top_k_mi = self.mi_avg.argsort()[-self.k:][::-1]
-        # top_k_mi = self.mi_avg.argsort()[-int(theta.shape[1] * 0.3):][::-1]
         theta_mi = theta[:,top_k_mi]
+        
         eta_start = np.ones(1)
         # exit(42)
         res = minimize(REPS_MI._dual_function, eta_start,
