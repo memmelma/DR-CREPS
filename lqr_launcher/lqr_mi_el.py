@@ -25,7 +25,7 @@ import joblib
 from mushroom_rl.environments import Environment
 from mushroom_rl.algorithms.policy_search.black_box_optimization import BlackBoxOptimization
 
-def experiment(alg, lqr_dim, eps, k, n_epochs, fit_per_epoch, ep_per_fit, seed=42, results_dir='results', quiet=True):
+def experiment(alg, lqr_dim, eps, k, n_epochs, fit_per_epoch, ep_per_fit, env_seed=42, seed=42, results_dir='results', quiet=True):
 
     if alg == 'REPS':
         alg = REPS
@@ -35,6 +35,22 @@ def experiment(alg, lqr_dim, eps, k, n_epochs, fit_per_epoch, ep_per_fit, seed=4
         params = {'eps': eps, 'k': k}
 
     mdp = LQR.generate(dimensions=lqr_dim, episodic=True)
+
+    if env_seed >= 0:
+
+        np.random.seed(env_seed)
+
+        rng = default_rng()
+        ineff_params = rng.choice(lqr_dim, size=round(lqr_dim / 2), replace=False)
+
+        for p in ineff_params:
+            mdp.Q[p][p] = 1e-5
+            mdp.R[p][p] = 1e-5
+            mdp.B[p][p] = 1e-5
+
+        print('ineff_params', ineff_params)
+        
+        np.random.seed(seed)
 
     init_params = locals()
     
@@ -75,15 +91,26 @@ def experiment(alg, lqr_dim, eps, k, n_epochs, fit_per_epoch, ep_per_fit, seed=4
         returns_mean += [np.mean(J)]
         returns_std += [np.std(J)]
     
-    returns_mean = np.array(returns_mean)
-    returns_std = np.array(returns_std)
+    # returns_mean = np.array(returns_mean)
+    # returns_std = np.array(returns_std)
     
+    # if not reduced:
+    #     gain_lqr = compute_lqr_feedback_gain(mdp)
+    # else:
+    #     gain_lqr = None
+
     gain_lqr = compute_lqr_feedback_gain(mdp)
+    state = mdp.reset()
+    action = gain_lqr @ state
+    state, optimal_reward, _, __ = mdp.step(action)
+
     gain_policy = policy.get_weights()
 
     mi_avg = None
     if alg.__name__ == 'REPS_MI':
         mi_avg = agent.mi_avg
+
+    best_reward = np.array(returns_mean).max()
 
     dump_dict = dict({
         'returns_mean': returns_mean,
@@ -91,6 +118,8 @@ def experiment(alg, lqr_dim, eps, k, n_epochs, fit_per_epoch, ep_per_fit, seed=4
         'agent': agent,
         'gain_lqr': gain_lqr,
         'gain_policy': gain_policy,
+        'optimal_reward': optimal_reward,
+        'best_reward': best_reward,
         'init_params': init_params,
         'alg': alg,
         'mi_avg': mi_avg
@@ -115,7 +144,8 @@ def default_params():
         fit_per_epoch = 1, 
         ep_per_fit = 10, 
         seed = 42, 
-        results_dir = 'results', 
+        results_dir = 'results',
+        reduced = [],
         quiet = True
     )
 
@@ -145,6 +175,7 @@ def parse_args():
     parser.add_argument('--ep-per-fit', type=int)
     parser.add_argument('--seed', type=int)
     parser.add_argument('--results-dir', type=str)
+    parser.add_argument('--reduced', type=list)
     parser.add_argument('--quiet', type=bool)
 
     parser.set_defaults(**default_params())

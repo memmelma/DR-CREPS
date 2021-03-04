@@ -48,10 +48,12 @@ class REPS_MI(BlackBoxOptimization):
         # print('\nMI_avg for theta Jep: ',self.mi_avg)
         
         # top_k_mi = self.mi_avg > (np.sum(self.mi_avg)/len(self.mi_avg))
+        
         top_k_mi = self.mi_avg.argsort()[-self.k:][::-1]
+        # top_k_mi = self.mi_avg.argsort()[-int(theta.shape[1] * 0.3):][::-1]
         theta_mi = theta[:,top_k_mi]
         eta_start = np.ones(1)
-
+        # exit(42)
         res = minimize(REPS_MI._dual_function, eta_start,
                        jac=REPS_MI._dual_function_diff,
                        bounds=((np.finfo(np.float32).eps, np.inf),),
