@@ -2,6 +2,8 @@ import os
 import argparse
 
 import numpy as np
+from numpy.random import default_rng
+
 from tqdm import tqdm
 
 from mushroom_rl.approximators.parametric import LinearApproximator
@@ -26,6 +28,8 @@ from mushroom_rl.environments import Environment
 from mushroom_rl.algorithms.policy_search.black_box_optimization import BlackBoxOptimization
 
 def experiment(alg, lqr_dim, eps, k, n_epochs, fit_per_epoch, ep_per_fit, env_seed=42, seed=42, results_dir='results', quiet=True):
+    
+    np.random.seed(seed)
 
     if alg == 'REPS':
         alg = REPS
@@ -37,10 +41,7 @@ def experiment(alg, lqr_dim, eps, k, n_epochs, fit_per_epoch, ep_per_fit, env_se
     mdp = LQR.generate(dimensions=lqr_dim, episodic=True)
 
     if env_seed >= 0:
-
-        np.random.seed(env_seed)
-
-        rng = default_rng()
+        rng = default_rng(seed=env_seed)
         ineff_params = rng.choice(lqr_dim, size=round(lqr_dim / 2), replace=False)
 
         for p in ineff_params:
@@ -49,8 +50,6 @@ def experiment(alg, lqr_dim, eps, k, n_epochs, fit_per_epoch, ep_per_fit, env_se
             mdp.B[p][p] = 1e-5
 
         print('ineff_params', ineff_params)
-        
-        np.random.seed(seed)
 
     init_params = locals()
     
@@ -143,9 +142,9 @@ def default_params():
         n_epochs = 10, 
         fit_per_epoch = 1, 
         ep_per_fit = 10, 
-        seed = 42, 
+        seed = 42,
+        env_seed = 42,
         results_dir = 'results',
-        reduced = [],
         quiet = True
     )
 
@@ -174,8 +173,8 @@ def parse_args():
     parser.add_argument('--fit-per-epoch', type=int)
     parser.add_argument('--ep-per-fit', type=int)
     parser.add_argument('--seed', type=int)
+    parser.add_argument('--env-seed', type=int)
     parser.add_argument('--results-dir', type=str)
-    parser.add_argument('--reduced', type=list)
     parser.add_argument('--quiet', type=bool)
 
     parser.set_defaults(**default_params())
