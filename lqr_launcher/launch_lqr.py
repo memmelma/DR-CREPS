@@ -5,13 +5,13 @@ from mushroom_rl.algorithms.policy_search.black_box_optimization.reps import REP
 
 if __name__ == '__main__':
 
-    local = False
+    local = True
     test = False
 
-    launcher = Launcher(exp_name='lqr_7d_reduced_test',
+    launcher = Launcher(exp_name='lqr_7d_reduced',
                         python_file='lqr_mi_el',
                         n_exp=1,
-                        memory=5000,
+                        memory=6000,
                         days=0,
                         hours=5,
                         minutes=0,
@@ -20,10 +20,11 @@ if __name__ == '__main__':
                         use_timestamp=True)
     
     lqr_dim = 7
-    
+    # kappa=3.5, 
     launcher.add_default_params(eps=0.2, k=lqr_dim, lqr_dim=lqr_dim, n_epochs=500, fit_per_epoch=10, ep_per_fit=100, env_seed=0)
 
     launcher.add_experiment(alg='REPS')
     launcher.add_experiment(alg='REPS_MI')
+    launcher.add_experiment(alg='REPS_MI_CON')
 
     launcher.run(local, test)

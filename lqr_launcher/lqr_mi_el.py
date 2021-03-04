@@ -20,6 +20,7 @@ from mushroom_rl.solvers.lqr import compute_lqr_feedback_gain
 # from constrained_REPS import constrained_REPS
 # from more import MORE
 from reps_mi import REPS_MI
+from reps_mi_con import REPS_MI_CON
 
 import matplotlib.pyplot as plt
 
@@ -27,7 +28,7 @@ import joblib
 from mushroom_rl.environments import Environment
 from mushroom_rl.algorithms.policy_search.black_box_optimization import BlackBoxOptimization
 
-def experiment(alg, lqr_dim, eps, k, n_epochs, fit_per_epoch, ep_per_fit, env_seed=42, seed=42, results_dir='results', quiet=True):
+def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit, env_seed=42, seed=42, results_dir='results', quiet=True):
     
     np.random.seed(seed)
 
@@ -37,8 +38,11 @@ def experiment(alg, lqr_dim, eps, k, n_epochs, fit_per_epoch, ep_per_fit, env_se
     elif alg == 'REPS_MI':
         alg = REPS_MI
         params = {'eps': eps, 'k': k}
+    elif alg == 'REPS_MI_CON':
+        alg = REPS_MI_CON
+        params = {'eps': eps, 'k': k, 'kappa': kappa}
 
-    mdp = LQR.generate(dimensions=lqr_dim, episodic=True)
+    mdp = LQR.generate(dimensions=lqr_dim, episodic=True, max_pos=1., max_action=1.)
 
     if env_seed >= 0:
         rng = default_rng(seed=env_seed)
@@ -135,15 +139,16 @@ def experiment(alg, lqr_dim, eps, k, n_epochs, fit_per_epoch, ep_per_fit, env_se
 
 def default_params():
     defaults = dict(
-        alg = 'REPS_MI', 
-        lqr_dim = 3, 
-        eps = 0.1,
-        k = 3,
+        alg = 'REPS_MI_CON', 
+        lqr_dim = 2, 
+        eps = 0.2,
+        k = 1,
+        kappa = 3.5,
         n_epochs = 10, 
         fit_per_epoch = 1, 
-        ep_per_fit = 10, 
+        ep_per_fit = 100, 
         seed = 42,
-        env_seed = 42,
+        env_seed = -1,
         results_dir = 'results',
         quiet = True
     )
@@ -169,6 +174,7 @@ def parse_args():
     parser.add_argument('--lqr-dim', type=int)
     parser.add_argument('--eps', type=float)
     parser.add_argument('--k', type=int)
+    parser.add_argument('--kappa', type=float)
     parser.add_argument('--n-epochs', type=int)
     parser.add_argument('--fit-per-epoch', type=int)
     parser.add_argument('--ep-per-fit', type=int)
