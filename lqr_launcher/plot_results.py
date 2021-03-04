@@ -33,7 +33,10 @@ def load_data_from_dir(data_dir):
                 
                 if file[-4:] != '.txt':
                     data = joblib.load(os.path.join(run, subdir, file))
-                    # dict_keys(['returns_mean', 'returns_std', 'agent', 'gain_lqr', 'gain_policy', 'init_params'])
+
+                    # dict_keys(['returns_mean', 'returns_std', 'agent', 'gain_lqr', 'gain_policy', 'optimal_reward', 'best_reward', init_params', 'alg', 'mi_avg'])
+                    
+                    print(f"{data['alg'].__name__} - optimal: {data['optimal_reward']} - best: {data['best_reward']})")
                     
                     if returns_mean is None:
                         returns_mean =[data['returns_mean']]
@@ -100,7 +103,7 @@ def plot_data_tmp(returns_mean_all, returns_std_all, legend, exp_name, config):
     fig, ax = plt.subplots()
     
     for i in range(len(returns_mean_all)):
-
+        
         y = np.array(returns_mean_all[i]).mean(axis=0)
         # print(y.shape)
         x = np.arange(0, y.shape[0], 1)
@@ -132,15 +135,17 @@ def plot_mi(avg_mi_all, mi_idx, exp_name, config):
         ax.fill_between(x, (y-ci)[:,i], (y+ci)[:,i], alpha=.3)
 
     plt.title(f'MI samples {config["ep_per_fit"]} w/ {legend[mi_idx]}')
-    plt.legend(list(range(y.shape[1])))
+    # plt.legend(list(range(y.shape[1])))
     plt.savefig(f'imgs/samples_{config["ep_per_fit"]}_mi_dim_{config["lqr_dim"]}_{exp_name}.png')
 
 if __name__ == '__main__':
 
-    exp_name = 'lqr_launcher_mi_7d_500e'
+    # exp_name = 'lqr_launcher_7d_reduced_k'
+    exp_name = 'lqr_7d_reduced_25'
     data_dir = os.path.join('logs', exp_name)
 
     returns_mean_all, returns_std_all, gain_lqr_all, gain_policy_all, mi_avg_all, legend, init_params= load_data_from_dir(data_dir)
    
+    # plot_data(returns_mean_all, returns_std_all, legend, exp_name, init_params)
     plot_data_tmp(returns_mean_all, returns_std_all, legend, exp_name, init_params)
     plot_mi(mi_avg_all, 1, exp_name, init_params)

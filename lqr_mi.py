@@ -97,7 +97,7 @@ if __name__ == '__main__':
     # algs = [REPS, REPS_MI]
     # params = [{'eps': 0.5}, {'eps': 0.5, 'k': 2}]
 
-    dim = 1
+    dim = 6
 
     # algs = [REPS_MI, REPS]
     # params = [{'eps': 0.5, 'k': 2}, {'eps': 0.5}]
@@ -120,7 +120,7 @@ if __name__ == '__main__':
         return_std_algo = []
         mis_algo = []
 
-        for _ in range(5):
+        for _ in range(25):
 
             # MDP
             mdp = LQR.generate(dimensions=dim, episodic=True)#, max_pos=1., max_action=1.)
@@ -145,6 +145,16 @@ if __name__ == '__main__':
             #     mdp.Q[3][3] = 0
             #     mdp.R[3][3] = 0
             #     mdp.B[3][3] = 0
+
+            # from numpy.random import default_rng
+
+            # rng = default_rng()
+            # ineff_params = rng.choice(dim, size=round(dim / 2), replace=False)
+
+            # for p in ineff_params:
+            #     mdp.Q[p][p] = 0
+            #     mdp.R[p][p] = 0
+            #     mdp.B[p][p] = 0
 
             print('Q', mdp.Q)
             print('R', mdp.R)
