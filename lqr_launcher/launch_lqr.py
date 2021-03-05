@@ -2,7 +2,7 @@ from itertools import product
 from experiment_launcher import Launcher
 from mushroom_rl.environments import LQR
 from mushroom_rl.algorithms.policy_search.black_box_optimization.reps import REPS
-
+from constrained_REPS import REPS_CON
 if __name__ == '__main__':
 
     local = False
