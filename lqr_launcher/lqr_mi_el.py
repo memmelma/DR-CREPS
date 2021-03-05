@@ -42,7 +42,7 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
         alg = REPS_MI_CON
         params = {'eps': eps, 'k': k, 'kappa': kappa}
 
-    mdp = LQR.generate(dimensions=lqr_dim, episodic=True, max_pos=1., max_action=1.)
+    mdp = LQR.generate(dimensions=lqr_dim, episodic=True)#, max_pos=1., max_action=1.)
 
     if env_seed >= 0:
         rng = default_rng(seed=env_seed)
@@ -110,7 +110,7 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
     gain_policy = policy.get_weights()
 
     mi_avg = None
-    if alg.__name__ == 'REPS_MI':
+    if alg.__name__ == 'REPS_MI' or alg.__name__ == 'REPS_MI_CON':
         mi_avg = agent.mi_avg
 
     best_reward = np.array(returns_mean).max()
@@ -125,7 +125,8 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
         'best_reward': best_reward,
         'init_params': init_params,
         'alg': alg,
-        'mi_avg': mi_avg
+        'mi_avg': mi_avg,
+        'ineff_params': ineff_params
     })
 
     joblib.dump(dump_dict, os.path.join(results_dir, f'{alg.__name__}_{seed}'))
