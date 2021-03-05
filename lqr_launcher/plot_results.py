@@ -14,7 +14,9 @@ def load_data_from_dir(data_dir):
     gain_policy_all = []
     mi_avg_all = []
     legend = []
-    
+    optimal_reward_all = []
+    best_reward_all = []
+
     subdirs = os.listdir(run)
     for subdir in subdirs:
         if subdir[-4:] != '.txt' and subdir[-3:] != '.sh':
@@ -26,6 +28,8 @@ def load_data_from_dir(data_dir):
             gain_policy = None
             init_params = None
             mi_avg = None
+            optimal_reward = None
+            best_reward = None
 
             file_count = 0
             print(os.path.join(run, subdir))
@@ -36,17 +40,20 @@ def load_data_from_dir(data_dir):
 
                     # dict_keys(['returns_mean', 'returns_std', 'agent', 'gain_lqr', 'gain_policy', 'optimal_reward', 'best_reward', init_params', 'alg', 'mi_avg'])
                     
-                    print(f"{data['alg'].__name__} - optimal: {data['optimal_reward']} - best: {data['best_reward']})")
-                    
+                    # print(f"{data['alg'].__name__} - optimal: {data['optimal_reward']} - best: {data['best_reward']})")
+
                     if returns_mean is None:
+                        print(data['alg'].__name__, data.keys())
                         returns_mean =[data['returns_mean']]
                         returns_std = [data['returns_std']]
                         gain_lqr = [data['gain_lqr']]
                         gain_policy = [data['gain_policy']]
+                        optimal_reward = [data['optimal_reward']]
+                        best_reward = [data['best_reward']]
 
                         init_params = data['init_params']
                         
-                        if data['alg'].__name__ == 'REPS_MI':
+                        if data['alg'].__name__ == 'REPS_MI' or data['alg'].__name__ == 'REPS_MI_CON':
                             mi_avg = [data['mi_avg']]
 
                     else:
@@ -55,8 +62,11 @@ def load_data_from_dir(data_dir):
 
                         gain_lqr += [data['gain_lqr']]
                         gain_policy += [data['gain_policy']]
+                        
+                        optimal_reward += [data['optimal_reward']]
+                        best_reward += [data['best_reward']]
 
-                        if data['alg'].__name__ == 'REPS_MI':
+                        if data['alg'].__name__ == 'REPS_MI' or data['alg'].__name__ == 'REPS_MI_CON':
                             mi_avg += [data['mi_avg']]
                     file_count += 1
             
@@ -72,8 +82,10 @@ def load_data_from_dir(data_dir):
             gain_lqr_all += [gain_lqr]
             gain_policy_all += [gain_policy]
             mi_avg_all += [mi_avg]
+            optimal_reward_all += [optimal_reward]
+            best_reward_all += [best_reward]
 
-    return returns_mean_all, returns_std_all, gain_lqr_all, gain_policy_all, mi_avg_all, legend, init_params
+    return returns_mean_all, returns_std_all, optimal_reward_all, best_reward_all, mi_avg_all, legend, init_params
 
 def plot_data(returns_mean_all, returns_std_all, legend, exp_name, config):
 
@@ -90,13 +102,13 @@ def plot_data(returns_mean_all, returns_std_all, legend, exp_name, config):
     for i in range(y.shape[0]):
         ax.plot(x,y[i])
         ax.fill_between(x, (y-ci)[i], (y+ci)[i], alpha=.3)
-
+    
     plt.title(f'samples {config["ep_per_fit"]} w/ {legend}')
     # plt.legend([alg.__name__ for alg in algs])
     plt.legend(legend)
     plt.savefig(f'imgs/samples_{config["ep_per_fit"]}_dim_{config["lqr_dim"]}_{exp_name}.png')
 
-def plot_data_tmp(returns_mean_all, returns_std_all, legend, exp_name, config):
+def plot_data_tmp(returns_mean_all, returns_std_all, optimal_reward_all, legend, exp_name, config):
 
     os.makedirs('imgs', exist_ok=True)
 
@@ -113,10 +125,12 @@ def plot_data_tmp(returns_mean_all, returns_std_all, legend, exp_name, config):
         ax.plot(x,y)
         ax.fill_between(x, (y-ci), (y+ci), alpha=.3)
 
+    plt.hlines(np.array(optimal_reward_all[0]).mean(), 0, len(x), 'red')
+
     plt.title(f'samples {config["ep_per_fit"]} w/ {legend}')
     # plt.legend([alg.__name__ for alg in algs])
     plt.legend(legend)
-    plt.savefig(f'imgs/samples_{config["ep_per_fit"]}_dim_{config["lqr_dim"]}_{exp_name}.png')
+    plt.savefig(f'imgs/{exp_name}.png')
 
 def plot_mi(avg_mi_all, mi_idx, exp_name, config):
 
@@ -127,6 +141,7 @@ def plot_mi(avg_mi_all, mi_idx, exp_name, config):
     fig, ax = plt.subplots()
 
     y = np.array(avg_mi_all)#.mean(axis=0)
+    print(y.shape)
     x = np.arange(0, y.shape[0], 1)
     ci = np.array(avg_mi_all).std(axis=0)
 
@@ -136,16 +151,19 @@ def plot_mi(avg_mi_all, mi_idx, exp_name, config):
 
     plt.title(f'MI samples {config["ep_per_fit"]} w/ {legend[mi_idx]}')
     # plt.legend(list(range(y.shape[1])))
-    plt.savefig(f'imgs/samples_{config["ep_per_fit"]}_mi_dim_{config["lqr_dim"]}_{exp_name}.png')
+    plt.savefig(f'imgs/{exp_name}_mi.png')
 
 if __name__ == '__main__':
 
     # exp_name = 'lqr_launcher_7d_reduced_k'
-    exp_name = 'lqr_7d_reduced_25'
+    exp_name = 'lqr_7_env_0_CON_test'
     data_dir = os.path.join('logs', exp_name)
 
-    returns_mean_all, returns_std_all, gain_lqr_all, gain_policy_all, mi_avg_all, legend, init_params= load_data_from_dir(data_dir)
-   
+    returns_mean_all, returns_std_all, optimal_reward_all, best_reward_all, mi_avg_all, legend, init_params= load_data_from_dir(data_dir)
+    
+    print('alg', legend)
+    print('best_reward', np.array(best_reward_all).mean(axis=1))
+    print('optimal_reward', np.array(optimal_reward_all).mean(axis=1))
     # plot_data(returns_mean_all, returns_std_all, legend, exp_name, init_params)
-    plot_data_tmp(returns_mean_all, returns_std_all, legend, exp_name, init_params)
+    plot_data_tmp(returns_mean_all, returns_std_all, optimal_reward_all, legend, exp_name, init_params)
     plot_mi(mi_avg_all, 1, exp_name, init_params)
