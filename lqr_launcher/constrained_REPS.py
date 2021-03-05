@@ -41,20 +41,20 @@ class REPS_CON(BlackBoxOptimization):
         
         # Cholesky
         # get distribution parameters mu and sigma
-        n = len(self.distribution._mu)
-        dist_params = self.distribution.get_parameters()
-        mu_t = dist_params[:n]
-        chol_sig_empty = np.zeros((n,n))
-        chol_sig_empty[np.tril_indices(n)] = dist_params[n:]
-        sig_t = np.atleast_2d(chol_sig_empty.dot(chol_sig_empty.T))
-
-        # Diag
         # n = len(self.distribution._mu)
         # dist_params = self.distribution.get_parameters()
         # mu_t = dist_params[:n]
-        # diag_sig_empty = np.zeros((n,n))
-        # diag_sig_empty[np.diag_indices(n)] = dist_params[n:]
-        # sig_t = np.atleast_2d(diag_sig_empty)
+        # chol_sig_empty = np.zeros((n,n))
+        # chol_sig_empty[np.tril_indices(n)] = dist_params[n:]
+        # sig_t = np.atleast_2d(chol_sig_empty.dot(chol_sig_empty.T))
+
+        # Diag
+        n = len(self.distribution._mu)
+        dist_params = self.distribution.get_parameters()
+        mu_t = dist_params[:n]
+        diag_sig_empty = np.zeros((n,n))
+        diag_sig_empty[np.diag_indices(n)] = dist_params[n:]
+        sig_t = np.atleast_2d(diag_sig_empty)
 
         # Gaussian w/ fixed cov
         # n = len(self.distribution._mu)
@@ -103,9 +103,9 @@ class REPS_CON(BlackBoxOptimization):
             print('KL constraint violated', 'kl', kl, 'eps', self.eps)
         
         # Cholesky
-        dist_params = np.concatenate((mu_t1.flatten(), np.linalg.cholesky(sig_t1)[np.tril_indices(n)].flatten()))
+        # dist_params = np.concatenate((mu_t1.flatten(), np.linalg.cholesky(sig_t1)[np.tril_indices(n)].flatten()))
         # Diag
-        # dist_params = np.concatenate((mu_t1.flatten(), np.diag(sig_t1).flatten()))
+        dist_params = np.concatenate((mu_t1.flatten(), np.diag(sig_t1).flatten()))
         # Gaussian w/ fixed cov
         # dist_params = mu_t1.flatten()
         self.distribution.set_parameters(dist_params)
