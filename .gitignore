@@ -135,3 +135,6 @@ dmypy.json
 
 experiment_launcher/
 lqr_launcher/logs/
+lqr_launcher/imgs/
+lqr_launcher/logs_dep/
+lqr_launcher/imgs_dep/
