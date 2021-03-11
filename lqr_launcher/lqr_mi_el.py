@@ -21,6 +21,7 @@ from mushroom_rl.solvers.lqr import compute_lqr_feedback_gain
 # from more import MORE
 from reps_mi import REPS_MI
 from reps_mi_con import REPS_MI_CON
+from constrained_REPS import REPS_CON
 
 import matplotlib.pyplot as plt
 
@@ -28,33 +29,44 @@ import joblib
 from mushroom_rl.environments import Environment
 from mushroom_rl.algorithms.policy_search.black_box_optimization import BlackBoxOptimization
 
-def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit, env_seed=42, seed=42, results_dir='results', quiet=True):
+def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit, sigma_init=1e-3, env_seed=42, seed=42, results_dir='results', quiet=True):
     
     np.random.seed(seed)
 
+    print(alg)
+    
     if alg == 'REPS':
         alg = REPS
         params = {'eps': eps}
+        mdp = LQR.generate(dimensions=lqr_dim, episodic=True)#, max_pos=1., max_action=1.)
     elif alg == 'REPS_MI':
         alg = REPS_MI
         params = {'eps': eps, 'k': k}
+        mdp = LQR.generate(dimensions=lqr_dim, episodic=True)#, max_pos=1., max_action=1.)
+    elif alg == 'REPS_CON':
+        alg = REPS_CON
+        params = {'eps': eps, 'kappa': kappa}
+        mdp = LQR.generate(dimensions=lqr_dim, episodic=True, max_pos=1., max_action=1.)
     elif alg == 'REPS_MI_CON':
         alg = REPS_MI_CON
         params = {'eps': eps, 'k': k, 'kappa': kappa}
-
-    mdp = LQR.generate(dimensions=lqr_dim, episodic=True)#, max_pos=1., max_action=1.)
+        mdp = LQR.generate(dimensions=lqr_dim, episodic=True, max_pos=1., max_action=1.)
+    
+    print(alg, params)
 
     if env_seed >= 0:
         rng = default_rng(seed=env_seed)
         ineff_params = rng.choice(lqr_dim, size=round(lqr_dim / 2), replace=False)
 
         for p in ineff_params:
-            mdp.Q[p][p] = 1e-5
-            mdp.R[p][p] = 1e-5
-            mdp.B[p][p] = 1e-5
+            mdp.Q[p][p] = 1e-8
+            mdp.R[p][p] = 1e-8
+            mdp.B[p][p] = 1e-8
 
         print('ineff_params', ineff_params)
-
+    else:
+        ineff_params = []
+        
     init_params = locals()
     
     os.makedirs(results_dir, exist_ok=True)
@@ -66,7 +78,7 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
     policy = DeterministicPolicy(mu=approximator)
 
     mu = np.zeros(policy.weights_size)
-    sigma = 1e-3 * np.ones(policy.weights_size)
+    sigma = sigma_init * np.ones(policy.weights_size)
     distribution = GaussianDiagonalDistribution(mu, sigma)
 
     # Agent
@@ -92,6 +104,8 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
         # print('J at iteration ' + str(i) + ': ' + str(round(np.mean(J),4)))
         
         returns_mean += [np.mean(J)]
+        print(np.mean(J))
+
         returns_std += [np.std(J)]
     
     # returns_mean = np.array(returns_mean)
@@ -111,7 +125,7 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
 
     mi_avg = None
     if alg.__name__ == 'REPS_MI' or alg.__name__ == 'REPS_MI_CON':
-        mi_avg = agent.mi_avg
+        mi_avg = agent.mis
 
     best_reward = np.array(returns_mean).max()
 
@@ -147,7 +161,8 @@ def default_params():
         kappa = 3.5,
         n_epochs = 10, 
         fit_per_epoch = 1, 
-        ep_per_fit = 100, 
+        ep_per_fit = 100,
+        sigma_init=1e-3,
         seed = 42,
         env_seed = -1,
         results_dir = 'results',
@@ -181,6 +196,7 @@ def parse_args():
     parser.add_argument('--ep-per-fit', type=int)
     parser.add_argument('--seed', type=int)
     parser.add_argument('--env-seed', type=int)
+    parser.add_argument('--sigma-init', type=float)
     parser.add_argument('--results-dir', type=str)
     parser.add_argument('--quiet', type=bool)
 

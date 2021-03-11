@@ -44,6 +44,7 @@ def load_data_from_dir(data_dir):
 
                     if returns_mean is None:
                         print(data['alg'].__name__, data.keys())
+                        print(data['ineff_params'])
                         returns_mean =[data['returns_mean']]
                         returns_std = [data['returns_std']]
                         gain_lqr = [data['gain_lqr']]
@@ -87,67 +88,84 @@ def load_data_from_dir(data_dir):
 
     return returns_mean_all, returns_std_all, optimal_reward_all, best_reward_all, mi_avg_all, legend, init_params
 
-def plot_data(returns_mean_all, returns_std_all, legend, exp_name, config):
+# def plot_data(returns_mean_all, returns_std_all, legend, exp_name, config):
 
-    os.makedirs('imgs', exist_ok=True)
+#     os.makedirs('imgs', exist_ok=True)
 
-    fig, ax = plt.subplots()
+#     fig, ax = plt.subplots()
 
-    y = np.array(returns_mean_all).mean(axis=1)
-    # print(y.shape)
-    x = np.arange(0, y.shape[1], 1)
-    ci = np.array(returns_mean_all).std(axis=1)
-    # np.array(returns_std_all)
+#     y = np.array(returns_mean_all).mean(axis=1)
+#     # print(y.shape)
+#     x = np.arange(0, y.shape[1], 1)
+#     ci = np.array(returns_mean_all).std(axis=1)
+#     # np.array(returns_std_all)
 
-    for i in range(y.shape[0]):
-        ax.plot(x,y[i])
-        ax.fill_between(x, (y-ci)[i], (y+ci)[i], alpha=.3)
+#     for i in range(y.shape[0]):
+#         ax.plot(x,y[i])
+#         ax.fill_between(x, (y-ci)[i], (y+ci)[i], alpha=.3)
     
-    plt.title(f'samples {config["ep_per_fit"]} w/ {legend}')
-    # plt.legend([alg.__name__ for alg in algs])
-    plt.legend(legend)
-    plt.savefig(f'imgs/samples_{config["ep_per_fit"]}_dim_{config["lqr_dim"]}_{exp_name}.png')
+#     plt.title(f'samples {config["ep_per_fit"]} w/ {legend}')
+#     # plt.legend([alg.__name__ for alg in algs])
+#     plt.legend(legend)
+#     plt.savefig(f'imgs/samples_{config["ep_per_fit"]}_dim_{config["lqr_dim"]}_{exp_name}.png')
 
-def plot_data_tmp(returns_mean_all, returns_std_all, optimal_reward_all, legend, exp_name, config):
+def plot_data(returns_mean_all, returns_std_all, optimal_reward_all, legend, exp_name, config):
 
     os.makedirs('imgs', exist_ok=True)
 
     fig, ax = plt.subplots()
     
     for i in range(len(returns_mean_all)):
-        
         y = np.array(returns_mean_all[i]).mean(axis=0)
+
         # print(y.shape)
         x = np.arange(0, y.shape[0], 1)
         ci = np.array(returns_mean_all[i]).std(axis=0)
-        # np.array(returns_std_all)
 
-        ax.plot(x,y)
+        # print(np.array(returns_mean_all[i])[:,0])
+        # print(np.array(returns_mean_all[i])[:,0].shape)
+        # print(np.array(returns_mean_all[i])[:,0].mean(), np.array(returns_mean_all[i])[:,0].std())
+
+        ax.plot(x,y, label=legend[i])
         ax.fill_between(x, (y-ci), (y+ci), alpha=.3)
+        # ax.errorbar(x, y, yerr=ci, errorevery=10)
 
-    plt.hlines(np.array(optimal_reward_all[0]).mean(), 0, len(x), 'red')
+    ax.set_ylim(-500,0)
+    # ax.set_xlim(0,50)
+    
+    ax.set_xlabel('epochs')
+    ax.set_ylabel('total return')
+    
+    plt.hlines(np.array(optimal_reward_all[0]).mean(), 0, len(x), 'red', label='optimal control')
+
+    plt.legend()
+    plt.savefig(f'imgs/{exp_name}.pdf')
 
     plt.title(f'samples {config["ep_per_fit"]} w/ {legend}')
-    # plt.legend([alg.__name__ for alg in algs])
-    plt.legend(legend)
     plt.savefig(f'imgs/{exp_name}.png')
 
 def plot_mi(avg_mi_all, mi_idx, exp_name, config):
 
-    avg_mi_all = avg_mi_all[mi_idx]
-
+    avg_mi_all = np.array(avg_mi_all[mi_idx])
     os.makedirs('imgs', exist_ok=True)
     
     fig, ax = plt.subplots()
 
-    y = np.array(avg_mi_all)#.mean(axis=0)
-    print(y.shape)
-    x = np.arange(0, y.shape[0], 1)
-    ci = np.array(avg_mi_all).std(axis=0)
+    y = avg_mi_all.mean(axis=0)
+    # y = np.array(avg_mi_all).mean(axis=0)
+
+    x = np.arange(0, y.shape[0], 1)/config['fit_per_epoch']
+    # ci = np.array(avg_mi_all).std(axis=0)
+    ci = avg_mi_all.std(axis=0)
 
     for i in range(y.shape[1]):
         ax.plot(x,y[:,i])
         ax.fill_between(x, (y-ci)[:,i], (y+ci)[:,i], alpha=.3)
+
+    ax.set_xlabel('epochs')
+    ax.set_ylabel('average mutual information')
+
+    plt.savefig(f'imgs/{exp_name}_mi.pdf')
 
     plt.title(f'MI samples {config["ep_per_fit"]} w/ {legend[mi_idx]}')
     # plt.legend(list(range(y.shape[1])))
@@ -155,15 +173,33 @@ def plot_mi(avg_mi_all, mi_idx, exp_name, config):
 
 if __name__ == '__main__':
 
-    # exp_name = 'lqr_launcher_7d_reduced_k'
-    exp_name = 'lqr_7_env_0_CON_test'
-    data_dir = os.path.join('logs', exp_name)
+    # exp_name = 'lqr_3_env_0'
+    # exp_name = 'lqr_7'
+    # data_dir = os.path.join('logs', exp_name)
 
-    returns_mean_all, returns_std_all, optimal_reward_all, best_reward_all, mi_avg_all, legend, init_params= load_data_from_dir(data_dir)
+    # returns_mean_all, returns_std_all, optimal_reward_all, best_reward_all, mi_avg_all, legend, init_params= load_data_from_dir(data_dir)
     
-    print('alg', legend)
-    print('best_reward', np.array(best_reward_all).mean(axis=1))
-    print('optimal_reward', np.array(optimal_reward_all).mean(axis=1))
-    # plot_data(returns_mean_all, returns_std_all, legend, exp_name, init_params)
-    plot_data_tmp(returns_mean_all, returns_std_all, optimal_reward_all, legend, exp_name, init_params)
-    plot_mi(mi_avg_all, 1, exp_name, init_params)
+    # print(best_reward_all)
+    # print('alg', legend)
+    # print('best_reward', np.array(best_reward_all).mean(axis=1))
+    # print('optimal_reward', np.array(optimal_reward_all).mean(axis=1))
+    # print('max min', np.array(returns_mean_all).max(), np.array(returns_mean_all).min())
+    
+    # plot_data(returns_mean_all, returns_std_all, optimal_reward_all, legend, exp_name, init_params)
+    # plot_mi(mi_avg_all, 1, exp_name, init_params)
+
+
+    for dim in [3, 5, 7]:
+        exp_name = f'lqr_{dim}'
+        data_dir = os.path.join('logs', exp_name)
+
+        returns_mean_all, returns_std_all, optimal_reward_all, best_reward_all, mi_avg_all, legend, init_params= load_data_from_dir(data_dir)
+        plot_data(returns_mean_all, returns_std_all, optimal_reward_all, legend, exp_name, init_params)
+        plot_mi(mi_avg_all, 1, exp_name, init_params)
+
+        exp_name = f'lqr_{dim}_env_0'
+        data_dir = os.path.join('logs', exp_name)
+
+        returns_mean_all, returns_std_all, optimal_reward_all, best_reward_all, mi_avg_all, legend, init_params= load_data_from_dir(data_dir)
+        plot_data(returns_mean_all, returns_std_all, optimal_reward_all, legend, exp_name, init_params)
+        plot_mi(mi_avg_all, 1, exp_name, init_params)
