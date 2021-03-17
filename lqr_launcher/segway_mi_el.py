@@ -10,7 +10,7 @@ from mushroom_rl.approximators.parametric import LinearApproximator
 from mushroom_rl.approximators.regressor import Regressor
 from mushroom_rl.core import Core
 from mushroom_rl.distributions import GaussianCholeskyDistribution, GaussianDiagonalDistribution, GaussianDistribution
-from mushroom_rl.environments import LQR
+from mushroom_rl.environments.segway import Segway
 from mushroom_rl.policy import DeterministicPolicy
 from mushroom_rl.utils.dataset import compute_J
 from mushroom_rl.utils.optimizers import AdaptiveOptimizer
@@ -21,7 +21,6 @@ from mushroom_rl.solvers.lqr import compute_lqr_feedback_gain
 # from more import MORE
 from reps_mi import REPS_MI
 from reps_mi_con import REPS_MI_CON
-from constrained_REPS import REPS_CON
 
 import matplotlib.pyplot as plt
 
@@ -29,44 +28,40 @@ import joblib
 from mushroom_rl.environments import Environment
 from mushroom_rl.algorithms.policy_search.black_box_optimization import BlackBoxOptimization
 
-def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit, sigma_init=1e-3, env_seed=42, seed=42, results_dir='results', quiet=True):
+def experiment(alg, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit, sigma_init=1e-3, seed=42, results_dir='results', quiet=True):
     
     np.random.seed(seed)
 
     if alg == 'REPS':
         alg = REPS
         params = {'eps': eps}
-        mdp = LQR.generate(dimensions=lqr_dim, episodic=True, max_pos=1., max_action=1.)
     elif alg == 'REPS_MI':
         alg = REPS_MI
         params = {'eps': eps, 'k': k}
-        mdp = LQR.generate(dimensions=lqr_dim, episodic=True, max_pos=1., max_action=1.)
     elif alg == 'REPS_CON':
         alg = REPS_CON
         params = {'eps': eps, 'kappa': kappa}
-        mdp = LQR.generate(dimensions=lqr_dim, episodic=True, max_pos=1., max_action=1.)
     elif alg == 'REPS_MI_CON':
         alg = REPS_MI_CON
         params = {'eps': eps, 'k': k, 'kappa': kappa}
-        mdp = LQR.generate(dimensions=lqr_dim, episodic=True, max_pos=1., max_action=1.)
+    
+    print(alg, params)
 
-    for i in range(lqr_dim):
-        mdp.Q[i][i] = 0.9
-        mdp.R[i][i] = 0.9
+    mdp = Segway()
+    
+    # if env_seed >= 0:
+    #     rng = default_rng(seed=env_seed)
+    #     ineff_params = rng.choice(lqr_dim, size=round(lqr_dim / 2), replace=False)
 
-    if env_seed >= 0:
-        rng = default_rng(seed=env_seed)
-        ineff_params = rng.choice(lqr_dim, size=round(lqr_dim / 2), replace=False)
+    #     for p in ineff_params:
+    #         mdp.Q[p][p] = 1e-8
+    #         mdp.R[p][p] = 1e-8
+    #         mdp.B[p][p] = 1e-8
 
-        for p in ineff_params:
-            mdp.Q[p][p] = 1e-8
-            mdp.R[p][p] = 1e-8
-            mdp.B[p][p] = 1e-8
-
-        print('ineff_params', ineff_params)
-    else:
-        ineff_params = []
-     
+    #     print('ineff_params', ineff_params)
+    # else:
+    #     ineff_params = []
+        
     init_params = locals()
     
     os.makedirs(results_dir, exist_ok=True)
@@ -79,7 +74,6 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
 
     mu = np.zeros(policy.weights_size)
     sigma = sigma_init * np.ones(policy.weights_size)
-    
     distribution = GaussianDiagonalDistribution(mu, sigma)
 
     # Agent
@@ -108,21 +102,6 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
         print(np.mean(J))
 
         returns_std += [np.std(J)]
-    
-    # returns_mean = np.array(returns_mean)
-    # returns_std = np.array(returns_std)
-    
-    # if not reduced:
-    #     gain_lqr = compute_lqr_feedback_gain(mdp)
-    # else:
-    #     gain_lqr = None
-
-    gain_lqr = compute_lqr_feedback_gain(mdp)
-    state = mdp.reset()
-    action = gain_lqr @ state
-    state, optimal_reward, _, __ = mdp.step(action)
-
-    gain_policy = policy.get_weights()
 
     mi_avg = None
     if alg.__name__ == 'REPS_MI' or alg.__name__ == 'REPS_MI_CON':
@@ -134,14 +113,10 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
         'returns_mean': returns_mean,
         'returns_std': returns_std,
         'agent': agent,
-        'gain_lqr': gain_lqr,
-        'gain_policy': gain_policy,
-        'optimal_reward': optimal_reward,
         'best_reward': best_reward,
         'init_params': init_params,
         'alg': alg,
-        'mi_avg': mi_avg,
-        'ineff_params': ineff_params
+        'mi_avg': mi_avg
     })
 
     joblib.dump(dump_dict, os.path.join(results_dir, f'{alg.__name__}_{seed}'))
@@ -155,8 +130,7 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
 
 def default_params():
     defaults = dict(
-        alg = 'REPS_MI', 
-        lqr_dim = 3, 
+        alg = 'REPS_MI',
         eps = 0.2,
         k = 1,
         kappa = 3.5,
@@ -165,7 +139,6 @@ def default_params():
         ep_per_fit = 100,
         sigma_init=1e-3,
         seed = 42,
-        env_seed = -1,
         results_dir = 'results',
         quiet = True
     )
@@ -188,7 +161,6 @@ def parse_args():
     # arg_default.add_argument('--results-dir', type=str)
 
     parser.add_argument('--alg', type=str)
-    parser.add_argument('--lqr-dim', type=int)
     parser.add_argument('--eps', type=float)
     parser.add_argument('--k', type=int)
     parser.add_argument('--kappa', type=float)
@@ -196,7 +168,6 @@ def parse_args():
     parser.add_argument('--fit-per-epoch', type=int)
     parser.add_argument('--ep-per-fit', type=int)
     parser.add_argument('--seed', type=int)
-    parser.add_argument('--env-seed', type=int)
     parser.add_argument('--sigma-init', type=float)
     parser.add_argument('--results-dir', type=str)
     parser.add_argument('--quiet', type=bool)
