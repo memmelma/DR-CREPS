@@ -38,11 +38,11 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
     if alg == 'REPS':
         alg = REPS
         params = {'eps': eps}
-        mdp = LQR.generate(dimensions=lqr_dim, episodic=True)#, max_pos=1., max_action=1.)
+        mdp = LQR.generate(dimensions=lqr_dim, episodic=True, max_pos=1., max_action=1.)
     elif alg == 'REPS_MI':
         alg = REPS_MI
         params = {'eps': eps, 'k': k}
-        mdp = LQR.generate(dimensions=lqr_dim, episodic=True)#, max_pos=1., max_action=1.)
+        mdp = LQR.generate(dimensions=lqr_dim, episodic=True, max_pos=1., max_action=1.)
     elif alg == 'REPS_CON':
         alg = REPS_CON
         params = {'eps': eps, 'kappa': kappa}
@@ -51,8 +51,10 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
         alg = REPS_MI_CON
         params = {'eps': eps, 'k': k, 'kappa': kappa}
         mdp = LQR.generate(dimensions=lqr_dim, episodic=True, max_pos=1., max_action=1.)
-    
-    print(alg, params)
+
+    for i in range(lqr_dim):
+        mdp.Q[i][i] = 0.9
+        mdp.R[i][i] = 0.9
 
     if env_seed >= 0:
         rng = default_rng(seed=env_seed)
@@ -66,7 +68,7 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
         print('ineff_params', ineff_params)
     else:
         ineff_params = []
-        
+     
     init_params = locals()
     
     os.makedirs(results_dir, exist_ok=True)
@@ -79,6 +81,7 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
 
     mu = np.zeros(policy.weights_size)
     sigma = sigma_init * np.ones(policy.weights_size)
+    
     distribution = GaussianDiagonalDistribution(mu, sigma)
 
     # Agent
@@ -154,8 +157,8 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
 
 def default_params():
     defaults = dict(
-        alg = 'REPS_MI_CON', 
-        lqr_dim = 2, 
+        alg = 'REPS_MI', 
+        lqr_dim = 3, 
         eps = 0.2,
         k = 1,
         kappa = 3.5,
