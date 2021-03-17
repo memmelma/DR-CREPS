@@ -33,8 +33,6 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
     
     np.random.seed(seed)
 
-    print(alg)
-    
     if alg == 'REPS':
         alg = REPS
         params = {'eps': eps}
