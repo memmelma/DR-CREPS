@@ -138,3 +138,7 @@ lqr_launcher/logs/
 lqr_launcher/imgs/
 lqr_launcher/logs_dep/
 lqr_launcher/imgs_dep/
+lqr_launcher/logs_dep_2/
+lqr_launcher/imgs_dep_2/
+results/
+*.zip
