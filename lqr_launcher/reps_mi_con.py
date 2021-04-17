@@ -42,6 +42,9 @@ class REPS_MI_CON(BlackBoxOptimization):
         self.mi_avg = np.zeros(len(distribution._mu))
         self.alpha = ExponentialParameter(1, exp=0.5)
 
+        self.mus = []
+        self.kls = []
+
         self._add_save_attr(eps='primitive')
 
         super().__init__(mdp_info, distribution, policy, features)
@@ -89,17 +92,26 @@ class REPS_MI_CON(BlackBoxOptimization):
                        args=(self.eps, Jep, theta_mi),
                        method='SLSQP')
         eta_opt = res.x.item()
+        if not res.success:
+            print(res)
 
         Jep -= np.max(Jep)
         W = np.exp(Jep / eta_opt)
 
         # optimize M-projection Langrangian
         eta_omg_start = np.ones(2)
-        res = minimize(REPS_MI_CON._lagrangian_eta_omg, eta_omg_start,
-                       jac=grad(REPS_MI_CON._lagrangian_eta_omg),
-                       bounds=((0, np.inf),(0, np.inf)),
-                       args=(W, theta_mi, mu_t_mi, sig_t_mi, n_mi, self.eps, self.kappa),
-                       method='SLSQP')
+        try:
+            res = minimize(REPS_MI_CON._lagrangian_eta_omg, eta_omg_start,
+                        jac=grad(REPS_MI_CON._lagrangian_eta_omg),
+                        bounds=((0, np.inf),(0, np.inf)),
+                        args=(W, theta_mi, mu_t_mi, sig_t_mi, n_mi, self.eps, self.kappa),
+                        method='SLSQP')
+        except:
+            print(mu_t)
+            print(mu_t_mi)
+            print(sig_t)
+            print(sig_t_mi)
+
         eta_opt, omg_opt  = res.x[0], res.x[1]
 
         # find closed form mu_t1 and sig_t1 using optimal eta and omg
@@ -122,6 +134,8 @@ class REPS_MI_CON(BlackBoxOptimization):
         if not H_t-self.kappa <= H_t1:
             print('entropy constraint violated', 'H_t', H_t, 'H_t1', H_t1, 'kappa', self.kappa)
 
+        # print('entropy constraint violated', 'H_t', H_t, 'H_t1', H_t1, 'kappa', self.kappa)
+
         # check KL constraint
         sig_t_inv = np.linalg.inv(sig_t)
         sig_t1_inv = np.linalg.inv(sig_t1)
@@ -137,6 +151,9 @@ class REPS_MI_CON(BlackBoxOptimization):
         # Gaussian w/ fixed cov
         # dist_params = mu_t1.flatten()
         self.distribution.set_parameters(dist_params)
+
+        self.mus += [self.distribution._mu]
+        self.kls += [kl]
 
     @staticmethod
     def closed_form_mu_t1_sig_t1(*args):
