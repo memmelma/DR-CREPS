@@ -9,12 +9,13 @@ from tqdm import tqdm
 from mushroom_rl.approximators.parametric import LinearApproximator
 from mushroom_rl.approximators.regressor import Regressor
 from mushroom_rl.core import Core
-from mushroom_rl.distributions import GaussianCholeskyDistribution, GaussianDiagonalDistribution, GaussianDistribution
+from mushroom_rl.distributions import GaussianCholeskyDistribution, GaussianDistribution #, GaussianDiagonalDistribution
 from mushroom_rl.environments import LQR
 from mushroom_rl.policy import DeterministicPolicy
 from mushroom_rl.utils.dataset import compute_J
 from mushroom_rl.utils.optimizers import AdaptiveOptimizer
-from mushroom_rl.algorithms.policy_search.black_box_optimization.reps import REPS
+# from mushroom_rl.algorithms.policy_search.black_box_optimization.reps import REPS
+from reps_debug import REPS
 from mushroom_rl.solvers.lqr import compute_lqr_feedback_gain
 
 # from constrained_REPS import constrained_REPS
@@ -23,50 +24,44 @@ from reps_mi import REPS_MI
 from reps_mi_con import REPS_MI_CON
 from constrained_REPS import REPS_CON
 
+from gaussian_diag_custom import GaussianDiagonalDistribution
+
 import matplotlib.pyplot as plt
 
 import joblib
 from mushroom_rl.environments import Environment
 from mushroom_rl.algorithms.policy_search.black_box_optimization import BlackBoxOptimization
 
-def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit, sigma_init=1e-3, env_seed=42, seed=42, results_dir='results', quiet=True):
+def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit, sigma_init=1e-3, env_seed=42, n_ineff=-1, seed=42, results_dir='results', quiet=True):
     
+    if n_ineff < 0:
+        n_ineff = round(lqr_dim / 2)
     np.random.seed(seed)
-
-    if alg == 'REPS':
-        alg = REPS
-        params = {'eps': eps}
-        mdp = LQR.generate(dimensions=lqr_dim, episodic=True, max_pos=1., max_action=1.)
-    elif alg == 'REPS_MI':
-        alg = REPS_MI
-        params = {'eps': eps, 'k': k}
-        mdp = LQR.generate(dimensions=lqr_dim, episodic=True, max_pos=1., max_action=1.)
-    elif alg == 'REPS_CON':
-        alg = REPS_CON
-        params = {'eps': eps, 'kappa': kappa}
-        mdp = LQR.generate(dimensions=lqr_dim, episodic=True, max_pos=1., max_action=1.)
-    elif alg == 'REPS_MI_CON':
-        alg = REPS_MI_CON
-        params = {'eps': eps, 'k': k, 'kappa': kappa}
-        mdp = LQR.generate(dimensions=lqr_dim, episodic=True, max_pos=1., max_action=1.)
-
-    for i in range(lqr_dim):
-        mdp.Q[i][i] = 0.9
-        mdp.R[i][i] = 0.9
+    
+    horizon = 50
+    mdp = LQR.generate(dimensions=lqr_dim, horizon=horizon, episodic=False, max_pos=1., max_action=1., eps=0.5)
 
     if env_seed >= 0:
         rng = default_rng(seed=env_seed)
-        ineff_params = rng.choice(lqr_dim, size=round(lqr_dim / 2), replace=False)
+        ineff_params = rng.choice(lqr_dim, size=n_ineff, replace=False)
 
         for p in ineff_params:
-            mdp.Q[p][p] = 1e-8
-            mdp.R[p][p] = 1e-8
-            mdp.B[p][p] = 1e-8
+            # mdp.A[p][p] = 1e-10
+            mdp.Q[p][p] = 1e-10
+            mdp.R[p][p] = 1e-10
+            mdp.B[p][p] = 1e-10
 
+        print('Q', mdp.Q)
+        print('R', mdp.R)
+        print('B', mdp.B)
         print('ineff_params', ineff_params)
+
     else:
         ineff_params = []
-     
+    
+    # REMOVE
+    # ineff_params = [2,3]
+
     init_params = locals()
     
     os.makedirs(results_dir, exist_ok=True)
@@ -78,19 +73,52 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
     policy = DeterministicPolicy(mu=approximator)
 
     mu = np.zeros(policy.weights_size)
+
+    # REMOVE
+    # gain_lqr = compute_lqr_feedback_gain(mdp)
+    # mu = gain_lqr.flatten()
+
     sigma = sigma_init * np.ones(policy.weights_size)
     
     distribution = GaussianDiagonalDistribution(mu, sigma)
+
+    # algorithms
+    if alg == 'REPS':
+        alg = REPS
+        params = {'eps': eps}
+    elif alg == 'REPS_MI' or alg == 'REPS_MI_ORACLE':
+        alg = REPS_MI
+        params = {'eps': eps, 'k': k}
+    elif alg == 'REPS_CON':
+        alg = REPS_CON
+        params = {'eps': eps, 'kappa': kappa}
+    elif alg == 'REPS_MI_CON':
+        alg = REPS_MI_CON
+        params = {'eps': eps, 'k': k, 'kappa': kappa}
+    # covariance & sampling
+    elif alg == 'REPS_MI_FIXED_LOW':
+        alg = REPS_MI
+        params = {'eps': eps, 'k': k}
+        distribution.set_fixed_sample(eps=1e-10)
+    elif alg == 'REPS_MI_FIXED_HIGH':
+        alg = REPS_MI
+        params = {'eps': eps, 'k': k}
+        distribution.set_fixed_sample(eps=1e-2)
+    elif alg == 'REPS_MI_10':
+        alg = REPS_MI
+        params = {'eps': eps, 'k': k}
+        distribution.set_percentage_sample(kappa=0.1)
 
     # Agent
     agent = alg(mdp.info, distribution, policy, **params)
 
     # Train
     core = Core(agent, mdp)
+
     dataset_eval = core.evaluate(n_episodes=ep_per_fit, quiet=quiet)
     # print('distribution parameters: ', distribution.get_parameters())
     J = compute_J(dataset_eval, gamma=mdp.info.gamma)
-    # print('J at start : ' + str(np.mean(J)))
+    print('J at start : ' + str(np.mean(J)))
     
     returns_mean = [np.mean(J)]
     returns_std = [np.std(J)]
@@ -99,28 +127,23 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
         
         core.learn(n_episodes=fit_per_epoch * ep_per_fit,
                    n_episodes_per_fit=ep_per_fit, quiet=quiet)
+
         dataset_eval = core.evaluate(n_episodes=ep_per_fit, quiet=quiet)
         # print('distribution parameters: ', distribution.get_parameters())
         J = compute_J(dataset_eval, gamma=mdp.info.gamma)
-        # print('J at iteration ' + str(i) + ': ' + str(round(np.mean(J),4)))
+        print('J at iteration ' + str(i) + ': ' + str(round(np.mean(J),4)))
         
         returns_mean += [np.mean(J)]
-        print(np.mean(J))
-
         returns_std += [np.std(J)]
     
-    # returns_mean = np.array(returns_mean)
-    # returns_std = np.array(returns_std)
-    
-    # if not reduced:
-    #     gain_lqr = compute_lqr_feedback_gain(mdp)
-    # else:
-    #     gain_lqr = None
-
+    # Calculate optimal control return
     gain_lqr = compute_lqr_feedback_gain(mdp)
     state = mdp.reset()
-    action = gain_lqr @ state
-    state, optimal_reward, _, __ = mdp.step(action)
+    optimal_reward = 0
+    for i in range(horizon):
+        action = - gain_lqr @ state
+        state, reward, _, __ = mdp.step(action)
+        optimal_reward += reward
 
     gain_policy = policy.get_weights()
 
@@ -129,6 +152,9 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
         mi_avg = agent.mis
 
     best_reward = np.array(returns_mean).max()
+
+    mus = agent.mus
+    kls = agent.kls
 
     dump_dict = dict({
         'returns_mean': returns_mean,
@@ -141,6 +167,8 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
         'init_params': init_params,
         'alg': alg,
         'mi_avg': mi_avg,
+        'mus': mus,
+        'kls': kls,
         'ineff_params': ineff_params
     })
 
@@ -158,14 +186,15 @@ def default_params():
         alg = 'REPS_MI', 
         lqr_dim = 3, 
         eps = 0.2,
-        k = 1,
-        kappa = 3.5,
+        k = 8,
+        kappa = 0.1,
         n_epochs = 10, 
         fit_per_epoch = 1, 
         ep_per_fit = 100,
         sigma_init=1e-3,
         seed = 42,
-        env_seed = -1,
+        n_ineff = 2,
+        env_seed = 0,
         results_dir = 'results',
         quiet = True
     )
@@ -176,17 +205,6 @@ def default_params():
 def parse_args():
     parser = argparse.ArgumentParser()
     
-
-    # arg_test = parser.add_argument_group('Test')
-    # arg_test.add_argument("--a", type=int)
-    # arg_test.add_argument("--b-c", type=int)
-    # arg_test.add_argument("--boolean", action='store_true')
-    # arg_test.add_argument('--default', type=str)
-
-    # arg_default = parser.add_argument_group('Default')
-    # arg_default.add_argument('--seed', type=int)
-    # arg_default.add_argument('--results-dir', type=str)
-
     parser.add_argument('--alg', type=str)
     parser.add_argument('--lqr-dim', type=int)
     parser.add_argument('--eps', type=float)
@@ -197,6 +215,7 @@ def parse_args():
     parser.add_argument('--ep-per-fit', type=int)
     parser.add_argument('--seed', type=int)
     parser.add_argument('--env-seed', type=int)
+    parser.add_argument('--n-ineff', type=int)
     parser.add_argument('--sigma-init', type=float)
     parser.add_argument('--results-dir', type=str)
     parser.add_argument('--quiet', type=bool)
