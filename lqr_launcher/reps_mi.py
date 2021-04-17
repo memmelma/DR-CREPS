@@ -32,28 +32,46 @@ class REPS_MI(BlackBoxOptimization):
         self.mi_avg = np.zeros(len(distribution._mu))
         self.alpha = ExponentialParameter(1, exp=0.5)
 
+        self.mus = []
+        self.kls = []
+
         self._add_save_attr(eps='primitive')
 
         super().__init__(mdp_info, distribution, policy, features)
 
     def _update(self, Jep, theta):
         
-        mi = mutual_info_regression(theta, Jep)
+        mi = mutual_info_regression(theta, Jep, discrete_features=False, n_neighbors=3, random_state=42)#, n_neighbors=int(theta.shape[0]*.25))
+
         self.mi_avg = self.mi_avg + self.alpha() * ( mi - self.mi_avg )
+        # self.mi_avg = self.mi_avg + mi
         self.mis += [self.mi_avg]
-      
+
+        print('top_k_mi', np.sort(mi.argsort()[-self.k:][::-1]))
+        print('top_k_mi_avg', self.mi_avg.argsort()[-self.k:][::-1])
+        print('top_k_mi_avg_sorted', np.sort(self.mi_avg.argsort()[-self.k:][::-1]))
+
         # print('\nMI for theta Jep: ',mi)
         # print('\nMI_avg for theta Jep: ',self.mi_avg)
         
         top_k_mi = self.mi_avg.argsort()[-self.k:][::-1]
-        theta_mi = theta[:,top_k_mi]
         
+        # REMOVE
+        # top_k_mi = [0, 1, 2]
+
+        theta_mi = theta[:,top_k_mi]
+
         eta_start = np.ones(1)
-        # exit(42)
+        
         res = minimize(REPS_MI._dual_function, eta_start,
                        jac=REPS_MI._dual_function_diff,
                        bounds=((np.finfo(np.float32).eps, np.inf),),
-                       args=(self.eps, Jep, theta_mi))
+                       args=(self.eps, Jep, theta_mi),
+                       method='SLSQP')
+
+        # print('eps', self.eps)
+        # if not res.success:
+        #     print('res', res)
 
         eta_opt = res.x.item()
 
@@ -66,8 +84,8 @@ class REPS_MI(BlackBoxOptimization):
         sumD = np.sum(weights)
         sumD2 = np.sum(weights**2)
         Z = sumD - sumD2 / sumD
-        mu_mi = weights.dot(theta[:,top_k_mi]) / sumD
-        delta2 = (theta[:,top_k_mi] - mu_mi)**2
+        mu_mi = weights.dot(theta_mi) / sumD
+        delta2 = (theta_mi - mu_mi)**2
         std_mi = np.sqrt(weights.dot(delta2) / Z)
 
         # get old mu, std
@@ -80,13 +98,20 @@ class REPS_MI(BlackBoxOptimization):
         mu_new[top_k_mi] = mu_mi
         std_new[top_k_mi] = std_mi
 
-        # KL_full = REPS_MI._closed_form_KL(mu, mu_new, np.diag(std), np.diag(std_new), len(mu))
-        # KL_reduced = REPS_MI._closed_form_KL(mu[top_k_mi], mu_new[top_k_mi], np.diag(std[top_k_mi]), np.diag(std_new[top_k_mi]), len(top_k_mi))
+        KL_full = REPS_MI._closed_form_KL(mu, mu_new, np.diag(std), np.diag(std_new), len(mu))
+        KL_full_M = REPS_MI._closed_form_KL_M(mu, mu_new, np.diag(std), np.diag(std_new), len(mu))
+        KL_reduced = REPS_MI._closed_form_KL(mu[top_k_mi], mu_new[top_k_mi], np.diag(std[top_k_mi]), np.diag(std_new[top_k_mi]), len(top_k_mi))
         # print('Equal?', round(KL_full,6) == round(KL_reduced,6), '| KL_full', KL_full, '| KL_reduced', KL_reduced)
+        
+        # print('KL', KL_full, KL_full_M)
 
         rho = np.concatenate((mu_new,std_new))
         self.distribution.set_parameters(rho)
 
+        self.distribution._top_k = self.mi_avg.argsort()[:-self.k][::-1]
+
+        self.mus += [self.distribution._mu]
+        self.kls += [KL_full]
 
     @staticmethod
     def _dual_function(eta_array, *args):
@@ -118,6 +143,14 @@ class REPS_MI(BlackBoxOptimization):
 
     @staticmethod
     def _closed_form_KL(mu_t, mu_t1, sig_t, sig_t1, n):
+        sig_t_inv = np.linalg.inv(sig_t)
+        logdet_sig_t1 = np.linalg.slogdet(sig_t1)[1]
+        logdet_sig_t = np.linalg.slogdet(sig_t)[1]
+       
+        return 0.5*(np.trace(sig_t_inv@sig_t1) - n + logdet_sig_t - logdet_sig_t1 + (mu_t - mu_t1).T @ sig_t_inv @ (mu_t - mu_t1))
+
+    @staticmethod
+    def _closed_form_KL_M(mu_t, mu_t1, sig_t, sig_t1, n):
         sig_t1_inv = np.linalg.inv(sig_t1)
         logdet_sig_t = np.linalg.slogdet(sig_t)[1]
         logdet_sig_t1 = np.linalg.slogdet(sig_t1)[1]

@@ -33,6 +33,9 @@ class REPS_CON(BlackBoxOptimization):
         self.eps = eps
         self.kappa = kappa
 
+        self.mus = []
+        self.kls = []
+
         self._add_save_attr(eps='primitive')
 
         super().__init__(mdp_info, distribution, policy, features)
@@ -110,6 +113,9 @@ class REPS_CON(BlackBoxOptimization):
         # dist_params = mu_t1.flatten()
         self.distribution.set_parameters(dist_params)
 
+        self.mus += [self.distribution._mu]
+        self.kls += [kl]
+        
     @staticmethod
     def closed_form_mu_t1_sig_t1(*args):
         
