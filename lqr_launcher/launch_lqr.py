@@ -8,9 +8,13 @@ if __name__ == '__main__':
     test = False
 
     env_seed = 0
-    lqr_dim = 9
+    lqr_dim = 10
+    eff = 2
+    k = eff*lqr_dim
 
-    launcher = Launcher(exp_name=f'lqr_{lqr_dim}{"_env_" + str(env_seed) if env_seed >= 0 else ""}',
+    experiment_name = f'lqr_dim_{lqr_dim}_eff_{eff}{"_env_" + str(env_seed) if env_seed >= 0 else ""}'
+
+    launcher = Launcher(exp_name=experiment_name,
                         python_file='lqr_mi_el',
                         n_exp=25,
                         memory=5000,
@@ -21,13 +25,14 @@ if __name__ == '__main__':
                         n_jobs=5,
                         use_timestamp=True)
     
-    # launcher.add_default_params(k=lqr_dim, lqr_dim=lqr_dim, n_epochs=500, fit_per_epoch=1, ep_per_fit=50, env_seed=env_seed, sigma_init=2e-1, eps=0.5)
-    launcher.add_default_params(k=lqr_dim, lqr_dim=lqr_dim, n_epochs=1000, fit_per_epoch=5, ep_per_fit=100, env_seed=env_seed, sigma_init=1e-3, eps=0.2)
+    launcher.add_default_params(k=k, lqr_dim=lqr_dim, n_epochs=1500, fit_per_epoch=1, ep_per_fit=100, env_seed=env_seed, n_ineff=lqr_dim-eff, eps=3e-3, sigma_init=0.15)
 
     launcher.add_experiment(alg='REPS')
-    launcher.add_experiment(alg='REPS_MI')
+    launcher.add_experiment(alg='REPS_MI_ORACLE')
+    # launcher.add_experiment(alg='REPS_MI_FIXED_LOW')
+    # launcher.add_experiment(alg='REPS_MI_FIXED_HIGH', kappa=1e-2)
+    # launcher.add_experiment(alg='REPS_MI_10', kappa=0.1)
 
-    # launcher.add_experiment(alg='REPS_CON')
-    # launcher.add_experiment(alg='REPS_MI_CON')
+    print(experiment_name)
 
     launcher.run(local, test)
