@@ -51,6 +51,7 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
             mdp.R[p][p] = 1e-10
             mdp.B[p][p] = 1e-10
 
+        print('A', mdp.A)
         print('Q', mdp.Q)
         print('R', mdp.R)
         print('B', mdp.B)
@@ -58,6 +59,19 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
 
     else:
         ineff_params = []
+    
+    # Calculate optimal control return
+    gain_lqr = compute_lqr_feedback_gain(mdp)
+    state = mdp.reset()
+    optimal_reward = 0
+    for i in range(horizon):
+        action = - gain_lqr @ state
+        state, reward, _, __ = mdp.step(action)
+        optimal_reward += reward
+    
+    mdp.Q[mdp.Q == 1e-10] = 0
+    mdp.R[mdp.R == 1e-10] = 0
+    mdp.B[mdp.B == 1e-10] = 0
     
     # REMOVE
     # ineff_params = [2,3]
@@ -86,28 +100,47 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
     if alg == 'REPS':
         alg = REPS
         params = {'eps': eps}
-    elif alg == 'REPS_MI' or alg == 'REPS_MI_ORACLE':
+
+    elif alg == 'REPS_MI':
         alg = REPS_MI
         params = {'eps': eps, 'k': k}
+
+    elif alg == 'REPS_MI_ORACLE':
+        alg = REPS_MI
+        oracle = []
+        for i in range(lqr_dim):
+            if i not in ineff_params:
+                for j in range(lqr_dim):
+                    oracle += [i*lqr_dim + j]
+        print(oracle)
+        params = {'eps': eps, 'k': k, 'oracle': oracle}
+
+    # constrained
     elif alg == 'REPS_CON':
         alg = REPS_CON
         params = {'eps': eps, 'kappa': kappa}
+
     elif alg == 'REPS_MI_CON':
         alg = REPS_MI_CON
         params = {'eps': eps, 'k': k, 'kappa': kappa}
+
     # covariance & sampling
     elif alg == 'REPS_MI_FIXED_LOW':
         alg = REPS_MI
         params = {'eps': eps, 'k': k}
         distribution.set_fixed_sample(eps=1e-10)
+
     elif alg == 'REPS_MI_FIXED_HIGH':
         alg = REPS_MI
         params = {'eps': eps, 'k': k}
-        distribution.set_fixed_sample(eps=1e-2)
+        distribution.set_fixed_sample(eps=kappa)
+        # distribution.set_fixed_sample(eps=1e-2)
+
     elif alg == 'REPS_MI_10':
         alg = REPS_MI
         params = {'eps': eps, 'k': k}
-        distribution.set_percentage_sample(kappa=0.1)
+        distribution.set_percentage_sample(kappa=kappa)
+        # distribution.set_percentage_sample(kappa=0.1)
 
     # Agent
     agent = alg(mdp.info, distribution, policy, **params)
@@ -136,14 +169,6 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
         returns_mean += [np.mean(J)]
         returns_std += [np.std(J)]
     
-    # Calculate optimal control return
-    gain_lqr = compute_lqr_feedback_gain(mdp)
-    state = mdp.reset()
-    optimal_reward = 0
-    for i in range(horizon):
-        action = - gain_lqr @ state
-        state, reward, _, __ = mdp.step(action)
-        optimal_reward += reward
 
     gain_policy = policy.get_weights()
 
@@ -183,8 +208,8 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
 
 def default_params():
     defaults = dict(
-        alg = 'REPS_MI', 
-        lqr_dim = 3, 
+        alg = 'REPS_MI_ORACLE', 
+        lqr_dim = 5, 
         eps = 0.2,
         k = 8,
         kappa = 0.1,
@@ -193,7 +218,7 @@ def default_params():
         ep_per_fit = 100,
         sigma_init=1e-3,
         seed = 42,
-        n_ineff = 2,
+        n_ineff = 3,
         env_seed = 0,
         results_dir = 'results',
         quiet = True
