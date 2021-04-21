@@ -15,7 +15,7 @@ class REPS_MI(BlackBoxOptimization):
     Peters J.. 2013.
 
     """
-    def __init__(self, mdp_info, distribution, policy, eps, k, features=None):
+    def __init__(self, mdp_info, distribution, policy, eps, k, oracle=None, features=None):
         """
         Constructor.
 
@@ -34,6 +34,8 @@ class REPS_MI(BlackBoxOptimization):
 
         self.mus = []
         self.kls = []
+
+        self.oracle = oracle
 
         self._add_save_attr(eps='primitive')
 
@@ -56,6 +58,9 @@ class REPS_MI(BlackBoxOptimization):
         
         top_k_mi = self.mi_avg.argsort()[-self.k:][::-1]
         
+        if self.oracle != None:
+            top_k_mi = self.oracle
+            
         # REMOVE
         # top_k_mi = [0, 1, 2]
 
@@ -91,6 +96,7 @@ class REPS_MI(BlackBoxOptimization):
         # get old mu, std
         mu = self.distribution._mu
         std = self.distribution._std
+        
         
         # update using new mu, std
         mu_new = mu.copy()
