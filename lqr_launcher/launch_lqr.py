@@ -7,12 +7,12 @@ if __name__ == '__main__':
     local = False
     test = False
 
-    env_seed = 0
+    env_seed = -1
     lqr_dim = 10
-    eff = 2
+    eff = 3
     k = eff*lqr_dim
 
-    experiment_name = f'lqr_dim_{lqr_dim}_eff_{eff}{"_env_" + str(env_seed) if env_seed >= 0 else ""}'
+    experiment_name = f'lqr_dim_{lqr_dim}{"_eff_" + str(eff) + "_env_" + str(env_seed) if env_seed >= 0 else ""}_con'
 
     launcher = Launcher(exp_name=experiment_name,
                         python_file='lqr_mi_el',
@@ -25,13 +25,21 @@ if __name__ == '__main__':
                         n_jobs=5,
                         use_timestamp=True)
     
-    launcher.add_default_params(k=k, lqr_dim=lqr_dim, n_epochs=1500, fit_per_epoch=1, ep_per_fit=100, env_seed=env_seed, n_ineff=lqr_dim-eff, eps=3e-3, sigma_init=0.15)
+    launcher.add_default_params(k=k, lqr_dim=lqr_dim, n_epochs=50, fit_per_epoch=1, ep_per_fit=100, env_seed=env_seed, n_ineff=lqr_dim-eff, eps=3.25, kappa=15, sigma_init=1e-1)
+    # params for con
+    # sigma_init > 0.1 breaks & sigma_init < 0.1 doesn't converge to optimal solution
+    # eps > 3.25 breaks  & sigma_init < 0.1 doesn't converge to optimal solution
+    # kappa < 15 breaks & kappa > 15 is unstable
 
-    launcher.add_experiment(alg='REPS')
-    launcher.add_experiment(alg='REPS_MI_ORACLE')
+    # launcher.add_experiment(alg='REPS')
+    # launcher.add_experiment(alg='REPS_MI_ORACLE')
     # launcher.add_experiment(alg='REPS_MI_FIXED_LOW')
     # launcher.add_experiment(alg='REPS_MI_FIXED_HIGH', kappa=1e-2)
     # launcher.add_experiment(alg='REPS_MI_10', kappa=0.1)
+
+    launcher.add_experiment(alg='REPS_CON')
+    launcher.add_experiment(alg='REPS_MI_CON')
+    launcher.add_experiment(alg='REPS_MI_CON_ORACLE')
 
     print(experiment_name)
 

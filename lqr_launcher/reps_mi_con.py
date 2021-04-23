@@ -20,7 +20,7 @@ class REPS_MI_CON(BlackBoxOptimization):
     Peters J.. 2013.
 
     """
-    def __init__(self, mdp_info, distribution, policy, eps, k, kappa, features=None):
+    def __init__(self, mdp_info, distribution, policy, eps, k, kappa, oracle=None, features=None):
         """
         Constructor.
 
@@ -44,6 +44,8 @@ class REPS_MI_CON(BlackBoxOptimization):
 
         self.mus = []
         self.kls = []
+
+        self.oracle = oracle
 
         self._add_save_attr(eps='primitive')
 
@@ -78,6 +80,10 @@ class REPS_MI_CON(BlackBoxOptimization):
         # print('\nMI_avg for theta Jep: ',self.mi_avg)
         
         top_k_mi = self.mi_avg.argsort()[-self.k:][::-1]
+
+        if self.oracle != None:
+            top_k_mi = self.oracle
+
         theta_mi = theta[:,top_k_mi]
         mu_t_mi = mu_t[top_k_mi]
         sig_t_mi = np.diag(np.diag(sig_t)[top_k_mi])

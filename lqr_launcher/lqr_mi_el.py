@@ -124,6 +124,16 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
         alg = REPS_MI_CON
         params = {'eps': eps, 'k': k, 'kappa': kappa}
 
+    elif alg == 'REPS_MI_CON_ORACLE':
+        alg = REPS_MI_CON
+        oracle = []
+        for i in range(lqr_dim):
+            if i not in ineff_params:
+                for j in range(lqr_dim):
+                    oracle += [i*lqr_dim + j]
+        print(oracle)
+        params = {'eps': eps, 'k': k, 'kappa': kappa, 'oracle': oracle}
+
     # covariance & sampling
     elif alg == 'REPS_MI_FIXED_LOW':
         alg = REPS_MI
@@ -208,17 +218,18 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
 
 def default_params():
     defaults = dict(
-        alg = 'REPS_MI_ORACLE', 
-        lqr_dim = 5, 
-        eps = 0.2,
+        # alg = 'REPS_MI_CON_ORACLE', 
+        alg = 'REPS_CON', 
+        lqr_dim = 10, 
+        eps = 1e-3,
         k = 8,
-        kappa = 0.1,
-        n_epochs = 10, 
+        kappa = 5,
+        n_epochs = 50, 
         fit_per_epoch = 1, 
         ep_per_fit = 100,
-        sigma_init=1e-3,
+        sigma_init=0.1,
         seed = 42,
-        n_ineff = 3,
+        n_ineff = 7,
         env_seed = 0,
         results_dir = 'results',
         quiet = True
