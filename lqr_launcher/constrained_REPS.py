@@ -1,6 +1,6 @@
 import numpy as np
 
-from scipy.optimize import minimize
+from scipy.optimize import minimize, LinearConstraint
 
 from mushroom_rl.algorithms.policy_search.black_box_optimization import BlackBoxOptimization
 
@@ -77,25 +77,34 @@ class REPS_CON(BlackBoxOptimization):
         W = np.exp(Jep / eta_opt)
 
         # optimize M-projection Langrangian
-        eta_omg_start = np.ones(2)
-        res = minimize(REPS_CON._lagrangian_eta_omg, eta_omg_start,
+        # eta_omg_start = np.ones(2)
+        lc = LinearConstraint(A=np.array([1,-1]), lb=(-np.sum(W)-1e-10), ub=np.inf)
+
+        eta_omg_opt_start = np.array([100, 0])
+        res = minimize(REPS_CON._lagrangian_eta_omg, eta_omg_opt_start,
                        jac=grad(REPS_CON._lagrangian_eta_omg),
                        bounds=((0, np.inf),(0, np.inf)),
                        args=(W, theta, mu_t, sig_t, n, self.eps, self.kappa),
-                       method='SLSQP')
+                       method='SLSQP',
+                       constraints=[lc])
         eta_opt, omg_opt  = res.x[0], res.x[1]
+
+        print('eta', eta_opt, 'omg', omg_opt)
 
         # find closed form mu_t1 and sig_t1 using optimal eta and omg
         mu_t1, sig_t1 = REPS_CON.closed_form_mu_t1_sig_t1(W, theta, mu_t, sig_t, n, self.eps, eta_opt, omg_opt, self.kappa)
         
         # check entropy constraint
         (sign_sig_t, logdet_sig_t) = np.linalg.slogdet(sig_t)
+        assert sign_sig_t > 0, f'Negative sign encountered in np.linalg.slogdet(sig_t) {sign_sig_t}'
         (sign_sig_t1, logdet_sig_t1) = np.linalg.slogdet(sig_t1)
+        assert sign_sig_t1 > 0, f'Negative sign encountered in np.linalg.slogdet(sig_t1) {sign_sig_t1}'
         H_t = REPS_CON._closed_form_entropy(logdet_sig_t, n)
         H_t1 = REPS_CON._closed_form_entropy(logdet_sig_t1, n)
         # print('H_t', H_t, 'H_t1', H_t1)
         if not H_t-self.kappa <= H_t1:
             print('entropy constraint violated', 'H_t', H_t, 'H_t1', H_t1, 'kappa', self.kappa)
+        # print('entropy constraint', 'H_t', H_t, 'H_t1', H_t1, 'kappa', self.kappa)
 
         # check KL constraint
         sig_t_inv = np.linalg.inv(sig_t)
@@ -104,7 +113,8 @@ class REPS_CON(BlackBoxOptimization):
         # print('KL', kl)
         if not kl <= self.eps:
             print('KL constraint violated', 'kl', kl, 'eps', self.eps)
-        
+        # print('KL constraint', 'kl', kl, 'eps', self.eps)
+
         # Cholesky
         # dist_params = np.concatenate((mu_t1.flatten(), np.linalg.cholesky(sig_t1)[np.tril_indices(n)].flatten()))
         # Diag
@@ -122,10 +132,13 @@ class REPS_CON(BlackBoxOptimization):
         W, theta, mu_t, sig_t, n, eps, eta, omg, kappa = args
         W_sum = np.sum(W)
 
+        # print(f'--- W: {W_sum}, eta: {eta}, omega: {omg}, den: {W_sum + eta - omg}')
+        
         mu_t1 = (W @ theta + eta * mu_t) / (W_sum + eta)
         sig_wa = (theta - mu_t1).T @ np.diag(W) @ (theta - mu_t1)
+        # print(sig_wa)
         sig_t1 = (sig_wa + eta * sig_t + eta * (mu_t1 - mu_t) @ (mu_t1 - mu_t).T) / (W_sum + eta - omg)
-
+        # print(sig_t1)
         return mu_t1, sig_t1
 
     @staticmethod
@@ -158,7 +171,9 @@ class REPS_CON(BlackBoxOptimization):
 
         # log determinants
         (sign_sig_t, logdet_sig_t) = np.linalg.slogdet(sig_t)
+        assert sign_sig_t > 0, f'Negative sign encountered in np.linalg.slogdet(sig_t): {sign_sig_t}'
         (sign_sig_t1, logdet_sig_t1) = np.linalg.slogdet(sig_t1)
+        assert sign_sig_t1 > 0, f'Negative sign encountered in np.linalg.slogdet(sig_t1) {sign_sig_t1}'
 
         c = REPS_CON._get_c(n)
 
