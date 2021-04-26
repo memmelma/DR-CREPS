@@ -77,19 +77,21 @@ class REPS_CON(BlackBoxOptimization):
         W = np.exp(Jep / eta_opt)
 
         # optimize M-projection Langrangian
-        # eta_omg_start = np.ones(2)
-        lc = LinearConstraint(A=np.array([1,-1]), lb=(-np.sum(W)-1e-10), ub=np.inf)
+        ineq_cons = {'type': 'ineq',
+                    'fun' : lambda x: np.array([np.sum(W) + x[0] - x[1] - 1e-6]),
+                    'jac' : lambda x: np.array([1,-1])}
 
         eta_omg_opt_start = np.array([100, 0])
         res = minimize(REPS_CON._lagrangian_eta_omg, eta_omg_opt_start,
                        jac=grad(REPS_CON._lagrangian_eta_omg),
-                       bounds=((0, np.inf),(0, np.inf)),
+                       bounds=((np.finfo(np.float32).eps, np.inf),(np.finfo(np.float32).eps, np.inf)),
+                    #    bounds=((0, np.inf),(0, np.inf)),
                        args=(W, theta, mu_t, sig_t, n, self.eps, self.kappa),
-                       method='SLSQP',
-                       constraints=[lc])
+                       constraints=[ineq_cons],
+                       method='SLSQP')
         eta_opt, omg_opt  = res.x[0], res.x[1]
 
-        print('eta', eta_opt, 'omg', omg_opt)
+        # print('eta', eta_opt, 'omg', omg_opt)
 
         # find closed form mu_t1 and sig_t1 using optimal eta and omg
         mu_t1, sig_t1 = REPS_CON.closed_form_mu_t1_sig_t1(W, theta, mu_t, sig_t, n, self.eps, eta_opt, omg_opt, self.kappa)
@@ -104,7 +106,7 @@ class REPS_CON(BlackBoxOptimization):
         # print('H_t', H_t, 'H_t1', H_t1)
         if not H_t-self.kappa <= H_t1:
             print('entropy constraint violated', 'H_t', H_t, 'H_t1', H_t1, 'kappa', self.kappa)
-        # print('entropy constraint', 'H_t', H_t, 'H_t1', H_t1, 'kappa', self.kappa)
+        print('entropy constraint', 'H_t', H_t, 'H_t1', H_t1, 'kappa', self.kappa)
 
         # check KL constraint
         sig_t_inv = np.linalg.inv(sig_t)
@@ -113,7 +115,7 @@ class REPS_CON(BlackBoxOptimization):
         # print('KL', kl)
         if not kl <= self.eps:
             print('KL constraint violated', 'kl', kl, 'eps', self.eps)
-        # print('KL constraint', 'kl', kl, 'eps', self.eps)
+        print('KL constraint', 'kl', kl, 'eps', self.eps)
 
         # Cholesky
         # dist_params = np.concatenate((mu_t1.flatten(), np.linalg.cholesky(sig_t1)[np.tril_indices(n)].flatten()))
@@ -132,13 +134,15 @@ class REPS_CON(BlackBoxOptimization):
         W, theta, mu_t, sig_t, n, eps, eta, omg, kappa = args
         W_sum = np.sum(W)
 
+        assert W_sum + eta - omg + 1e-6 >= 0, f'inequality constraint violated W_sum + eta - omg {W_sum + eta - omg}'
+
         # print(f'--- W: {W_sum}, eta: {eta}, omega: {omg}, den: {W_sum + eta - omg}')
         
         mu_t1 = (W @ theta + eta * mu_t) / (W_sum + eta)
         sig_wa = (theta - mu_t1).T @ np.diag(W) @ (theta - mu_t1)
-        # print(sig_wa)
+
         sig_t1 = (sig_wa + eta * sig_t + eta * (mu_t1 - mu_t) @ (mu_t1 - mu_t).T) / (W_sum + eta - omg)
-        # print(sig_t1)
+        
         return mu_t1, sig_t1
 
     @staticmethod
