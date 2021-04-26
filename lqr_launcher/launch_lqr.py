@@ -7,7 +7,7 @@ if __name__ == '__main__':
     local = False
     test = False
 
-    env_seed = -1
+    env_seed = 0
     lqr_dim = 10
     eff = 3
     k = eff*lqr_dim
@@ -25,7 +25,7 @@ if __name__ == '__main__':
                         n_jobs=5,
                         use_timestamp=True)
     
-    launcher.add_default_params(k=k, lqr_dim=lqr_dim, n_epochs=50, fit_per_epoch=1, ep_per_fit=100, env_seed=env_seed, n_ineff=lqr_dim-eff, eps=3.25, kappa=15, sigma_init=1e-1)
+    launcher.add_default_params(k=k, lqr_dim=lqr_dim, n_epochs=35, fit_per_epoch=1, ep_per_fit=250, env_seed=env_seed, n_ineff=lqr_dim-eff, kappa=9, sigma_init=8e-1, eps=.7) # sigma_init=6e-1,
     # params for con
     # sigma_init > 0.1 breaks & sigma_init < 0.1 doesn't converge to optimal solution
     # eps > 3.25 breaks  & sigma_init < 0.1 doesn't converge to optimal solution
@@ -36,10 +36,13 @@ if __name__ == '__main__':
     # launcher.add_experiment(alg='REPS_MI_FIXED_LOW')
     # launcher.add_experiment(alg='REPS_MI_FIXED_HIGH', kappa=1e-2)
     # launcher.add_experiment(alg='REPS_MI_10', kappa=0.1)
-
+    
     launcher.add_experiment(alg='REPS_CON')
-    launcher.add_experiment(alg='REPS_MI_CON')
     launcher.add_experiment(alg='REPS_MI_CON_ORACLE')
+
+    # launcher.add_experiment(alg='REPS_CON')
+    # launcher.add_experiment(alg='REPS_MI_CON')
+    # launcher.add_experiment(alg='REPS_MI_CON_ORACLE')
 
     print(experiment_name)
 
