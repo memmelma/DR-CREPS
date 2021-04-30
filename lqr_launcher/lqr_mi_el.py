@@ -1,36 +1,24 @@
 import os
 import argparse
-
+import joblib
+from tqdm import tqdm
 import numpy as np
 from numpy.random import default_rng
-
-from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 from mushroom_rl.approximators.parametric import LinearApproximator
 from mushroom_rl.approximators.regressor import Regressor
 from mushroom_rl.core import Core
-from mushroom_rl.distributions import GaussianCholeskyDistribution, GaussianDistribution #, GaussianDiagonalDistribution
 from mushroom_rl.environments import LQR
 from mushroom_rl.policy import DeterministicPolicy
 from mushroom_rl.utils.dataset import compute_J
 from mushroom_rl.utils.optimizers import AdaptiveOptimizer
-# from mushroom_rl.algorithms.policy_search.black_box_optimization.reps import REPS
-from reps_debug import REPS
 from mushroom_rl.solvers.lqr import compute_lqr_feedback_gain
 
-# from constrained_REPS import constrained_REPS
-# from more import MORE
-from reps_mi import REPS_MI
-from reps_mi_con import REPS_MI_CON
-from constrained_REPS import REPS_CON
+from constrained_reps import ConstrainedREPS
+from constrained_reps_mi import ConstrainedREPSMI
 
-from gaussian_diag_custom import GaussianDiagonalDistribution
-
-import matplotlib.pyplot as plt
-
-import joblib
-from mushroom_rl.environments import Environment
-from mushroom_rl.algorithms.policy_search.black_box_optimization import BlackBoxOptimization
+from gaussian_custom import GaussianDiagonalDistribution, GaussianCholeskyDistribution
 
 def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit, sigma_init=1e-3, env_seed=42, n_ineff=-1, seed=42, results_dir='results', quiet=True):
     
@@ -50,12 +38,7 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
             mdp.Q[p][p] = 1e-10
             mdp.R[p][p] = 1e-10
             mdp.B[p][p] = 1e-10
-
-        print('A', mdp.A)
-        print('Q', mdp.Q)
-        print('R', mdp.R)
-        print('B', mdp.B)
-        print('ineff_params', ineff_params)
+        print('\nA', mdp.A, '\nQ', mdp.Q, '\nR', mdp.R, '\nB', mdp.B, '\nineff_params', ineff_params)
 
     else:
         ineff_params = []
@@ -72,9 +55,6 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
     mdp.Q[mdp.Q == 1e-10] = 0
     mdp.R[mdp.R == 1e-10] = 0
     mdp.B[mdp.B == 1e-10] = 0
-    
-    # REMOVE
-    # ineff_params = [2,3]
 
     init_params = locals()
     
@@ -88,12 +68,7 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
 
     mu = np.zeros(policy.weights_size)
 
-    # REMOVE
-    # gain_lqr = compute_lqr_feedback_gain(mdp)
-    # mu = gain_lqr.flatten()
-
     sigma = sigma_init * np.ones(policy.weights_size)
-    
     distribution = GaussianDiagonalDistribution(mu, sigma)
 
     # algorithms
@@ -116,16 +91,16 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
         params = {'eps': eps, 'k': k, 'oracle': oracle}
 
     # constrained
-    elif alg == 'REPS_CON':
-        alg = REPS_CON
+    elif alg == 'ConstrainedREPS':
+        alg = ConstrainedREPS
         params = {'eps': eps, 'kappa': kappa}
 
-    elif alg == 'REPS_MI_CON':
-        alg = REPS_MI_CON
+    elif alg == 'ConstrainedREPSMI':
+        alg = ConstrainedREPSMI
         params = {'eps': eps, 'k': k, 'kappa': kappa}
 
-    elif alg == 'REPS_MI_CON_ORACLE':
-        alg = REPS_MI_CON
+    elif alg == 'ConstrainedREPSMIOracle':
+        alg = ConstrainedREPSMI
         oracle = []
         for i in range(lqr_dim):
             if i not in ineff_params:
@@ -133,24 +108,6 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
                     oracle += [i*lqr_dim + j]
         print(oracle)
         params = {'eps': eps, 'k': k, 'kappa': kappa, 'oracle': oracle}
-
-    # covariance & sampling
-    elif alg == 'REPS_MI_FIXED_LOW':
-        alg = REPS_MI
-        params = {'eps': eps, 'k': k}
-        distribution.set_fixed_sample(eps=1e-10)
-
-    elif alg == 'REPS_MI_FIXED_HIGH':
-        alg = REPS_MI
-        params = {'eps': eps, 'k': k}
-        distribution.set_fixed_sample(eps=kappa)
-        # distribution.set_fixed_sample(eps=1e-2)
-
-    elif alg == 'REPS_MI_10':
-        alg = REPS_MI
-        params = {'eps': eps, 'k': k}
-        distribution.set_percentage_sample(kappa=kappa)
-        # distribution.set_percentage_sample(kappa=0.1)
 
     # Agent
     agent = alg(mdp.info, distribution, policy, **params)
@@ -183,7 +140,7 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
     gain_policy = policy.get_weights()
 
     mi_avg = None
-    if alg.__name__ == 'REPS_MI' or alg.__name__ == 'REPS_MI_CON':
+    if 'MI' in alg.__name__:
         mi_avg = agent.mis
 
     best_reward = np.array(returns_mean).max()
@@ -218,19 +175,19 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
 
 def default_params():
     defaults = dict(
-        # alg = 'REPS_CON', 
-        alg = 'REPS_MI_CON_ORACLE', 
+        alg = 'ConstrainedREPSMI',
+        # alg = 'REPS_MI_CON_ORACLE', 
         lqr_dim = 10, 
-        eps = 0.7,
-        k = 8,
-        kappa = 7,
+        eps = 0.5,
+        k = 2,
+        kappa = 10,
         n_epochs = 50, 
         fit_per_epoch = 1, 
-        ep_per_fit = 250,
-        sigma_init=8e-1,
+        ep_per_fit = 100,
+        sigma_init=1e-1,
         seed = 0,
         n_ineff = 7,
-        env_seed = 0,
+        env_seed = -1,
         results_dir = 'results',
         quiet = True
     )
