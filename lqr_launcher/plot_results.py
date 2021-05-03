@@ -240,7 +240,7 @@ def plot_mu(mus_all, exp_name, config):
     ci = mus_all.std(axis=1)*2
 
     legend = []
-    linestyles = [':', '-']
+    linestyles = ['-', '--', '-.', ':', 'None', ' ', '', 'solid', 'dashed', 'dashdot', 'dotted']
     colors = ['red', 'blue', 'green', 'orange']
     algs = ['reps_', 'reps_mi_']
     for j in range(y.shape[0]):
@@ -278,15 +278,15 @@ def plot_mu_diff(mus_all, exp_name, config):
 
     legend = []
     colors = ['tab:red', 'tab:blue', 'tab:orange', 'tab:green']
-    algs = ['reps_', 'reps_mi_']
-    markers = ['.', '.']
+    algs = config['alg']
+    # markers = ['.', '.',  '.',  '.']
     for j in range(y.shape[0]):
         # for i in range(y.shape[2]):
         y_mean = y.mean(axis=-1, keepdims=True)
         for i in range(1):
             # ax.plot(x,y[j,:,i], linestyle=linestyles[j], color=colors[i])
             # ax.scatter(x,y[j,:,i], linestyle=linestyles[j], color=colors[i], marker='.')
-            ax.scatter(x,y_mean[j,:,i], color=colors[j+1], marker=markers[j], s=5)
+            ax.scatter(x,y_mean[j,:,i], color=colors[j+1], s=5)
             legend += [str(algs[j])+str(i)]
         # ax.fill_between(x, (y-ci)[:,i], (y+ci)[:,i], alpha=.3)
 
@@ -348,7 +348,7 @@ def plot_kl(kls_all, exp_name, legend, config):
 
 if __name__ == '__main__':
 
-    exp_name = 'lqr_dim_10_eff_3_env_0_con'
+    exp_name = 'lqr_dim_10_eff_3_env_0_con_sample_all'
 
     data_dir = os.path.join('logs', exp_name)
     returns_mean_all, returns_std_all, optimal_reward_all, best_reward_all, mi_avg_all, mus_all, kls_all, legend, init_params = load_data_from_dir(data_dir)
