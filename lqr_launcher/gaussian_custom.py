@@ -83,12 +83,38 @@ class GaussianDiagonalDistribution(Distribution):
         self._mu = mu
         self._std = std
 
+        self._gamma = 0
+        self._sample_type = None
+        self._top_k = []
+
         self._add_save_attr(
             _mu='numpy',
             _std='numpy'
         )
 
+    def set_fixed_sample(self, gamma=1e-10):
+        self._gamma = gamma
+        self._sample_type = 'fixed'
+
+    def set_percentage_sample(self, gamma=0.1):
+        self._gamma = gamma
+        self._sample_type = 'percentage'
+
     def sample(self):
+        from copy import copy
+        std_tmp = copy(self._std**2)
+
+        selection = np.in1d(range(std_tmp.shape[0]), self._top_k)
+
+        if self._sample_type == 'fixed' and len(self._top_k):
+            std_tmp[~selection] = self._gamma
+        elif self._sample_type == 'percentage' and len(self._top_k):
+            std_tmp[~selection] = std_tmp[~selection] * self._gamma
+        
+        sigma = np.diag(std_tmp)
+        return np.random.multivariate_normal(self._mu, sigma)
+
+    def sample_standard(self):
         sigma = np.diag(self._std**2)
         return np.random.multivariate_normal(self._mu, sigma)
 
@@ -149,6 +175,8 @@ class GaussianDiagonalDistribution(Distribution):
         return kl, self._mu
 
     def con_wmle_mi(self, theta, weights, eps, kappa, indices):
+        
+        self._top_k = indices
 
         n_dims = len(indices)
         mu = self._mu[indices]
@@ -174,8 +202,6 @@ class GaussianDiagonalDistribution(Distribution):
         mu_new = self._mu
         sigma_new = self._std
         n_dims = len(self._mu)
-        
-        print(mu, mu_new)
 
         from tqdm import tqdm
         sigma = np.diag(sigma**2)

@@ -20,7 +20,7 @@ from constrained_reps_mi import ConstrainedREPSMI
 
 from gaussian_custom import GaussianDiagonalDistribution, GaussianCholeskyDistribution
 
-def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit, sigma_init=1e-3, env_seed=42, n_ineff=-1, seed=42, results_dir='results', quiet=True):
+def experiment(alg, lqr_dim, eps, k, kappa, gamma, n_epochs, fit_per_epoch, ep_per_fit, sigma_init=1e-3, env_seed=42, n_ineff=-1, seed=42, sample_type=None, results_dir='results', quiet=True):
     
     if n_ineff < 0:
         n_ineff = round(lqr_dim / 2)
@@ -71,6 +71,12 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
     sigma = sigma_init * np.ones(policy.weights_size)
     distribution = GaussianDiagonalDistribution(mu, sigma)
 
+    # sample type
+    if sample_type == 'fixed':
+            distribution.set_fixed_sample(gamma=gamma)
+    elif sample_type == 'percentage':
+        distribution.set_percentage_sample(gamma=gamma)
+
     # algorithms
     if alg == 'REPS':
         alg = REPS
@@ -97,6 +103,7 @@ def experiment(alg, lqr_dim, eps, k, kappa, n_epochs, fit_per_epoch, ep_per_fit,
 
     elif alg == 'ConstrainedREPSMI':
         alg = ConstrainedREPSMI
+
         params = {'eps': eps, 'k': k, 'kappa': kappa}
 
     elif alg == 'ConstrainedREPSMIOracle':
@@ -177,17 +184,19 @@ def default_params():
     defaults = dict(
         alg = 'ConstrainedREPSMI',
         # alg = 'REPS_MI_CON_ORACLE', 
-        lqr_dim = 10, 
+        lqr_dim = 3, 
         eps = 0.5,
-        k = 2,
-        kappa = 10,
+        k = 1,
+        kappa = 3,
+        gamma = 1e-3,
         n_epochs = 50, 
         fit_per_epoch = 1, 
-        ep_per_fit = 100,
+        ep_per_fit = 10,
         sigma_init=1e-1,
         seed = 0,
-        n_ineff = 7,
+        n_ineff = 0,
         env_seed = -1,
+        sample_type = None,
         results_dir = 'results',
         quiet = True
     )
@@ -203,6 +212,7 @@ def parse_args():
     parser.add_argument('--eps', type=float)
     parser.add_argument('--k', type=int)
     parser.add_argument('--kappa', type=float)
+    parser.add_argument('--gamma', type=float)
     parser.add_argument('--n-epochs', type=int)
     parser.add_argument('--fit-per-epoch', type=int)
     parser.add_argument('--ep-per-fit', type=int)
@@ -210,6 +220,7 @@ def parse_args():
     parser.add_argument('--env-seed', type=int)
     parser.add_argument('--n-ineff', type=int)
     parser.add_argument('--sigma-init', type=float)
+    parser.add_argument('--sample-type', type=str)
     parser.add_argument('--results-dir', type=str)
     parser.add_argument('--quiet', type=bool)
 
