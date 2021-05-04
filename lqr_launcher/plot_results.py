@@ -45,7 +45,7 @@ def plot_data(data_dict, exp_name, pdf=False):
     
     plt.hlines(np.array(data_dict[exp]['optimal_reward'][0]).mean(), 0, len(x), 'red', label='optimal control')
     
-    ax.legend()
+    ax.legend(prop={'size': 8})
 
     plt.title(f"{exp_name}\nsamples {data_dict[exp]['init_params'][0]['ep_per_fit']} lqr_dim {data_dict[exp]['init_params'][0]['lqr_dim']} n_ineff {data_dict[exp]['init_params'][0]['n_ineff']}")
     plt.savefig(f"imgs/{exp_name}/returns.{'pdf' if pdf else 'png'}")
@@ -55,6 +55,8 @@ def plot_mi(data_dict, exp_name, pdf=False):
     for e, exp in enumerate(data_dict.keys()):
         
         if 'mi_avg' not in data_dict[exp].keys():
+            continue
+        if not data_dict[exp]['mi_avg'][0]:
             continue
 
         os.makedirs(f'imgs/{exp_name}', exist_ok=True)
@@ -72,9 +74,9 @@ def plot_mi(data_dict, exp_name, pdf=False):
         ax.set_xlabel('epochs')
         ax.set_ylabel('average mutual information')
 
-        ax.legend()
+        # ax.legend()
 
-        plt.title(f"{exp_name}\nsamples {data_dict[exp]['init_params'][0]['ep_per_fit']}")
+        plt.title(f"{exp_name}\n{exp}")
         plt.savefig(f"imgs/{exp_name}/mi_{e}.{'pdf' if pdf else 'png'}")
 
 def plot_kl(data_dir, exp_name, pdf=False):
@@ -97,7 +99,7 @@ def plot_kl(data_dir, exp_name, pdf=False):
     ax.set_xlabel('epochs')
     ax.set_ylabel('average KL')
 
-    ax.legend()
+    ax.legend(prop={'size': 8})
 
     plt.title(f"{exp_name}\nsamples {data_dict[exp]['init_params'][0]['ep_per_fit']}")
     plt.savefig(f"imgs/{exp_name}/kl.{'pdf' if pdf else 'png'}")
@@ -107,7 +109,7 @@ if __name__ == '__main__':
 
     pdf = False
     
-    exp_name = 'lqr_dim_10_eff_3_env_0_con_sample_oracle'
+    exp_name = 'lqr_dim_10_eff_3_env_0_con_sample_all'
     
     data_dir = os.path.join('logs', exp_name)
     data_dict = load_data_from_dir(data_dir)
