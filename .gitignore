@@ -134,7 +134,7 @@ dmypy.json
 *.png
 
 experiment_launcher/
-lqr_launcher/imgs*
-lqr_launcher/logs*
+/imgs*
+/logs*
 results/
 *.zip
