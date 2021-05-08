@@ -1,0 +1,16 @@
+alg: <class 'reps_mi.REPS_MI'>
+lqr_dim: 7
+eps: 0.2
+k: 7
+n_epochs: 5
+fit_per_epoch: 1
+ep_per_fit: 10
+env_seed: 0
+seed: 4
+results_dir: ./logs/lqr_7d_reduced_test/alg_REPS_MI
+quiet: True
+params: {'eps': 0.2, 'k': 7}
+mdp: <mushroom_rl.environments.lqr.LQR object at 0x7f05702825d0>
+rng: Generator(PCG64)
+ineff_params: [1 5 3 4]
+p: 4

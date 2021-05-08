@@ -1,0 +1,13 @@
+alg: <class 'reps_mi.REPS_MI'>
+eps: 0.2
+k: 2
+kappa: 3.5
+n_epochs: 1
+fit_per_epoch: 10
+ep_per_fit: 10
+sigma_init: 0.001
+seed: 0
+results_dir: ./logs/segway/alg_REPS_MI
+quiet: True
+params: {'eps': 0.2, 'k': 2}
+mdp: <mushroom_rl.environments.segway.Segway object at 0x7f1c7409b590>
