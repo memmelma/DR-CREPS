@@ -1,5 +1,5 @@
 import numpy as np
-from distribution import Distribution
+from .distribution import Distribution
 from scipy.stats import multivariate_normal
 from scipy.optimize import minimize
 

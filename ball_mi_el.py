@@ -9,11 +9,16 @@ import matplotlib.pyplot as plt
 from mushroom_rl.approximators.parametric import LinearApproximator
 from mushroom_rl.approximators.regressor import Regressor
 from mushroom_rl.core import Core
-from mushroom_rl.environments import LQR
 from mushroom_rl.policy import DeterministicPolicy
 from mushroom_rl.utils.dataset import compute_J
 from mushroom_rl.utils.optimizers import AdaptiveOptimizer
 from mushroom_rl.solvers.lqr import compute_lqr_feedback_gain
+
+from mushroom_rl.features import Features
+from mushroom_rl.features.basis.polynomial import PolynomialBasis
+    
+from custom_env.ball_rolling_gym_env import BallRollingGym
+from custom_policy.promp_policy import ProMPPolicy
 
 from mushroom_rl.algorithms.policy_search.black_box_optimization import REPS
 
@@ -22,56 +27,37 @@ from custom_algorithms.constrained_reps_mi import ConstrainedREPSMI
 
 from custom_distributions.gaussian_custom import GaussianDiagonalDistribution, GaussianCholeskyDistribution
 
-def experiment(alg, lqr_dim, eps, k, kappa, gamma, n_epochs, fit_per_epoch, ep_per_fit, sigma_init=1e-3, env_seed=42, n_ineff=-1, seed=42, sample_type=None, results_dir='results', quiet=True):
+def experiment(alg, eps, k, kappa, gamma, n_epochs, fit_per_epoch, ep_per_fit, n_basis=20, horizon=1000, sigma_init=1e-3, seed=42, sample_type=None, results_dir='results', quiet=True):
     
-    if n_ineff < 0:
-        n_ineff = round(lqr_dim / 2)
-    np.random.seed(seed)
-    
-    horizon = 50
-    mdp = LQR.generate(dimensions=lqr_dim, horizon=horizon, episodic=False, max_pos=1., max_action=1., eps=0.5)
-
-    if env_seed >= 0:
-        rng = default_rng(seed=env_seed)
-        ineff_params = rng.choice(lqr_dim, size=n_ineff, replace=False)
-
-        for p in ineff_params:
-            # mdp.A[p][p] = 1e-10
-            mdp.Q[p][p] = 1e-10
-            mdp.R[p][p] = 1e-10
-            mdp.B[p][p] = 1e-10
-        print('\nA', mdp.A, '\nQ', mdp.Q, '\nR', mdp.R, '\nB', mdp.B, '\nineff_params', ineff_params)
-
-    else:
-        ineff_params = []
-    
-    # Calculate optimal control return
-    gain_lqr = compute_lqr_feedback_gain(mdp)
-    state = mdp.reset()
-    optimal_reward = 0
-    for i in range(horizon):
-        action = - gain_lqr @ state
-        state, reward, _, __ = mdp.step(action)
-        optimal_reward += reward
-    
-    mdp.Q[mdp.Q == 1e-10] = 0
-    mdp.R[mdp.R == 1e-10] = 0
-    mdp.B[mdp.B == 1e-10] = 0
+    # MDP
+    mdp = BallRollingGym(horizon=horizon, gamma=0.99, observation_ids=[0,1,2,3], render=False)
 
     init_params = locals()
     
     os.makedirs(results_dir, exist_ok=True)
     
-    approximator = Regressor(LinearApproximator,
-                             input_shape=mdp.info.observation_space.shape,
-                             output_shape=mdp.info.action_space.shape)
+    # basis_features = PolynomialBasis().generate(2, mdp.info.observation_space.shape[0])
+    # features = Features(basis_features)
+    features=None
 
-    policy = DeterministicPolicy(mu=approximator)
+    # approximator = Regressor(LinearApproximator,
+    #                          input_shape=mdp.info.observation_space.shape,
+    #                          output_shape=mdp.info.action_space.shape)
+
+    # policy = DeterministicPolicy(mu=approximator)
+
+    policy = ProMPPolicy(n_basis=n_basis, basis_width=0.001, maxSteps=horizon, output=mdp.info.action_space.shape)
 
     mu = np.zeros(policy.weights_size)
-
-    sigma = sigma_init * np.ones(policy.weights_size)
-    distribution = GaussianDiagonalDistribution(mu, sigma)
+    # Cholesky
+    # sigma = 1e-3 * np.eye(policy.weights_size)
+    # distribution = GaussianCholeskyDistribution(mu, sigma)
+    # Diag
+    std = sigma_init * np.ones(policy.weights_size)
+    distribution = GaussianDiagonalDistribution(mu, std)
+    # Gaussian w/ fixed cov
+    # sigma = 1e-3 * np.eye(policy.weights_size)
+    # distribution = GaussianDistribution(mu, sigma)
 
     # sample type
     if sample_type == 'fixed':
@@ -119,7 +105,7 @@ def experiment(alg, lqr_dim, eps, k, kappa, gamma, n_epochs, fit_per_epoch, ep_p
         params = {'eps': eps, 'k': k, 'kappa': kappa, 'oracle': oracle}
 
     # Agent
-    agent = alg(mdp.info, distribution, policy, **params)
+    agent = alg(mdp.info, distribution, policy, features=features, **params)
 
     # Train
     core = Core(agent, mdp)
@@ -161,9 +147,7 @@ def experiment(alg, lqr_dim, eps, k, kappa, gamma, n_epochs, fit_per_epoch, ep_p
         'returns_mean': returns_mean,
         'returns_std': returns_std,
         'agent': agent,
-        'gain_lqr': gain_lqr,
         'gain_policy': gain_policy,
-        'optimal_reward': optimal_reward,
         'best_reward': best_reward,
         'init_params': init_params,
         'alg': alg,
@@ -175,6 +159,16 @@ def experiment(alg, lqr_dim, eps, k, kappa, gamma, n_epochs, fit_per_epoch, ep_p
 
     joblib.dump(dump_dict, os.path.join(results_dir, f'{alg.__name__}_{seed}'))
     
+    dump_state = dict({
+        'mdp': mdp,
+        'policy': policy,
+        'distribution': distribution,
+        'agent': agent,
+        'core': core
+    })
+
+    joblib.dump(dump_state, os.path.join(results_dir, f'{alg.__name__}_{seed}_state'))
+
     filename = os.path.join(results_dir, f'log_{alg.__name__}_{seed}.txt')
     os.makedirs(results_dir, exist_ok=True)
     with open(filename, 'w') as file:
@@ -185,19 +179,18 @@ def experiment(alg, lqr_dim, eps, k, kappa, gamma, n_epochs, fit_per_epoch, ep_p
 def default_params():
     defaults = dict(
         alg = 'ConstrainedREPS',
-        # alg = 'REPS_MI_CON_ORACLE', 
-        lqr_dim = 3, 
+        # alg = 'REPS_MI_CON_ORACLE',
         eps = 0.5,
         k = 1,
         kappa = 3,
-        gamma = 1e-3,
+        gamma= 0.1,
         n_epochs = 50, 
         fit_per_epoch = 1, 
         ep_per_fit = 10,
+        n_basis=20,
+        horizon=1000,
         sigma_init=1e-1,
         seed = 0,
-        n_ineff = 0,
-        env_seed = -1,
         sample_type = None,
         results_dir = 'results',
         quiet = True
@@ -205,12 +198,10 @@ def default_params():
 
     return defaults
 
-
 def parse_args():
     parser = argparse.ArgumentParser()
     
     parser.add_argument('--alg', type=str)
-    parser.add_argument('--lqr-dim', type=int)
     parser.add_argument('--eps', type=float)
     parser.add_argument('--k', type=int)
     parser.add_argument('--kappa', type=float)
@@ -218,9 +209,9 @@ def parse_args():
     parser.add_argument('--n-epochs', type=int)
     parser.add_argument('--fit-per-epoch', type=int)
     parser.add_argument('--ep-per-fit', type=int)
+    parser.add_argument('--n-basis', type=int)
+    parser.add_argument('--horizon', type=int)
     parser.add_argument('--seed', type=int)
-    parser.add_argument('--env-seed', type=int)
-    parser.add_argument('--n-ineff', type=int)
     parser.add_argument('--sigma-init', type=float)
     parser.add_argument('--sample-type', type=str)
     parser.add_argument('--results-dir', type=str)

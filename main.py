@@ -32,26 +32,27 @@ def experiment(alg, params, n_epochs, fit_per_epoch, ep_per_fit):
     # MDP
     mdp = BallRollingGym(horizon=horizon, gamma=0.99, observation_ids=[0,1,2,3], render=False)
 
-    basis_features = PolynomialBasis().generate(2, mdp.info.observation_space.shape[0])
-    features = Features(basis_features)
+    # basis_features = PolynomialBasis().generate(2, mdp.info.observation_space.shape[0])
+    # features = Features(basis_features)
+    features=None
     
-    approximator = Regressor(LinearApproximator,
-                             input_shape=(len(basis_features),),#mdp.info.observation_space.shape,
-                             output_shape=mdp.info.action_space.shape)
-    policy = DeterministicPolicy(mu=approximator)
+    # approximator = Regressor(LinearApproximator,
+    #                          input_shape=(len(basis_features),),#mdp.info.observation_space.shape,
+    #                          output_shape=mdp.info.action_space.shape)
+    # policy = DeterministicPolicy(mu=approximator)
     
-    # policy = ProMPPolicy(n_basis=25, basis_width=0.001, maxSteps=horizon, output=mdp.info.action_space.shape)
+    policy = ProMPPolicy(n_basis=25, basis_width=0.001, maxSteps=horizon, output=mdp.info.action_space.shape)
 
     mu = np.zeros(policy.weights_size)
     # Cholesky
     # sigma = 1e-3 * np.eye(policy.weights_size)
     # distribution = GaussianCholeskyDistribution(mu, sigma)
     # Diag
-    # std = 1e-3 * np.ones(policy.weights_size)
-    # distribution = GaussianDiagonalDistribution(mu, std)
+    std = 1e-3 * np.ones(policy.weights_size)
+    distribution = GaussianDiagonalDistribution(mu, std)
     # Gaussian w/ fixed cov
-    sigma = 1e-3 * np.eye(policy.weights_size)
-    distribution = GaussianDistribution(mu, sigma)
+    # sigma = 1e-3 * np.eye(policy.weights_size)
+    # distribution = GaussianDistribution(mu, sigma)
 
     # Agent
     agent = alg(mdp.info, distribution, policy, features=features, **params)
