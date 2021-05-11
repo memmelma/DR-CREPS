@@ -30,7 +30,7 @@ from custom_distributions.gaussian_custom import GaussianDiagonalDistribution, G
 def experiment(alg, eps, k, kappa, gamma, n_epochs, fit_per_epoch, ep_per_fit, n_basis=20, horizon=1000, sigma_init=1e-3, seed=42, sample_type=None, results_dir='results', quiet=True):
     
     # MDP
-    mdp = BallRollingGym(horizon=horizon, gamma=0.99, observation_ids=[0,1,2,3], render=False)
+    mdp = BallRollingGym(horizon=horizon, gamma=0.99, observation_ids=[0,1,2,3], render=not quiet)
 
     init_params = locals()
     
@@ -49,16 +49,21 @@ def experiment(alg, eps, k, kappa, gamma, n_epochs, fit_per_epoch, ep_per_fit, n
     policy = ProMPPolicy(n_basis=n_basis, basis_width=0.001, maxSteps=horizon, output=mdp.info.action_space.shape)
 
     mu = np.zeros(policy.weights_size)
-    # Cholesky
-    # sigma = 1e-3 * np.eye(policy.weights_size)
-    # distribution = GaussianCholeskyDistribution(mu, sigma)
-    # Diag
-    std = sigma_init * np.ones(policy.weights_size)
-    distribution = GaussianDiagonalDistribution(mu, std)
-    # Gaussian w/ fixed cov
-    # sigma = 1e-3 * np.eye(policy.weights_size)
-    # distribution = GaussianDistribution(mu, sigma)
+    if type(sigma_init) == float:
+        # Cholesky
+        # sigma = 1e-3 * np.eye(policy.weights_size)
+        # distribution = GaussianCholeskyDistribution(mu, sigma)
+        # Diag
+        std = sigma_init * np.ones(policy.weights_size)
+        distribution = GaussianDiagonalDistribution(mu, std)
+        # Gaussian w/ fixed cov
+        # sigma = 1e-3 * np.eye(policy.weights_size)
+        # distribution = GaussianDistribution(mu, sigma)
+    else:
+        distribution = sigma_init
 
+    print(distribution.get_parameters())
+    
     # sample type
     if sample_type == 'fixed':
             distribution.set_fixed_sample(gamma=gamma)
