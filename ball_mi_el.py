@@ -27,6 +27,8 @@ from custom_algorithms.constrained_reps_mi import ConstrainedREPSMI
 
 from custom_distributions.gaussian_custom import GaussianDiagonalDistribution, GaussianCholeskyDistribution
 
+from custom_algorithms.more import MORE
+
 def experiment(alg, eps, k, kappa, gamma, n_epochs, fit_per_epoch, ep_per_fit, n_basis=20, horizon=1000, sigma_init=1e-3, seed=42, sample_type=None, results_dir='results', quiet=True):
     
     # MDP
@@ -74,16 +76,6 @@ def experiment(alg, eps, k, kappa, gamma, n_epochs, fit_per_epoch, ep_per_fit, n
         alg = REPS_MI
         params = {'eps': eps, 'k': k}
 
-    elif alg == 'REPS_MI_ORACLE':
-        alg = REPS_MI
-        oracle = []
-        for i in range(lqr_dim):
-            if i not in ineff_params:
-                for j in range(lqr_dim):
-                    oracle += [i*lqr_dim + j]
-        print(oracle)
-        params = {'eps': eps, 'k': k, 'oracle': oracle}
-
     # constrained
     elif alg == 'ConstrainedREPS':
         alg = ConstrainedREPS
@@ -91,18 +83,11 @@ def experiment(alg, eps, k, kappa, gamma, n_epochs, fit_per_epoch, ep_per_fit, n
 
     elif alg == 'ConstrainedREPSMI':
         alg = ConstrainedREPSMI
-
         params = {'eps': eps, 'k': k, 'kappa': kappa}
 
-    elif alg == 'ConstrainedREPSMIOracle':
-        alg = ConstrainedREPSMI
-        oracle = []
-        for i in range(lqr_dim):
-            if i not in ineff_params:
-                for j in range(lqr_dim):
-                    oracle += [i*lqr_dim + j]
-        print(oracle)
-        params = {'eps': eps, 'k': k, 'kappa': kappa, 'oracle': oracle}
+    elif alg == 'MORE':
+        alg = MORE
+        params = {'eps': eps}
 
     # Agent
     agent = alg(mdp.info, distribution, policy, features=features, **params)
@@ -134,37 +119,38 @@ def experiment(alg, eps, k, kappa, gamma, n_epochs, fit_per_epoch, ep_per_fit, n
 
     gain_policy = policy.get_weights()
 
+    mus = None
+    kls = None
     mi_avg = None
-    if 'MI' in alg.__name__:
+
+    if hasattr(agent, 'mis'):
         mi_avg = agent.mis
+    if hasattr(agent, 'mus'):
+        mus = agent.mus
+    if hasattr(agent, 'kls'):
+        kls = agent.kls
 
     best_reward = np.array(returns_mean).max()
 
-    mus = agent.mus
-    kls = agent.kls
+    del init_params['mdp']
 
     dump_dict = dict({
         'returns_mean': returns_mean,
         'returns_std': returns_std,
-        'agent': agent,
+        # 'agent': agent,
         'gain_policy': gain_policy,
         'best_reward': best_reward,
         'init_params': init_params,
         'alg': alg,
         'mi_avg': mi_avg,
         'mus': mus,
-        'kls': kls,
-        'ineff_params': ineff_params
+        'kls': kls
     })
 
     joblib.dump(dump_dict, os.path.join(results_dir, f'{alg.__name__}_{seed}'))
     
     dump_state = dict({
-        'mdp': mdp,
-        'policy': policy,
-        'distribution': distribution,
-        'agent': agent,
-        'core': core
+        'distribution': distribution
     })
 
     joblib.dump(dump_state, os.path.join(results_dir, f'{alg.__name__}_{seed}_state'))
@@ -178,17 +164,17 @@ def experiment(alg, eps, k, kappa, gamma, n_epochs, fit_per_epoch, ep_per_fit, n
 
 def default_params():
     defaults = dict(
-        alg = 'ConstrainedREPS',
-        # alg = 'REPS_MI_CON_ORACLE',
-        eps = 0.5,
-        k = 1,
-        kappa = 3,
+        # alg = 'MORE',
+        alg = 'ConstrainedREPSMI',
+        eps = 0.7,
+        k = 5,
+        kappa = 2,
         gamma= 0.1,
-        n_epochs = 50, 
+        n_epochs = 200, 
         fit_per_epoch = 1, 
-        ep_per_fit = 10,
+        ep_per_fit = 25,
         n_basis=20,
-        horizon=1000,
+        horizon=500,
         sigma_init=1e-1,
         seed = 0,
         sample_type = None,

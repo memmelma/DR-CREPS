@@ -7,8 +7,9 @@ from mushroom_rl.approximators.parametric import LinearApproximator
 from mushroom_rl.features.basis.polynomial import PolynomialBasis
 from mushroom_rl.features import Features
 
-import autograd.numpy as np
-from autograd import grad
+# import autograd.numpy as np
+# from autograd import grad
+import numpy as np
 
 import traceback
 from tqdm import tqdm
@@ -41,9 +42,10 @@ class MORE(BlackBoxOptimization):
         n = len(self.distribution._mu)
         dist_params = self.distribution.get_parameters()
         mu_t = dist_params[:n][:,np.newaxis]
-        chol_sig_empty = np.zeros((n,n))
-        chol_sig_empty[np.tril_indices(n)] = dist_params[n:]
-        sig_t = chol_sig_empty.dot(chol_sig_empty.T)
+        # chol_sig_empty = np.zeros((n,n))
+        # chol_sig_empty[np.tril_indices(n)] = dist_params[n:]
+        # sig_t = chol_sig_empty.dot(chol_sig_empty.T)
+        sig_t = np.diag(dist_params[n:])
 
         tqdm.write(f'entropy {MORE._closed_form_entropy(sig_t, n)}')
 
@@ -52,7 +54,7 @@ class MORE(BlackBoxOptimization):
         entropy_policy_min = -75
         entropy_policy = MORE._closed_form_entropy(sig_t, n)
         kappa = gamma * (entropy_policy - entropy_policy_min) + entropy_policy_min
-        # tqdm.write(f'\nkappa {kappa}')
+        tqdm.write(f'kappa {kappa}')
 
         # create polynomial features
         poly_basis = PolynomialBasis().generate(2, theta.shape[1])
@@ -71,7 +73,7 @@ class MORE(BlackBoxOptimization):
         # MORE lagrangian -> bounds from MORE page 3
         eta_omg_start = np.ones(2)
         res = minimize(MORE._dual_function, eta_omg_start,
-                       jac=grad(MORE._dual_function),
+                    #    jac=grad(MORE._dual_function),
                        bounds=((np.finfo(np.float32).eps, np.inf),(np.finfo(np.float32).eps, np.inf)),
                        args=(sig_t, mu_t, R, r, r_0, self.eps, kappa, n),
                        method='SLSQP')
@@ -94,7 +96,8 @@ class MORE(BlackBoxOptimization):
         if not kl <= self.eps:
             tqdm.write(f'KL constraint violated KL {kl} eps {self.eps}')
 
-        dist_params = np.concatenate((mu_t1.flatten(), np.linalg.cholesky(sig_t1)[np.tril_indices(n)].flatten()))
+        # dist_params = np.concatenate((mu_t1.flatten(), np.linalg.cholesky(sig_t1)[np.tril_indices(n)].flatten()))
+        dist_params = np.concatenate((mu_t1.flatten(), np.diag(sig_t1).flatten()))
 
         # update distribution
         self.distribution.set_parameters(dist_params)
@@ -109,7 +112,7 @@ class MORE(BlackBoxOptimization):
         # original paper
         # term1 = (f.T @ F @ f) - eta * (b.T @ np.linalg.inv(Q) @ b) - eta * (np.linalg.slogdet(((2*np.pi))*Q)[1]) + (eta + omg) * (np.linalg.slogdet(((2*np.pi))*(eta + omg) * F)[1])
 
-        return eta * eps - omg * kappa + 0.5 * term1
+        return eta * eps - omg * kappa + 0.5 * term1[0]
 
     @staticmethod
     def _closed_form_mu_t1_sig_t1(Q, b, R, r, eta, omg):
