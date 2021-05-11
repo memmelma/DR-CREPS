@@ -16,6 +16,7 @@ from mushroom_rl.utils.optimizers import AdaptiveOptimizer
 from mushroom_rl.solvers.lqr import compute_lqr_feedback_gain
 
 from mushroom_rl.algorithms.policy_search.black_box_optimization import REPS
+from custom_algorithms.more import MORE
 
 from custom_algorithms.constrained_reps import ConstrainedREPS
 from custom_algorithms.constrained_reps_mi import ConstrainedREPSMI
@@ -118,6 +119,10 @@ def experiment(alg, lqr_dim, eps, k, kappa, gamma, n_epochs, fit_per_epoch, ep_p
         print(oracle)
         params = {'eps': eps, 'k': k, 'kappa': kappa, 'oracle': oracle}
 
+    elif alg == 'MORE':
+        alg = MORE
+        params = {'eps': eps}
+
     # Agent
     agent = alg(mdp.info, distribution, policy, **params)
 
@@ -184,14 +189,14 @@ def experiment(alg, lqr_dim, eps, k, kappa, gamma, n_epochs, fit_per_epoch, ep_p
 
 def default_params():
     defaults = dict(
-        alg = 'ConstrainedREPS',
+        alg = 'REPS',
         # alg = 'REPS_MI_CON_ORACLE', 
-        lqr_dim = 3, 
-        eps = 0.5,
+        lqr_dim = 10, 
+        eps = 0.7,
         k = 1,
-        kappa = 3,
+        kappa = 2,
         gamma = 1e-3,
-        n_epochs = 50, 
+        n_epochs = 75, 
         fit_per_epoch = 1, 
         ep_per_fit = 10,
         sigma_init=1e-1,
