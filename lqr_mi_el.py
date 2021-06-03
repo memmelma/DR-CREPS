@@ -15,7 +15,7 @@ from mushroom_rl.utils.dataset import compute_J
 from mushroom_rl.utils.optimizers import AdaptiveOptimizer
 from mushroom_rl.solvers.lqr import compute_lqr_feedback_gain
 
-from mushroom_rl.algorithms.policy_search.black_box_optimization import REPS
+from mushroom_rl.algorithms.policy_search.black_box_optimization import REPS, RWR
 from custom_algorithms.more import MORE
 
 from custom_algorithms.constrained_reps import ConstrainedREPS
@@ -23,7 +23,7 @@ from custom_algorithms.constrained_reps_mi import ConstrainedREPSMI
 
 from custom_distributions.gaussian_custom import GaussianDiagonalDistribution, GaussianCholeskyDistribution
 
-def experiment(alg, lqr_dim, eps, k, kappa, gamma, n_epochs, fit_per_epoch, ep_per_fit, sigma_init=1e-3, env_seed=42, n_ineff=-1, seed=42, sample_type=None, results_dir='results', quiet=True):
+def experiment(alg, lqr_dim, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch, ep_per_fit, sigma_init=1e-3, env_seed=42, n_ineff=-1, seed=42, sample_type=None, mi_type='regression', results_dir='results', quiet=True):
     
     if n_ineff < 0:
         n_ineff = round(lqr_dim / 2)
@@ -107,7 +107,7 @@ def experiment(alg, lqr_dim, eps, k, kappa, gamma, n_epochs, fit_per_epoch, ep_p
     elif alg == 'ConstrainedREPSMI':
         alg = ConstrainedREPSMI
 
-        params = {'eps': eps, 'k': k, 'kappa': kappa}
+        params = {'eps': eps, 'k': k, 'kappa': kappa, 'bins': bins, 'mi_type': mi_type}
 
     elif alg == 'ConstrainedREPSMIOracle':
         alg = ConstrainedREPSMI
@@ -117,11 +117,15 @@ def experiment(alg, lqr_dim, eps, k, kappa, gamma, n_epochs, fit_per_epoch, ep_p
                 for j in range(lqr_dim):
                     oracle += [i*lqr_dim + j]
         print(oracle)
-        params = {'eps': eps, 'k': k, 'kappa': kappa, 'oracle': oracle}
+        params = {'eps': eps, 'k': k, 'kappa': kappa, 'oracle': oracle, 'bins': bins, 'mi_type': mi_type}
 
     elif alg == 'MORE':
         alg = MORE
         params = {'eps': eps}
+    
+    elif alg == 'RWR':
+        alg = RWR
+        params = {'beta': eps}
 
     # Agent
     agent = alg(mdp.info, distribution, policy, **params)
@@ -153,14 +157,18 @@ def experiment(alg, lqr_dim, eps, k, kappa, gamma, n_epochs, fit_per_epoch, ep_p
 
     gain_policy = policy.get_weights()
 
+    mus = None
+    kls = None
     mi_avg = None
-    if 'MI' in alg.__name__:
+
+    if hasattr(agent, 'mis'):
         mi_avg = agent.mis
+    if hasattr(agent, 'mus'):
+        mus = agent.mus
+    if hasattr(agent, 'kls'):
+        kls = agent.kls
 
     best_reward = np.array(returns_mean).max()
-
-    mus = agent.mus
-    kls = agent.kls
 
     dump_dict = dict({
         'returns_mean': returns_mean,
@@ -189,11 +197,12 @@ def experiment(alg, lqr_dim, eps, k, kappa, gamma, n_epochs, fit_per_epoch, ep_p
 
 def default_params():
     defaults = dict(
-        alg = 'REPS',
+        alg = 'ConstrainedREPSMI',
         # alg = 'REPS_MI_CON_ORACLE', 
         lqr_dim = 10, 
         eps = 0.7,
         k = 1,
+        bins = 3,
         kappa = 2,
         gamma = 1e-3,
         n_epochs = 75, 
@@ -204,6 +213,7 @@ def default_params():
         n_ineff = 0,
         env_seed = -1,
         sample_type = None,
+        mi_type = 'regression',
         results_dir = 'results',
         quiet = True
     )
@@ -218,6 +228,7 @@ def parse_args():
     parser.add_argument('--lqr-dim', type=int)
     parser.add_argument('--eps', type=float)
     parser.add_argument('--k', type=int)
+    parser.add_argument('--bins', type=int)
     parser.add_argument('--kappa', type=float)
     parser.add_argument('--gamma', type=float)
     parser.add_argument('--n-epochs', type=int)
@@ -228,6 +239,7 @@ def parse_args():
     parser.add_argument('--n-ineff', type=int)
     parser.add_argument('--sigma-init', type=float)
     parser.add_argument('--sample-type', type=str)
+    parser.add_argument('--mi-type', type=str)
     parser.add_argument('--results-dir', type=str)
     parser.add_argument('--quiet', type=bool)
 
