@@ -18,7 +18,7 @@ def load_data_from_dir(data_dir):
                             data_dict[key] = [data_load[key]]
                         else:
                             data_dict[key] += [data_load[key]]
-            key = '|'.join(root.split('/')[-3:])
+            key = '|'.join(root.split('/')[-4:])
             data_dict_all[key] = data_dict
 
     return data_dict_all
@@ -72,11 +72,11 @@ def plot_mi(data_dict, exp_name, pdf=False):
         x = np.arange(0, y.shape[0], 1)/data_dict[exp]['init_params'][0]['fit_per_epoch']
         ci = np.array(data_dict[exp]['mi_avg']).std(axis=0)*2
 
-        ax.plot(x,y)
-        print('REMOVE FOR STANDARD BEHAVIOR')
-        # for i in range(y.shape[1]):
-        #     ax.plot(x,y[:,i])
-        #     ax.fill_between(x, (y-ci)[:,i], (y+ci)[:,i], alpha=.3)
+        # ax.plot(x,y)
+        # print('REMOVE FOR STANDARD BEHAVIOR')
+        for i in range(y.shape[1]):
+            ax.plot(x,y[:,i])
+            ax.fill_between(x, (y-ci)[:,i], (y+ci)[:,i], alpha=.3)
 
         ax.set_xlabel('epochs')
         ax.set_ylabel('average mutual information')
@@ -121,12 +121,13 @@ if __name__ == '__main__':
 
     pdf = False
     
-    exp_name = 'ball'
+    exp_name = 'lqr_dim_10_eff_3_env_0_iprl'
     
     data_dir = os.path.join('logs', exp_name)
     data_dict = load_data_from_dir(data_dir)
 
-    plot_data(data_dict, exp_name, episodes=250, pdf=pdf)
+    # plot_data(data_dict, exp_name, episodes=250, pdf=pdf)
+    plot_data(data_dict, exp_name, episodes=300, pdf=pdf)
 
     plot_mi(data_dict, exp_name, pdf=pdf)
     plot_kl(data_dict, exp_name, pdf=pdf)
