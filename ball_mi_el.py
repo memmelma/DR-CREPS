@@ -20,7 +20,7 @@ from mushroom_rl.features.basis.polynomial import PolynomialBasis
 from custom_env.ball_rolling_gym_env import BallRollingGym
 from custom_policy.promp_policy import ProMPPolicy
 
-from mushroom_rl.algorithms.policy_search.black_box_optimization import REPS
+from mushroom_rl.algorithms.policy_search.black_box_optimization import REPS, RWR
 
 from custom_algorithms.constrained_reps import ConstrainedREPS
 from custom_algorithms.constrained_reps_mi import ConstrainedREPSMI
@@ -29,7 +29,7 @@ from custom_distributions.gaussian_custom import GaussianDiagonalDistribution, G
 
 from custom_algorithms.more import MORE
 
-def experiment(alg, eps, k, kappa, gamma, n_epochs, fit_per_epoch, ep_per_fit, n_basis=20, horizon=1000, sigma_init=1e-3, seed=42, sample_type=None, results_dir='results', quiet=True):
+def experiment(alg, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch, ep_per_fit, n_basis=20, horizon=1000, sigma_init=1e-3, seed=42, sample_type=None, mi_type='regression', results_dir='results', quiet=True):
     
     # MDP
     mdp = BallRollingGym(horizon=horizon, gamma=0.99, observation_ids=[0,1,2,3], render=not quiet)
@@ -88,11 +88,15 @@ def experiment(alg, eps, k, kappa, gamma, n_epochs, fit_per_epoch, ep_per_fit, n
 
     elif alg == 'ConstrainedREPSMI':
         alg = ConstrainedREPSMI
-        params = {'eps': eps, 'k': k, 'kappa': kappa}
+        params = {'eps': eps, 'k': k, 'kappa': kappa, 'bins': bins, 'mi_type': mi_type}
 
     elif alg == 'MORE':
         alg = MORE
         params = {'eps': eps}
+    
+    elif alg == 'RWR':
+        alg = RWR
+        params = {'beta': eps}
 
     # Agent
     agent = alg(mdp.info, distribution, policy, features=features, **params)
@@ -169,20 +173,22 @@ def experiment(alg, eps, k, kappa, gamma, n_epochs, fit_per_epoch, ep_per_fit, n
 
 def default_params():
     defaults = dict(
-        # alg = 'MORE',
         alg = 'ConstrainedREPSMI',
+        # alg = 'REPS',
         eps = 0.7,
-        k = 5,
+        k = 0.2,
+        bins = 3,
         kappa = 2,
         gamma= 0.1,
         n_epochs = 200, 
         fit_per_epoch = 1, 
-        ep_per_fit = 25,
+        ep_per_fit = 10,
         n_basis=20,
         horizon=500,
         sigma_init=1e-1,
         seed = 0,
         sample_type = None,
+        mi_type = 'regression',
         results_dir = 'results',
         quiet = True
     )
@@ -194,7 +200,8 @@ def parse_args():
     
     parser.add_argument('--alg', type=str)
     parser.add_argument('--eps', type=float)
-    parser.add_argument('--k', type=int)
+    parser.add_argument('--k', type=float)
+    parser.add_argument('--bins', type=int)
     parser.add_argument('--kappa', type=float)
     parser.add_argument('--gamma', type=float)
     parser.add_argument('--n-epochs', type=int)
@@ -205,6 +212,7 @@ def parse_args():
     parser.add_argument('--seed', type=int)
     parser.add_argument('--sigma-init', type=float)
     parser.add_argument('--sample-type', type=str)
+    parser.add_argument('--mi-type', type=str)
     parser.add_argument('--results-dir', type=str)
     parser.add_argument('--quiet', type=bool)
 
