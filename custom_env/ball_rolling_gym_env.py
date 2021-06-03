@@ -180,7 +180,8 @@ class BallRollingEnv(gym.Env):
                 0.5, 1.5, 0.3], rgbaColor=[
                 0.2, 1, 0.5, 1])
         self.table = p.createMultiBody(
-            baseMass=10.0,
+            # baseMass=10.0,
+            baseMass=100000.0,
             baseCollisionShapeIndex=table_collision,
             baseVisualShapeIndex=table_visual,
             basePosition=[0.5, 0, 0.3])
