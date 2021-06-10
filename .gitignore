@@ -138,3 +138,5 @@ experiment_launcher/
 /logs*
 results/
 *.zip
+
+/logs_mi*
