@@ -45,9 +45,147 @@ def kraskov_mi(x,y,k=5):
 		ans_xy += (dx+dy)*log(knn_dis[i])/N
 		ans_x += -digamma(len(tree_x.query_ball_point(x[i],knn_dis[i]-1e-15,p=float('inf'))))/N+dx*log(knn_dis[i])/N
 		ans_y += -digamma(len(tree_y.query_ball_point(y[i],knn_dis[i]-1e-15,p=float('inf'))))/N+dy*log(knn_dis[i])/N
-		
+	
+	sk_mi = kraskov_mi_sklearn(x,y,n_neighbors=k)
+	# print(sk_mi, ans_x+ans_y-ans_xy)
+
 	return ans_x+ans_y-ans_xy
 
+from sklearn.neighbors import NearestNeighbors, KDTree
+
+def kraskov_mi_sklearn(x,y,n_neighbors=5):
+	n_samples = x.size
+
+	x = x.reshape((-1, 1))
+	y = y.reshape((-1, 1))
+	xy = np.hstack((x, y))
+
+	# Here we rely on NearestNeighbors to select the fastest algorithm.
+	nn = NearestNeighbors(metric='chebyshev', n_neighbors=n_neighbors)
+
+	nn.fit(xy)
+	radius = nn.kneighbors()[0]
+	radius = np.nextafter(radius[:, -1], 0)
+
+	# KDTree is explicitly fit to allow for the querying of number of
+	# neighbors within a specified radius
+	kd = KDTree(x, metric='chebyshev')
+	nx = kd.query_radius(x, radius, count_only=True, return_distance=False)
+	nx = np.array(nx) - 1.0
+
+	kd = KDTree(y, metric='chebyshev')
+	ny = kd.query_radius(y, radius, count_only=True, return_distance=False)
+	ny = np.array(ny) - 1.0
+
+	mi = (digamma(n_samples) + digamma(n_neighbors) - np.mean(digamma(nx + 1)) - np.mean(digamma(ny + 1)))
+
+	return max(0, mi)
+
+from scipy.sparse import issparse
+from sklearn.utils.validation import check_array, check_X_y
+from sklearn.preprocessing import scale
+from sklearn.utils import check_random_state
+from sklearn.utils.fixes import _astype_copy_false
+
+# sklearn
+def _estimate_mi(X, y, discrete_features='auto', discrete_target=False,
+				 n_neighbors=3, copy=True, random_state=None):
+
+	X, y = check_X_y(X, y, accept_sparse='csc', y_numeric=not discrete_target)
+	n_samples, n_features = X.shape
+
+	if isinstance(discrete_features, (str, bool)):
+		if isinstance(discrete_features, str):
+			if discrete_features == 'auto':
+				discrete_features = issparse(X)
+			else:
+				raise ValueError("Invalid string value for discrete_features.")
+		discrete_mask = np.empty(n_features, dtype=bool)
+		discrete_mask.fill(discrete_features)
+	else:
+		discrete_features = check_array(discrete_features, ensure_2d=False)
+		if discrete_features.dtype != 'bool':
+			discrete_mask = np.zeros(n_features, dtype=bool)
+			discrete_mask[discrete_features] = True
+		else:
+			discrete_mask = discrete_features
+
+	continuous_mask = ~discrete_mask
+	if np.any(continuous_mask) and issparse(X):
+		raise ValueError("Sparse matrix `X` can't have continuous features.")
+
+	rng = check_random_state(random_state)
+	if np.any(continuous_mask):
+		if copy:
+			X = X.copy()
+
+		if not discrete_target:
+			X[:, continuous_mask] = scale(X[:, continuous_mask],
+										  with_mean=False, copy=False)
+
+		# Add small noise to continuous features as advised in Kraskov et. al.
+		X = X.astype(float, **_astype_copy_false(X))
+		means = np.maximum(1, np.mean(np.abs(X[:, continuous_mask]), axis=0))
+
+		X[:, continuous_mask] += 1e-10 * means * rng.randn(
+				n_samples, np.sum(continuous_mask))
+
+	if not discrete_target:
+		y = scale(y, with_mean=False)
+		y += 1e-10 * np.maximum(1, np.mean(np.abs(y))) * rng.randn(n_samples)
+
+	mi = [_compute_mi(x, y, discrete_feature, discrete_target, n_neighbors) for
+		  x, discrete_feature in zip(_iterate_columns(X), discrete_mask)]
+
+	return np.array(mi)
+
+# sklearn
+def _compute_mi(x, y, x_discrete, y_discrete, n_neighbors=3):
+	"""Compute mutual information between two variables.
+	This is a simple wrapper which selects a proper function to call based on
+	whether `x` and `y` are discrete or not.
+	"""
+	if x_discrete and y_discrete:
+		print('0')
+		exit()
+		# return mutual_info_score(x, y)
+	elif x_discrete and not y_discrete:
+		# return _compute_mi_cd(y, x, n_neighbors)
+		print('1')
+		exit()
+	elif not x_discrete and y_discrete:
+		# return _compute_mi_cd(x, y, n_neighbors)
+		print('2')
+		exit()
+	else:
+		return kraskov_mi_sklearn(x, y, n_neighbors)
+
+# sklearn
+def _iterate_columns(X, columns=None):
+	"""Iterate over columns of a matrix.
+	Parameters
+	----------
+	X : ndarray or csc_matrix, shape (n_samples, n_features)
+		Matrix over which to iterate.
+	columns : iterable or None, default=None
+		Indices of columns to iterate over. If None, iterate over all columns.
+	Yields
+	------
+	x : ndarray, shape (n_samples,)
+		Columns of `X` in dense format.
+	"""
+	if columns is None:
+		columns = range(X.shape[1])
+
+	if issparse(X):
+		for i in columns:
+			x = np.zeros(X.shape[0])
+			start_ptr, end_ptr = X.indptr[i], X.indptr[i + 1]
+			x[X.indices[start_ptr:end_ptr]] = X.data[start_ptr:end_ptr]
+			yield x
+	else:
+		for i in columns:
+			yield X[:, i]
 
 def revised_mi(x,y,k=5,q=float('inf')):
 	'''
