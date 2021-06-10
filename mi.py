@@ -36,19 +36,38 @@ def calc_MI_sklearn(x, y, bins):
 	return mi
 
 def calc_MI_samples(x, y, bins, H_X_given, n):
-	
+
 	x = x.ravel()
 	y = y.ravel()
 	
+	c_X = np.histogram(x, bins=bins)[0]
+	c_Y = np.histogram(y, bins=bins)[0]
 	c_XY = np.histogram2d(x, y, bins)[0]
-	c_X = np.histogram(x, bins)[0]
-	c_Y = np.histogram(y, bins)[0]
 
 	H_X = shan_entropy(c_X)
 	H_Y = shan_entropy(c_Y)
 	H_XY = shan_entropy(c_XY)
 	MI = H_X_given/n + H_Y - H_XY
 	# MI = H_X + H_Y - H_XY
+	
+	return MI
+
+def calc_MI_samples_auto_bin(x, y):
+	
+	x = x.ravel()
+	y = y.ravel()
+	
+	c_X = np.histogram(x, bins='auto')[0]
+	c_Y = np.histogram(y, bins='auto')[0]
+	bins = [len(c_X)+1, len(c_Y)+1]
+	c_XY = np.histogram2d(x, y, bins)[0]
+
+	H_X = shan_entropy(c_X)
+	H_Y = shan_entropy(c_Y)
+	H_XY = shan_entropy(c_XY)
+
+	MI = H_X + H_Y - H_XY
+	
 	return MI
 
 def shan_entropy(c):
@@ -120,8 +139,10 @@ def compute_MI(x, y, I, H_x, bins):
 
 	I_xy_sklearn_regression = []
 	I_xy_sklearn = []
-	I_xy_scipy = []
+	I_xy_ksg = []
 	I_xy_samples = []
+
+	I_xy_samples_ab = 0
 
 	legend = []
 
@@ -144,43 +165,47 @@ def compute_MI(x, y, I, H_x, bins):
 
 		for bin_i, bin in enumerate(bins):
 			if i == 0:
-				I_xy_samples += [calc_MI_samples(x_tmp, y_tmp, bin, H_X_given=H_x, n=x.shape[0])]
+				I_xy_samples += [calc_MI_samples(x_tmp, y_tmp, bin, H_X_given=H_x, n=x.shape[1])]
 			else:
-				I_xy_samples[bin_i] += calc_MI_samples(x_tmp, y_tmp, bin, H_X_given=H_x, n=x.shape[0])
+				I_xy_samples[bin_i] += calc_MI_samples(x_tmp, y_tmp, bin, H_X_given=H_x, n=x.shape[1])
 
 		for bin_i, bin in enumerate(bins):
 			if i == 0:
-				I_xy_scipy += [calc_MI_KSG(x_tmp, y_tmp, bin)]
+				I_xy_ksg += [calc_MI_KSG(x_tmp, y_tmp, bin)]
 			else:
-				I_xy_scipy[bin_i] += calc_MI_KSG(x_tmp, y_tmp, bin)
+				I_xy_ksg[bin_i] += calc_MI_KSG(x_tmp, y_tmp, bin)
 
+		I_xy_samples_ab += calc_MI_samples_auto_bin(x_tmp, y_tmp)
 
 	legend += ['$I_{regress}$']
 	legend += ['$I_{binned}$']
 	legend += ['$I_{prior}$']
 	legend += ['$I_{KSG}$']
 
+	legend += ['$I_{autobin}$']
+
 	legend += ['$I$']
 
 	for i in range(len(bins)):
-		I_xy_sklearn[i] /= x.shape[0]
-		I_xy_sklearn_regression[i] /= x.shape[0]
-		I_xy_samples[i] /= x.shape[0]
-		I_xy_scipy[i] /= x.shape[0]
+		I_xy_sklearn[i] /= x.shape[1]
+		I_xy_sklearn_regression[i] /= x.shape[1]
+		I_xy_samples[i] /= x.shape[1]
+		I_xy_ksg[i] /= x.shape[1]
+		
+	I_xy_samples_ab /= x.shape[1]
 
-	colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:purple', 'tab:red']
-	linestyles = [':', '-.', '--']
-	assert len(linestyles) == len(bins), 'define more linestyles'
+	colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:purple', 'tab:brown', 'tab:red']
+	linestyles = [':', '-', '--', '-.', 'solid', 'dashed', 'dashdot', 'dotted']
+	assert len(linestyles) >= len(bins), 'define more linestyles'
 
-	return [*I_xy_sklearn_regression, *I_xy_sklearn, *I_xy_samples, *I_xy_scipy, I], legend, colors, linestyles
-	# return np.array([*I_xy_sklearn_regression, *I_xy_sklearn, I_xy_scipy, I_xy_samples, I]), legend
+	return [*I_xy_sklearn_regression, *I_xy_sklearn, *I_xy_samples, *I_xy_ksg, I_xy_samples_ab, I], legend, colors, linestyles
 
 def plot_samples(dim=5, n_samples=[5, 10, 15], bins=[3, 4], noise_factor=2, n_runs=25, override=False, log_dir=''):
 	mi_runs = []
 	
 	file_name = f'mi_dim_{dim}_noise_{noise_factor}_bins_{bins}'
-
-	if os.path.isfile(file_name) and not override: 
+	
+	if os.path.isfile(os.path.join(log_dir, 'data', file_name+'.npy')) and not override: 
 		mi_runs, legend, colors, linestyle = np.load(os.path.join(log_dir, 'data', file_name+'.npy'), allow_pickle=True)
 		print('Open existing file')
 	else:
@@ -235,8 +260,9 @@ if __name__ == '__main__':
 	os.makedirs(img_dir, exist_ok=True)
 	os.makedirs(data_dir, exist_ok=True)
 
-	plot_samples(dim=140, n_samples=np.arange(10, 250, 5), bins=[3, 4, 5], noise_factor=0, n_runs=10, log_dir=log_dir)
+	plot_samples(dim=140, n_samples=np.arange(20, 200, 5), bins=[5, 10, 15], noise_factor=1, n_runs=10, log_dir=log_dir)
 
-	# plot_samples(dim=140, n_samples=np.arange(10, 250, 5), bins=[3, 4, 5], noise_factor=1, n_runs=10, log_dir=log_dir)
+	# plot_samples(dim=140, n_samples=np.arange(20, 200, 5), bins=[3, 4, 5, 10], noise_factor=1, n_runs=10, log_dir=log_dir)
 
+	# plot_samples(dim=140, n_samples=np.arange(20, 200, 5), bins=[19], noise_factor=1, n_runs=10, log_dir=log_dir)
 	
