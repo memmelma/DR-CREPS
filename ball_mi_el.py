@@ -24,12 +24,13 @@ from mushroom_rl.algorithms.policy_search.black_box_optimization import REPS, RW
 
 from custom_algorithms.constrained_reps import ConstrainedREPS
 from custom_algorithms.constrained_reps_mi import ConstrainedREPSMI
+from custom_algorithms.reps_mi import REPS_MI
 
 from custom_distributions.gaussian_custom import GaussianDiagonalDistribution, GaussianCholeskyDistribution
 
 from custom_algorithms.more import MORE
 
-def experiment(alg, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch, ep_per_fit, n_basis=20, horizon=1000, sigma_init=1e-3, seed=42, sample_type=None, mi_type='regression', results_dir='results', quiet=True):
+def experiment(alg, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch, ep_per_fit, n_basis=20, horizon=1000, sigma_init=1e-3, seed=42, sample_type=None, mi_type='regression', mi_avg=True, results_dir='results', quiet=True):
     
     # MDP
     mdp = BallRollingGym(horizon=horizon, gamma=0.99, observation_ids=[0,1,2,3], render=not quiet)
@@ -79,8 +80,8 @@ def experiment(alg, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch, ep_per_
 
     elif alg == 'REPS_MI':
         alg = REPS_MI
-        params = {'eps': eps, 'k': k}
-
+        params = {'eps': eps, 'k': k, 'bins': bins, 'mi_type': mi_type, 'mi_avg': mi_avg}
+        
     # constrained
     elif alg == 'ConstrainedREPS':
         alg = ConstrainedREPS
@@ -88,7 +89,7 @@ def experiment(alg, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch, ep_per_
 
     elif alg == 'ConstrainedREPSMI':
         alg = ConstrainedREPSMI
-        params = {'eps': eps, 'k': k, 'kappa': kappa, 'bins': bins, 'mi_type': mi_type}
+        params = {'eps': eps, 'k': k, 'kappa': kappa, 'bins': bins, 'mi_type': mi_type, 'mi_avg': mi_avg}
 
     elif alg == 'MORE':
         alg = MORE
@@ -173,8 +174,8 @@ def experiment(alg, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch, ep_per_
 
 def default_params():
     defaults = dict(
-        alg = 'ConstrainedREPSMI',
-        # alg = 'REPS',
+        # alg = 'ConstrainedREPSMI',
+        alg = 'REPS_MI',
         eps = 0.7,
         k = 0.2,
         bins = 3,
@@ -189,6 +190,7 @@ def default_params():
         seed = 0,
         sample_type = None,
         mi_type = 'regression',
+        mi_avg = True,
         results_dir = 'results',
         quiet = True
     )
@@ -213,6 +215,7 @@ def parse_args():
     parser.add_argument('--sigma-init', type=float)
     parser.add_argument('--sample-type', type=str)
     parser.add_argument('--mi-type', type=str)
+    parser.add_argument('--mi-avg', type=str)
     parser.add_argument('--results-dir', type=str)
     parser.add_argument('--quiet', type=bool)
 
