@@ -170,7 +170,7 @@ class GaussianDiagonalDistribution(Distribution):
         sigma_new_inv = np.linalg.inv(sigma_new)
         kl = GaussianDiagonalDistribution._closed_form_KL_constraint_M_projection(mu, mu_new, sigma, sigma_new, sigma_inv, sigma_new_inv, logdet_sigma, logdet_sigma_new, n_dims)
         
-        tqdm.write(f'\nKL constraint: KL: {kl:2.6f} eps: {eps:2.6f}')
+        # tqdm.write(f'\nKL constraint: KL: {kl:2.6f} eps: {eps:2.6f}')
 
         return kl, self._mu
 
@@ -212,7 +212,7 @@ class GaussianDiagonalDistribution(Distribution):
         sigma_new_inv = np.linalg.inv(sigma_new)
         kl = GaussianDiagonalDistribution._closed_form_KL_constraint_M_projection(mu, mu_new, sigma, sigma_new, sigma_inv, sigma_new_inv, logdet_sigma, logdet_sigma_new, n_dims)
         
-        tqdm.write(f'\nKL constraint: KL: {kl:2.6f} eps: {eps:2.6f}')
+        # tqdm.write(f'\nKL constraint: KL: {kl:2.6f} eps: {eps:2.6f}')
 
         return kl, self._mu
 
@@ -382,7 +382,7 @@ class GaussianCholeskyDistribution(Distribution):
         sigma_inv = np.linalg.inv(sigma)
         sigma_new_inv = np.linalg.inv(sigma_new)
         kl = GaussianCholeskyDistribution._closed_form_KL_constraint_M_projection(mu, mu_new, sigma, sigma_new, sigma_inv, sigma_new_inv, logdet_sigma, logdet_sigma_new, n_dims)
-        tqdm.write(f'\nKL constraint: KL: {kl:2.6f} eps: {eps:2.6f}')
+        # tqdm.write(f'\nKL constraint: KL: {kl:2.6f} eps: {eps:2.6f}')
     
     def diff_log(self, theta):
         n_dims = len(self._mu)
