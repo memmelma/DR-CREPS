@@ -18,7 +18,7 @@ def load_data_from_dir(data_dir):
                             data_dict[key] = [data_load[key]]
                         else:
                             data_dict[key] += [data_load[key]]
-            key = '|'.join(root.split('/')[-4:])
+            key = '|'.join(root.split('/')[-2:])
             data_dict_all[key] = data_dict
 
     return data_dict_all
@@ -28,7 +28,7 @@ def plot_data(data_dict, exp_name, episodes=1000, pdf=False):
     os.makedirs(f'imgs/{exp_name}', exist_ok=True)
 
     fig, ax = plt.subplots()
-    
+    print(data_dict.keys())
     for exp in data_dict.keys():
         y = np.array(data_dict[exp]['returns_mean']).mean(axis=0)[:episodes]
         x = np.arange(0, y.shape[0], 1)
@@ -46,15 +46,17 @@ def plot_data(data_dict, exp_name, episodes=1000, pdf=False):
     if hasattr(data_dict[exp], 'optimal_reward'):
         plt.hlines(np.array(data_dict[exp]['optimal_reward'][0]).mean(), 0, len(x), 'red', label='optimal control')
     
-    ax.legend(prop={'size': 8})
-
+    # ax.legend(prop={'size': 8})
+    # box = ax.get_position()
+    # ax.set_position([box.x0, box.y0, box.width * 0.6, box.height])
+    ax.legend(loc='upper left', bbox_to_anchor=(0.,-0.2), prop={'size': 8}, ncol=2)
+    plt.tight_layout()
     if hasattr(data_dict[exp]['init_params'][0],'lqr_dim'):
         plt.title(f"{exp_name}\nsamples {data_dict[exp]['init_params'][0]['ep_per_fit']} lqr_dim {data_dict[exp]['init_params'][0]['lqr_dim']} n_ineff {data_dict[exp]['init_params'][0]['n_ineff']}")
-       
     plt.savefig(f"imgs/{exp_name}/returns.{'pdf' if pdf else 'png'}")
 
 def plot_mi(data_dict, exp_name, pdf=False):
-
+    
     for e, exp in enumerate(data_dict.keys()):
         
         print(exp)
@@ -121,8 +123,9 @@ if __name__ == '__main__':
 
     pdf = False
     
-    exp_name = 'lqr_dim_10_eff_3_env_0_iprl'
-    
+    exp_name = 'ball_state_sklearn_vs_regress'
+    exp_name = 'lqr_dim_50_eff_5_env_0_reps_high'
+    exp_name = 'ship_1_tile'
     data_dir = os.path.join('logs', exp_name)
     data_dict = load_data_from_dir(data_dir)
 
