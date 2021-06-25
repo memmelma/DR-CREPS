@@ -14,7 +14,7 @@ from cvxopt import matrix,solvers
 
 
 #Usage Functions
-def kraskov_mi(x,y,k=5):
+def kraskov_mi(x,y, H_X_given=None, k=5):
 	'''
 		Estimate the mutual information I(X;Y) of X and Y from samples {x_i, y_i}_{i=1}^N
 		Using KSG mutual information estimator
@@ -46,10 +46,10 @@ def kraskov_mi(x,y,k=5):
 		ans_x += -digamma(len(tree_x.query_ball_point(x[i],knn_dis[i]-1e-15,p=float('inf'))))/N+dx*log(knn_dis[i])/N
 		ans_y += -digamma(len(tree_y.query_ball_point(y[i],knn_dis[i]-1e-15,p=float('inf'))))/N+dy*log(knn_dis[i])/N
 	
-	sk_mi = kraskov_mi_sklearn(x,y,n_neighbors=k)
-	# print(sk_mi, ans_x+ans_y-ans_xy)
-
-	return ans_x+ans_y-ans_xy
+	if H_X_given is not None:
+		return H_X_given+ans_y-ans_xy
+	else:
+		return ans_x+ans_y-ans_xy
 
 from sklearn.neighbors import NearestNeighbors, KDTree
 
