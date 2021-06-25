@@ -17,13 +17,14 @@ from mushroom_rl.solvers.lqr import compute_lqr_feedback_gain
 
 from mushroom_rl.algorithms.policy_search.black_box_optimization import REPS, RWR
 from custom_algorithms.more import MORE
+from custom_algorithms.reps_mi import REPS_MI
 
 from custom_algorithms.constrained_reps import ConstrainedREPS
 from custom_algorithms.constrained_reps_mi import ConstrainedREPSMI
 
 from custom_distributions.gaussian_custom import GaussianDiagonalDistribution, GaussianCholeskyDistribution
 
-def experiment(alg, lqr_dim, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch, ep_per_fit, sigma_init=1e-3, env_seed=42, n_ineff=-1, seed=42, sample_type=None, mi_type='regression', results_dir='results', quiet=True):
+def experiment(alg, lqr_dim, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch, ep_per_fit, sigma_init=1e-3, env_seed=42, n_ineff=-1, seed=42, sample_type=None, mi_type='regression', mi_avg=True, results_dir='results', quiet=True):
     
     if n_ineff < 0:
         n_ineff = round(lqr_dim / 2)
@@ -87,10 +88,10 @@ def experiment(alg, lqr_dim, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch
 
     elif alg == 'REPS_MI':
         alg = REPS_MI
-        params = {'eps': eps, 'k': k}
+        params = {'eps': eps, 'k': k, 'bins': bins, 'mi_type': mi_type, 'mi_avg': mi_avg}
 
     elif alg == 'REPS_MI_ORACLE':
-        alg = REPS_MI
+        alg = REPSMI
         oracle = []
         for i in range(lqr_dim):
             if i not in ineff_params:
@@ -107,7 +108,7 @@ def experiment(alg, lqr_dim, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch
     elif alg == 'ConstrainedREPSMI':
         alg = ConstrainedREPSMI
 
-        params = {'eps': eps, 'k': k, 'kappa': kappa, 'bins': bins, 'mi_type': mi_type}
+        params = {'eps': eps, 'k': k, 'kappa': kappa, 'bins': bins, 'mi_type': mi_type, 'mi_avg': mi_avg}
 
     elif alg == 'ConstrainedREPSMIOracle':
         alg = ConstrainedREPSMI
@@ -197,14 +198,14 @@ def experiment(alg, lqr_dim, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch
 
 def default_params():
     defaults = dict(
-        alg = 'ConstrainedREPSMI',
+        alg = 'REPS_MI',
         # alg = 'REPS_MI_CON_ORACLE', 
         lqr_dim = 10, 
         eps = 0.7,
         k = 1,
         bins = 3,
         kappa = 2,
-        gamma = 1e-3,
+        gamma = 0.1,
         n_epochs = 75, 
         fit_per_epoch = 1, 
         ep_per_fit = 10,
@@ -212,8 +213,9 @@ def default_params():
         seed = 0,
         n_ineff = 0,
         env_seed = -1,
-        sample_type = None,
+        sample_type = 'percentage',
         mi_type = 'regression',
+        mi_avg = True,
         results_dir = 'results',
         quiet = True
     )
@@ -240,6 +242,7 @@ def parse_args():
     parser.add_argument('--sigma-init', type=float)
     parser.add_argument('--sample-type', type=str)
     parser.add_argument('--mi-type', type=str)
+    parser.add_argument('--mi-avg', type=str)
     parser.add_argument('--results-dir', type=str)
     parser.add_argument('--quiet', type=bool)
 

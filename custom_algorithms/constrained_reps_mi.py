@@ -16,7 +16,7 @@ class ConstrainedREPSMI(BlackBoxOptimization):
 	Peters J.. 2013.
 
 	"""
-	def __init__(self, mdp_info, distribution, policy, eps, kappa, k, bins, mi_type='regression', oracle=None, features=None):
+	def __init__(self, mdp_info, distribution, policy, eps, kappa, k, bins, mi_type='regression', mi_avg=True, oracle=None, features=None):
 		"""
 		Constructor.
 
@@ -36,6 +36,7 @@ class ConstrainedREPSMI(BlackBoxOptimization):
 		self._entropy_X = distribution.entropy() / len(distribution._mu)
 
 		self._mi_type = mi_type
+		self._mi_avg = mi_avg
 
 		self.mis = []
 		self.mi_avg = np.zeros(len(distribution._mu))
@@ -104,8 +105,11 @@ class ConstrainedREPSMI(BlackBoxOptimization):
 		
 		mi = self.compute_mi(theta, Jep, type=self._mi_type)
 		
+		if not self._mi_avg:
+			self.mi_avg = mi
+		else:
+			self.mi_avg = self.mi_avg + self.alpha() * ( mi - self.mi_avg )
 
-		self.mi_avg = self.mi_avg + self.alpha() * ( mi - self.mi_avg )
 		self.mis += [self.mi_avg]
 		
 		if self._k() < 1:
