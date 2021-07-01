@@ -14,7 +14,6 @@ def entropy(sig):
 	n = sig.shape[0]
 	return 0.5*np.linalg.slogdet(sig)[1] + (n*np.log(2*np.pi))/2 + n/2
 
-
 def shan_entropy(c):
 	c_normalized = c / float(np.sum(c))
 	c_normalized = c_normalized[np.nonzero(c_normalized)]
@@ -220,10 +219,10 @@ def compute_MI(x, y, I, H_x, bins):
 
 	# legend += ['$I_{regress}$']
 	legend += ['$I_{binned}$']
-	legend += ['$I_{prior}$']
+	# legend += ['$I_{prior}$']
 	legend += ['$I_{KSG}$']
 
-	legend += ['$I_{autobin}$']
+	# legend += ['$I_{autobin}$']
 
 	legend += ['$I$']
 
@@ -239,7 +238,7 @@ def compute_MI(x, y, I, H_x, bins):
 	linestyles = ['-', ':', '--', '-.', 'solid', 'dashed', 'dashdot', 'dotted']
 	assert len(linestyles) >= len(bins), 'define more linestyles'
 
-	return [*I_xy_sklearn, *I_xy_samples, *I_xy_ksg, I_xy_samples_ab, I], legend, np.append(colors[:len(legend)-1], colors[-1]), linestyles
+	return [*I_xy_sklearn, *I_xy_ksg, I], legend, np.append(colors[:len(legend)-1], colors[-1]), linestyles
 	# return [*I_xy_sklearn_regression, *I_xy_sklearn, *I_xy_samples, *I_xy_ksg, I_xy_samples_ab, I], legend, colors, linestyles
 
 def plot_samples(dim=5, n_samples=[5, 10, 15], bins=[3, 4], noise_factor=2, n_runs=25, log_dir='', random_seed=42, override=False):
@@ -271,7 +270,7 @@ def plot_samples(dim=5, n_samples=[5, 10, 15], bins=[3, 4], noise_factor=2, n_ru
 	for i, (mi_run_mean, mi_run_std) in enumerate(zip(mi_runs_mean[:-1], mi_runs_std[:-1])):
 		ax.plot(x, mi_run_mean, color=colors[:-1][i//(len(bins))], linestyle=linestyle[i%(len(bins))])
 		ci = mi_run_std*2
-		# ax.fill_between(x, mi_run_mean-ci, mi_run_mean+ci, alpha=.2, color=colors[:-1][i//(len(bins))])
+		ax.fill_between(x, mi_run_mean-ci, mi_run_mean+ci, alpha=.2, color=colors[:-1][i//(len(bins))])
 
 	ax.plot(x, mi_runs_mean[-1], color=colors[-1], linestyle='-')
 
@@ -287,7 +286,7 @@ def plot_samples(dim=5, n_samples=[5, 10, 15], bins=[3, 4], noise_factor=2, n_ru
 
 
 	ax.legend(handles=legend_elements, loc='upper center', bbox_to_anchor=(0.5, -0.15),
-          fancybox=True, ncol=5)
+          fancybox=True, ncol=4)
 	plt.subplots_adjust(bottom=0.25)
 
 	ax.set_xlabel('samples')
@@ -306,7 +305,7 @@ if __name__ == '__main__':
 	os.makedirs(img_dir, exist_ok=True)
 	os.makedirs(data_dir, exist_ok=True)
 
-	plot_samples(dim=1, n_samples=np.arange(15, 100, 1), bins=[1, 3], noise_factor=1., n_runs=25, log_dir=log_dir, random_seed=42, override=False)
+	plot_samples(dim=1, n_samples=np.arange(15, 100, 1), bins=[3, 4, 5], noise_factor=1., n_runs=25, log_dir=log_dir, random_seed=42, override=True)
 
 	# plot_samples(dim=140, n_samples=np.arange(20, 200, 5), bins=[3, 4, 5, 10], noise_factor=1, n_runs=10, log_dir=log_dir)
 
