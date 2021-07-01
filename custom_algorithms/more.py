@@ -37,19 +37,39 @@ class MORE(BlackBoxOptimization):
         """
         self.eps = eps
 
+        # MORE only supports full Covariance Matrix
+        n = len(distribution._mu)
+        dist_params = distribution.get_parameters()
+        
+        if not isinstance(distribution, GaussianCholeskyDistribution):
+
+            if isinstance(distribution, GaussianDiagonalDistribution):
+                sig_t = np.diag(dist_params[n:]**2)
+            elif isinstance(distribution, GaussianDistribution):
+                sig_t = distribution._sigma
+            else:
+                print('Not a valid distribution, please use GaussianCholeskyDistribution, GaussianDiagonalDistribution, GaussianDistribution.')
+                exit()
+            
+            print('Only GaussianCholeskyDistribution is supported, replacing distribution.')
+            # replace current distribution with GaussianCholeskyDistribution
+            mu = distribution._mu
+            sigma = sig_t[0][0] * np.eye(policy.weights_size)
+            distribution = GaussianCholeskyDistribution(mu, sigma)
+
         # set beta as specified in paper -> MORE page 4
         gamma = 0.99
         entropy_policy_min = -150 # 75
         entropy_policy = distribution.entropy()
         self.kappa = gamma * (entropy_policy - entropy_policy_min) + entropy_policy_min
-
+        
         poly_basis = PolynomialBasis().generate(2, policy.weights_size)
         self.phi_ = Features(basis_list=poly_basis)
         
         self.regressor = Regressor(LinearApproximator,
                       input_shape=(len(poly_basis),),
                       output_shape=(1,))
-
+        
         self._add_save_attr(eps='primitive')
         self._add_save_attr(kappa='primitive')
 
@@ -61,19 +81,9 @@ class MORE(BlackBoxOptimization):
         n = len(self.distribution._mu)
         dist_params = self.distribution.get_parameters()
         mu_t = dist_params[:n][:,np.newaxis]
-
-        # prepare sigma depending on distribution
-        if isinstance(self.distribution, GaussianDiagonalDistribution):
-            sig_t = np.diag(dist_params[n:]**2)
-        elif isinstance(self.distribution, GaussianCholeskyDistribution):
-            chol_sig_empty = np.zeros((n,n))
-            chol_sig_empty[np.tril_indices(n)] = dist_params[n:]
-            sig_t = chol_sig_empty.dot(chol_sig_empty.T)
-        elif isinstance(self.distribution, GaussianDistribution):
-            sig_t = self.distribution._sigma
-        else:
-            assert isinstance(self.distribution, Distribution), f'{self.distribution} is not a valid distribution!'
-            print(self.distribution)
+        chol_sig_empty = np.zeros((n,n))
+        chol_sig_empty[np.tril_indices(n)] = dist_params[n:]
+        sig_t = chol_sig_empty.dot(chol_sig_empty.T)
 
         # create polynomial features
         features = self.phi_(theta)
@@ -98,7 +108,7 @@ class MORE(BlackBoxOptimization):
         # calculate closed form solution
         mu_t1, sig_t1 = MORE._closed_form_mu_t1_sig_t1(sig_t, mu_t, R, r, eta_opt, omg_opt)
         
-        tqdm.write(str(f'R{R}'))
+        # tqdm.write(str(f'R{R}'))
 
         # round to decimal
         dec = 2
@@ -112,16 +122,8 @@ class MORE(BlackBoxOptimization):
         if not np.round(kl,dec) <= np.round(self.eps,dec):
             tqdm.write(f'KL constraint violated KL {kl} eps {self.eps}')
 
-        # prepare parameters depending on distribution
-        if isinstance(self.distribution, GaussianDiagonalDistribution):
-            tqdm.write(f'sig_t1 {np.diag(sig_t1)}')
-            dist_params = np.concatenate((mu_t1.flatten(), np.sqrt(np.diag(sig_t1)).flatten()))
-        elif isinstance(self.distribution, GaussianCholeskyDistribution):
-            dist_params = np.concatenate((mu_t1.flatten(), np.linalg.cholesky(sig_t1)[np.tril_indices(n)].flatten()))
-        elif isinstance(self.distribution, GaussianDistribution):
-            dist_params = mu_t1.flatten()
-        
         # update distribution
+        dist_params = np.concatenate((mu_t1.flatten(), np.linalg.cholesky(sig_t1)[np.tril_indices(n)].flatten()))
         self.distribution.set_parameters(dist_params)
 
     @staticmethod
