@@ -5,7 +5,7 @@ from scipy.optimize import minimize
 from mushroom_rl.algorithms.policy_search.black_box_optimization import BlackBoxOptimization
 from mushroom_rl.utils.parameters import to_parameter
 
-from mushroom_rl.utils.parameters import ExponentialParameter
+from mushroom_rl.utils.parameters import ExponentialParameter, LinearParameter
 
 from sklearn.feature_selection import mutual_info_regression
 
@@ -38,6 +38,9 @@ class REPS_MI(BlackBoxOptimization):
 		self.mis = []
 		self.mi_avg = np.zeros(len(distribution._mu))
 		self.alpha = ExponentialParameter(1, exp=0.5)
+
+		self.beta = LinearParameter(0., threshold_value=1., n=150)
+		# self.beta = ExponentialParameter(1., exp=0.5)
 
 		self._add_save_attr(_eps='mushroom')
 		self._add_save_attr(_kappa='mushroom')
@@ -86,6 +89,9 @@ class REPS_MI(BlackBoxOptimization):
 		return H
 	
 	def _update(self, Jep, theta):
+		
+		self.distribution._gamma = 1 - self.beta()
+		
 		# REPS
 		eta_start = np.ones(1)
 
@@ -106,7 +112,6 @@ class REPS_MI(BlackBoxOptimization):
 			self.mi_avg = mi
 		else:
 			self.mi_avg = self.mi_avg + self.alpha() * ( mi - self.mi_avg )
-
 		self.mis += [self.mi_avg]
 		
 		if self._k() < 1:
