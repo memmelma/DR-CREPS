@@ -91,14 +91,14 @@ def experiment(alg, lqr_dim, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch
         params = {'eps': eps, 'k': k, 'bins': bins, 'mi_type': mi_type, 'mi_avg': mi_avg}
 
     elif alg == 'REPS_MI_ORACLE':
-        alg = REPSMI
+        alg = REPS_MI
         oracle = []
         for i in range(lqr_dim):
             if i not in ineff_params:
                 for j in range(lqr_dim):
                     oracle += [i*lqr_dim + j]
         print(oracle)
-        params = {'eps': eps, 'k': k, 'oracle': oracle}
+        params = {'eps': eps, 'k': k, 'bins': bins, 'mi_type': mi_type, 'mi_avg': mi_avg, 'oracle': oracle}
 
     # constrained
     elif alg == 'ConstrainedREPS':
@@ -198,7 +198,7 @@ def experiment(alg, lqr_dim, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch
 
 def default_params():
     defaults = dict(
-        alg = 'REPS_MI',
+        alg = 'REPS_MI_ORACLE',
         # alg = 'REPS_MI_CON_ORACLE', 
         lqr_dim = 10, 
         eps = 0.7,
@@ -206,7 +206,7 @@ def default_params():
         bins = 3,
         kappa = 2,
         gamma = 0.1,
-        n_epochs = 75, 
+        n_epochs = 150,
         fit_per_epoch = 1, 
         ep_per_fit = 10,
         sigma_init=1e-1,
