@@ -2,6 +2,11 @@ from scipy.optimize import minimize
 
 from mushroom_rl.algorithms.policy_search.black_box_optimization import BlackBoxOptimization
 
+# from mushroom_rl.distributions import GaussianDiagonalDistribution, GaussianCholeskyDistribution, GaussianDistribution
+# from mushroom_rl.distributions import Distribution
+from custom_distributions.gaussian_custom import GaussianDiagonalDistribution, GaussianCholeskyDistribution, GaussianDistribution
+from custom_distributions.distribution import Distribution
+
 from mushroom_rl.approximators import Regressor
 from mushroom_rl.approximators.parametric import LinearApproximator
 from mushroom_rl.features.basis.polynomial import PolynomialBasis
@@ -32,7 +37,21 @@ class MORE(BlackBoxOptimization):
         """
         self.eps = eps
 
+        # set beta as specified in paper -> MORE page 4
+        gamma = 0.99
+        entropy_policy_min = -150 # 75
+        entropy_policy = distribution.entropy()
+        self.kappa = gamma * (entropy_policy - entropy_policy_min) + entropy_policy_min
+
+        poly_basis = PolynomialBasis().generate(2, policy.weights_size)
+        self.phi_ = Features(basis_list=poly_basis)
+        
+        self.regressor = Regressor(LinearApproximator,
+                      input_shape=(len(poly_basis),),
+                      output_shape=(1,))
+
         self._add_save_attr(eps='primitive')
+        self._add_save_attr(kappa='primitive')
 
         super().__init__(mdp_info, distribution, policy, features)
 
@@ -42,40 +61,33 @@ class MORE(BlackBoxOptimization):
         n = len(self.distribution._mu)
         dist_params = self.distribution.get_parameters()
         mu_t = dist_params[:n][:,np.newaxis]
-        # chol_sig_empty = np.zeros((n,n))
-        # chol_sig_empty[np.tril_indices(n)] = dist_params[n:]
-        # sig_t = chol_sig_empty.dot(chol_sig_empty.T)
-        sig_t = np.diag(dist_params[n:])
 
-        tqdm.write(f'entropy {MORE._closed_form_entropy(sig_t, n)}')
-
-        # set beta as specified in paper -> MORE page 4
-        gamma = 0.99
-        entropy_policy_min = -75
-        entropy_policy = MORE._closed_form_entropy(sig_t, n)
-        kappa = gamma * (entropy_policy - entropy_policy_min) + entropy_policy_min
-        tqdm.write(f'kappa {kappa}')
+        # prepare sigma depending on distribution
+        if isinstance(self.distribution, GaussianDiagonalDistribution):
+            sig_t = np.diag(dist_params[n:]**2)
+        elif isinstance(self.distribution, GaussianCholeskyDistribution):
+            chol_sig_empty = np.zeros((n,n))
+            chol_sig_empty[np.tril_indices(n)] = dist_params[n:]
+            sig_t = chol_sig_empty.dot(chol_sig_empty.T)
+        elif isinstance(self.distribution, GaussianDistribution):
+            sig_t = self.distribution._sigma
+        else:
+            assert isinstance(self.distribution, Distribution), f'{self.distribution} is not a valid distribution!'
+            print(self.distribution)
 
         # create polynomial features
-        poly_basis = PolynomialBasis().generate(2, theta.shape[1])
-        phi = Features(basis_list=poly_basis)
-        features = phi(theta)
-
+        features = self.phi_(theta)
         # fit linear regression
-        regressor = Regressor(LinearApproximator,
-                      input_shape=(features.shape[1],),
-                      output_shape=(1,))
-        regressor.fit(features, Jep)
+        self.regressor.fit(features, Jep)
 
         # get quadratic surrogate model from learned regression
-        R, r, r_0 = MORE._get_quadratic_model_from_regressor(regressor, theta, features) # MORE.get_surrogate(theta, Jep)
+        R, r, r_0 = MORE._get_quadratic_model_from_regressor(self.regressor, n, theta, features)
 
         # MORE lagrangian -> bounds from MORE page 3
-        eta_omg_start = np.ones(2)
+        eta_omg_start = np.array([1000, 1])
         res = minimize(MORE._dual_function, eta_omg_start,
-                    #    jac=grad(MORE._dual_function),
                        bounds=((np.finfo(np.float32).eps, np.inf),(np.finfo(np.float32).eps, np.inf)),
-                       args=(sig_t, mu_t, R, r, r_0, self.eps, kappa, n),
+                       args=(sig_t, mu_t, R, r, r_0, self.eps, self.kappa, n),
                        method='SLSQP')
         eta_opt, omg_opt = res.x[0], res.x[1]
         if not res.success:
@@ -85,20 +97,30 @@ class MORE(BlackBoxOptimization):
 
         # calculate closed form solution
         mu_t1, sig_t1 = MORE._closed_form_mu_t1_sig_t1(sig_t, mu_t, R, r, eta_opt, omg_opt)
+        
+        tqdm.write(str(f'R{R}'))
 
+        # round to decimal
+        dec = 2
         # check entropy constraint
         H_t1 = MORE._closed_form_entropy(sig_t1, n)
-        if not H_t1 >= kappa:
-            tqdm.write(f'entropy constraint violated kappa {kappa} >= H_t1 {H_t1}')
+        if not np.round(H_t1,dec) >= np.round(self.kappa,dec):
+            tqdm.write(f'entropy constraint violated kappa {self.kappa} >= H_t1 {H_t1}')
 
         # check KL constraint
         kl = MORE._closed_form_KL(mu_t1, mu_t, sig_t1, sig_t, n)
-        if not kl <= self.eps:
+        if not np.round(kl,dec) <= np.round(self.eps,dec):
             tqdm.write(f'KL constraint violated KL {kl} eps {self.eps}')
 
-        # dist_params = np.concatenate((mu_t1.flatten(), np.linalg.cholesky(sig_t1)[np.tril_indices(n)].flatten()))
-        dist_params = np.concatenate((mu_t1.flatten(), np.diag(sig_t1).flatten()))
-
+        # prepare parameters depending on distribution
+        if isinstance(self.distribution, GaussianDiagonalDistribution):
+            tqdm.write(f'sig_t1 {np.diag(sig_t1)}')
+            dist_params = np.concatenate((mu_t1.flatten(), np.sqrt(np.diag(sig_t1)).flatten()))
+        elif isinstance(self.distribution, GaussianCholeskyDistribution):
+            dist_params = np.concatenate((mu_t1.flatten(), np.linalg.cholesky(sig_t1)[np.tril_indices(n)].flatten()))
+        elif isinstance(self.distribution, GaussianDistribution):
+            dist_params = mu_t1.flatten()
+        
         # update distribution
         self.distribution.set_parameters(dist_params)
 
@@ -109,7 +131,7 @@ class MORE(BlackBoxOptimization):
         
         # REPS compendium
         term1 = (f.T @ F @ f) - eta * (b.T @ np.linalg.inv(Q) @ b) - eta * (np.linalg.slogdet(((2*np.pi)**n)*Q)[1]) + (eta + omg) * (np.linalg.slogdet(((2*np.pi)**n)*(eta + omg) * F)[1]) + r_0
-        # original paper
+        # original paper: **n missing, performs better
         # term1 = (f.T @ F @ f) - eta * (b.T @ np.linalg.inv(Q) @ b) - eta * (np.linalg.slogdet(((2*np.pi))*Q)[1]) + (eta + omg) * (np.linalg.slogdet(((2*np.pi))*(eta + omg) * F)[1])
 
         return eta * eps - omg * kappa + 0.5 * term1[0]
@@ -128,18 +150,19 @@ class MORE(BlackBoxOptimization):
         return F, f
     
     @staticmethod
-    def _get_quadratic_model_from_regressor(regressor, theta, features):
-
+    def _get_quadratic_model_from_regressor(regressor, n, theta, features):
+        
         # get parameter vector beta
         beta = regressor.get_weights()
 
         # reconstruct components for quadratic surrogate model from beta
         r_0 = beta[0]
-        r = beta[1:theta.shape[1]+1][:,np.newaxis]
-        R = np.zeros((theta.shape[1],theta.shape[1]))
-        beta_ctr = 1 + theta.shape[1]  
-        for i in range(theta.shape[1]):
-            for j in range(i, theta.shape[1]):
+        r = beta[1:n+1][:,np.newaxis]
+
+        R = np.zeros((n,n))
+        beta_ctr = 1 + n
+        for i in range(n):
+            for j in range(i, n):
                 if i == j:
                     R[i][j] = beta[beta_ctr]
                 else:
@@ -162,7 +185,7 @@ class MORE(BlackBoxOptimization):
         Taken from page 11 of REPS compendium
         '''
         _, logdet_sig= np.linalg.slogdet(sig)
-        c = MORE._get_c(n)
+        c = n * np.log(2*np.pi)
         return 0.5 * (logdet_sig + c + n)
     
     @staticmethod
@@ -171,11 +194,6 @@ class MORE(BlackBoxOptimization):
         _, logdet_sig_t1 = np.linalg.slogdet(sig_t1)
         sig_t1_inv = np.linalg.inv(sig_t1)
         return 0.5*(np.trace(sig_t1_inv@sig_t) - n + logdet_sig_t1 - logdet_sig_t + (mu_t1 - mu_t).T @ sig_t1_inv @ (mu_t1 - mu_t))
-
-    @staticmethod
-    def _get_c(n):
-        return n * np.log(2*np.pi)
-
 
     # manual polynomial regression (not in use)
     @staticmethod
