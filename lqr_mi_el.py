@@ -198,8 +198,7 @@ def experiment(alg, lqr_dim, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch
 
 def default_params():
     defaults = dict(
-        alg = 'REPS_MI_ORACLE',
-        # alg = 'REPS_MI_CON_ORACLE', 
+        alg = 'MORE',
         lqr_dim = 10, 
         eps = 0.7,
         k = 1,
