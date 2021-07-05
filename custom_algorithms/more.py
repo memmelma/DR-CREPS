@@ -35,6 +35,9 @@ class MORE(BlackBoxOptimization):
             kappa (float): the upper bound for the entropy of the new policy.
 
         """
+        # whether to use entropy constraint
+        self.no_entropy = False
+
         self.eps = eps
 
         # MORE only supports full Covariance Matrix
@@ -53,6 +56,7 @@ class MORE(BlackBoxOptimization):
                 exit()
             
             print('Only GaussianCholeskyDistribution is supported, replacing distribution.')
+
             # replace current distribution with GaussianCholeskyDistribution
             mu = distribution._mu
             sigma = sig_t[0][0] * np.eye(policy.weights_size)
@@ -64,7 +68,6 @@ class MORE(BlackBoxOptimization):
         entropy_policy_min = -75
         entropy_policy = distribution.entropy()
         self.kappa = gamma * (entropy_policy - entropy_policy_min) + entropy_policy_min
-        
         print('entropy_policy', entropy_policy, 'kappa', self.kappa, 'dim', policy.weights_size)
         
         poly_basis = PolynomialBasis().generate(2, policy.weights_size)
@@ -80,61 +83,72 @@ class MORE(BlackBoxOptimization):
         super().__init__(mdp_info, distribution, policy, features)
 
     def _update(self, Jep, theta):
+        
+        gamma = 0.99
+        entropy_policy_min = -75
+        entropy_policy = self.distribution.entropy()
+        self.kappa = gamma * (entropy_policy - entropy_policy_min) + entropy_policy_min
 
         # get distribution parameters mu and sigma
         n = len(self.distribution._mu)
         dist_params = self.distribution.get_parameters()
         mu_t = dist_params[:n][:,np.newaxis]
+        # cholesky sigma
         chol_sig_empty = np.zeros((n,n))
         chol_sig_empty[np.tril_indices(n)] = dist_params[n:]
         sig_t = chol_sig_empty.dot(chol_sig_empty.T)
+        # # Gaussian sigma
         # sig_t = self.distribution._sigma
 
         # create polynomial features
         features = self.phi_(theta)
-        # Jep = ( Jep - np.mean(Jep, keepdims=True, axis=0) ) / np.std(Jep, keepdims=True, axis=0)
+        Jep = ( Jep - np.mean(Jep, keepdims=True, axis=0) ) / np.std(Jep, keepdims=True, axis=0)
         
         # fit linear regression
         self.regressor.fit(features, Jep)
 
         # get quadratic surrogate model from learned regression
         R, r, r_0 = MORE._get_quadratic_model_from_regressor(self.regressor, n, theta, features)
-
+        
+        if self.no_entropy:
+            self.kappa = -1
+        
         # MORE lagrangian -> bounds from MORE page 3
         eta_omg_start = np.array([1, 1])
         res = minimize(MORE._dual_function, eta_omg_start,
                        bounds=((np.finfo(np.float32).eps, np.inf),(np.finfo(np.float32).eps, np.inf)),
-                    #    bounds=((1, np.inf),(1, np.inf)),
                        args=(sig_t, mu_t, R, r, r_0, self.eps, self.kappa, n),
+                    #    method=None)
                        method='SLSQP')
+
         eta_opt, omg_opt = res.x[0], res.x[1]
         if not res.success:
             tqdm.write(f'eta_opt {eta_opt} omg_opt {omg_opt} no optimizer success {res}')
 
         # # MLE update using closed form solution -> REPS Compendium page 17 equation 77
 
+        if self.no_entropy:
+            omg_opt = 0
         # calculate closed form solution
         mu_t1, sig_t1 = MORE._closed_form_mu_t1_sig_t1(sig_t, mu_t, R, r, eta_opt, omg_opt)
-        
-        # tqdm.write(str(f'R{R}'))
 
-        # round to decimal
+        # round to decimal for constraint checks
         dec = 2
         # check entropy constraint
         H_t1 = MORE._closed_form_entropy(sig_t1, n)
-        if not np.round(H_t1,dec) >= np.round(self.kappa,dec):
+        if not np.round(H_t1,dec) >= np.round(self.kappa,dec) and not self.no_entropy:
             tqdm.write(f'entropy constraint violated kappa {self.kappa} >= H_t1 {H_t1}')
-        # tqdm.write(f'entropy constraint violated kappa {self.kappa} >= H_t1 {H_t1}')
 
         # check KL constraint
         kl = MORE._closed_form_KL(mu_t1, mu_t, sig_t1, sig_t, n)
         if not np.round(kl,dec) <= np.round(self.eps,dec):
             tqdm.write(f'KL constraint violated KL {kl} eps {self.eps}')
-        # tqdm.write(f'KL constraint violated KL {kl} eps {self.eps}')
 
-        # update distribution
+        # update cholesky distribution
         dist_params = np.concatenate((mu_t1.flatten(), np.linalg.cholesky(sig_t1)[np.tril_indices(n)].flatten()))
         self.distribution.set_parameters(dist_params)
+
+        # # update Gaussian distribution
         # self.distribution._mu = mu_t1.flatten()
         # self.distribution._sigma = sig_t1
 
@@ -142,32 +156,41 @@ class MORE(BlackBoxOptimization):
     def _dual_function(lag_array, Q, b, R, r, r_0, eps, kappa, n):
         eta, omg = lag_array[0], lag_array[1]
         F, f = MORE._get_F_f(Q, b, R, r, eta)
-        
-        # REPS compendium
-        term1 = (f.T @ F @ f) - eta * (b.T @ np.linalg.inv(Q) @ b) - eta * (np.linalg.slogdet(((2*np.pi)**n)*Q)[1]) + (eta + omg) * (np.linalg.slogdet(((2*np.pi)**n)*(eta + omg) * F)[1]) + r_0
-        
-        # original paper: **n & r_0 missing
-        # term1 = (f.T @ F @ f) - eta * (b.T @ np.linalg.inv(Q) @ b) - eta * (np.linalg.slogdet(((2*np.pi))*Q)[1]) + (eta + omg) * (np.linalg.slogdet(((2*np.pi))*(eta + omg) * F)[1])
-        # return eta * eps - omg * kappa + 0.5 * term1[0]
 
-        # MORE w/o Entropy Constraint (or REPS with Quadratic Model)
-        # slogdet_0 = (np.linalg.slogdet( (2.*np.pi)**n * Q )[1])
-        # slogdet_1 = (np.linalg.slogdet( (2.*np.pi)**n * eta * F )[1])
-        # term1 = (f.T @ F @ f) - eta * (b.T @ np.linalg.inv(Q) @ b) - eta * slogdet_0 + eta * slogdet_1 + r_0
-        
-        return eta * eps + 0.5 * term1[0]
+        if kappa is not -1:
+            # original paper ( no **n in logdet & no r_0 )
+            slogdet_0 = np.linalg.slogdet( (2*np.pi) * Q )
+            slogdet_1 = np.linalg.slogdet( (2*np.pi) * (eta + omg) * F )
+            term1 = (f.T @ F @ f) - eta * (b.T @ np.linalg.inv(Q) @ b) - eta * slogdet_0[1] + (eta + omg) * slogdet_1[1]
+
+            # REPS compendium
+            slogdet_0 = np.linalg.slogdet( (2*np.pi)**n * Q )
+            slogdet_1 = np.linalg.slogdet( (2*np.pi)**n * (eta + omg) * F )
+            term1 = (f.T @ F @ f) - eta * (b.T @ np.linalg.inv(Q) @ b) - eta * slogdet_0[1] + (eta + omg) * slogdet_1[1] + r_0
+            
+            return eta * eps - omg * kappa + 0.5 * term1[0]
+
+        else:
+            # REPS compendium: MORE w/o Entropy Constraint (or REPS with Quadratic Model)
+            slogdet_0 = np.linalg.slogdet( (2.*np.pi)**n * Q )
+            slogdet_1 = np.linalg.slogdet( (2.*np.pi)**n * eta * F )
+            term1 = (f.T @ F @ f) - eta * (b.T @ np.linalg.inv(Q) @ b) - eta * slogdet_0[1] + eta * slogdet_1[1] + r_0
+            
+            return eta * eps + 0.5 * term1[0]
     
     @staticmethod
     def _closed_form_mu_t1_sig_t1(Q, b, R, r, eta, omg):
         F, f = MORE._get_F_f(Q, b, R, r, eta)
         mu_t1 = F @ f
         sig_t1 = F * (eta + omg)
+        tqdm.write(f'{eta} {omg}')
         return mu_t1, sig_t1
 
     @staticmethod
     def _get_F_f(Q, b, R, r, eta):
-        F = np.linalg.inv(eta * np.linalg.inv(Q) - 2. * R)
-        f = eta * np.linalg.inv(Q) @ b + r
+        Q_inv = np.linalg.inv(Q)
+        F = np.linalg.inv(eta * Q_inv - 2. * R)
+        f = eta * Q_inv @ b + r
         return F, f
     
     @staticmethod
@@ -195,8 +218,8 @@ class MORE(BlackBoxOptimization):
         theta_pred = np.atleast_2d(theta[0])
         quadratic_pred = theta_pred @ R @ theta_pred.T + theta_pred @ r + r_0
         regressor_pred = regressor.predict(features)[0]
-        assert round(quadratic_pred[0][0],4) == round(regressor_pred[0],4), f'Quadratic Model != Regressor quadratic : model {quadratic_pred[0][0]} regressor {regressor_pred[0]}'
-        # tqdm.write(f'equal? {round(quadratic_pred[0][0],10) == round(regressor_pred[0],10)} quadratic model {quadratic_pred[0][0]} regressor {regressor_pred[0]}')
+        assert round(quadratic_pred[0][0],4) == round(regressor_pred[0],4), \
+            f'Quadratic Model != Regressor quadratic : model {quadratic_pred[0][0]} regressor {regressor_pred[0]}'
 
         return R, r, r_0
 
