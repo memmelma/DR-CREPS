@@ -14,7 +14,7 @@ from custom_env import darias
 
 largeValObservation = 100
 
-from mushroom_rl.environments import Environment, MDPInfo
+from mushroom_rl.core import Environment, MDPInfo
 from mushroom_rl.utils.spaces import *
 
 

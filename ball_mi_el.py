@@ -80,7 +80,7 @@ def experiment(alg, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch, ep_per_
 
     elif alg == 'REPS_MI':
         alg = REPS_MI
-        params = {'eps': eps, 'k': k, 'bins': bins, 'mi_type': mi_type, 'mi_avg': mi_avg}
+        params = {'eps': eps, 'gamma': gamma, 'k': k, 'bins': bins, 'mi_type': mi_type, 'mi_avg': mi_avg}
         
     # constrained
     elif alg == 'ConstrainedREPS':
@@ -89,11 +89,11 @@ def experiment(alg, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch, ep_per_
 
     elif alg == 'ConstrainedREPSMI':
         alg = ConstrainedREPSMI
-        params = {'eps': eps, 'k': k, 'kappa': kappa, 'bins': bins, 'mi_type': mi_type, 'mi_avg': mi_avg}
+        params = {'eps': eps, 'k': k, 'kappa': kappa, 'gamma': gamma, 'bins': bins, 'mi_type': mi_type, 'mi_avg': mi_avg}
 
     elif alg == 'MORE':
         alg = MORE
-        params = {'eps': eps}
+        params = {'eps': eps, 'kappa': kappa}
     
     elif alg == 'RWR':
         alg = RWR
@@ -131,6 +131,7 @@ def experiment(alg, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch, ep_per_
 
     mus = None
     kls = None
+    entropys = None
     mi_avg = None
 
     if hasattr(agent, 'mis'):
@@ -139,6 +140,8 @@ def experiment(alg, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch, ep_per_
         mus = agent.mus
     if hasattr(agent, 'kls'):
         kls = agent.kls
+    if hasattr(agent, 'entropys'):
+        entropys = agent.entropys
 
     best_reward = np.array(returns_mean).max()
 
@@ -154,7 +157,8 @@ def experiment(alg, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch, ep_per_
         'alg': alg,
         'mi_avg': mi_avg,
         'mus': mus,
-        'kls': kls
+        'kls': kls,
+        'entropys': entropys
     })
 
     joblib.dump(dump_dict, os.path.join(results_dir, f'{alg.__name__}_{seed}'))
@@ -174,8 +178,8 @@ def experiment(alg, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch, ep_per_
 
 def default_params():
     defaults = dict(
-        # alg = 'ConstrainedREPSMI',
-        alg = 'REPS_MI',
+        alg = 'ConstrainedREPSMI',
+        # alg = 'REPS_MI',
         eps = 0.7,
         k = 0.2,
         bins = 3,
