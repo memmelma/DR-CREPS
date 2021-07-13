@@ -6,12 +6,12 @@ if __name__ == '__main__':
 	local = False
 	test = False
 
-	experiment_name = f'ship_1_tile'
+	experiment_name = f'ship3dim_tiles_iprl_exp'
 	
 	launcher = Launcher(exp_name=experiment_name,
 						python_file='ship_mi_el',
-						n_exp=5,
-						memory=6000,
+						n_exp=25,
+						# memory=-1,
 						days=2,
 						hours=0,
 						minutes=0,
@@ -19,23 +19,30 @@ if __name__ == '__main__':
 						n_jobs=-1,
 						use_timestamp=True)
 	
-	launcher.add_default_params(eps=1., kappa=2,
+	launcher.add_default_params(eps=1.,
                                 n_tilings=1,
                                 sigma_init=4e-1,
-                                n_epochs=30, 
+                                n_epochs=25, 
                                 fit_per_epoch=1, ep_per_fit=25,   
-                                mi_type='regression', bins=4, 
-                                sample_type='percentage', gamma=0.1)
+                                mi_type='regression', bins=4, sample_type='percentage')
 
-	launcher.add_experiment(alg='REPS')
-	launcher.add_experiment(alg='REPS_MI', k=25)
-	launcher.add_experiment(alg='REPS_MI', k=500)
-	launcher.add_experiment(alg='REPS_MI', k=1000)
+	# TODO remove on tiling dimension
+
+	# launcher.add_experiment(alg='RWR')
+	# launcher.add_experiment(alg='MORE')
+
+	# launcher.add_experiment(alg='MORE')
 	launcher.add_experiment(alg='RWR')
-	launcher.add_experiment(alg='ConstrainedREPS')
-	launcher.add_experiment(alg='ConstrainedREPSMI', k=25)
-	launcher.add_experiment(alg='ConstrainedREPSMI', k=500)
-	launcher.add_experiment(alg='ConstrainedREPSMI', k=1000)
+	launcher.add_experiment(alg='REPS')
+
+	launcher.add_experiment(alg='REPS_MI', k=25) 
+	launcher.add_experiment(alg='REPS_MI', k=100)
+
+	launcher.add_experiment(alg='ConstrainedREPS', kappa=5)
+
+	launcher.add_experiment(alg='ConstrainedREPSMI', gamma=0.1, k=25, kappa=5)
+	launcher.add_experiment(alg='ConstrainedREPSMI', gamma=0.1, k=100, kappa=5)
+
 
 	# launcher.add_experiment(alg='ConstrainedREPSMI', bins=3, k=0.2)
 	# launcher.add_experiment(alg='ConstrainedREPSMI', bins=3, k=0.4)

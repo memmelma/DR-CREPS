@@ -38,8 +38,10 @@ def experiment(alg, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch, ep_per_
       # Policy
     high = [150, 150, np.pi]
     low = [0, 0, -np.pi]
+    # low = [0, 0, -np.pi, -0.26]
+    # high = [150, 150, np.pi, 0.26]
     n_tiles = [5, 5, 6]
-    # n_tiles = [10, 10, 11]
+    # n_tiles = [5, 5, 6, 5]
     low = np.array(low, dtype=np.float)
     high = np.array(high, dtype=np.float)
     n_tilings = n_tilings
@@ -92,7 +94,7 @@ def experiment(alg, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch, ep_per_
 
     elif alg == 'MORE':
         alg = MORE
-        params = {'eps': eps}
+        params = {'eps': eps, 'kappa': kappa}
     
     elif alg == 'RWR':
         alg = RWR
@@ -130,6 +132,7 @@ def experiment(alg, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch, ep_per_
 
     mus = None
     kls = None
+    entropys = None
     mi_avg = None
 
     if hasattr(agent, 'mis'):
@@ -138,6 +141,8 @@ def experiment(alg, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch, ep_per_
         mus = agent.mus
     if hasattr(agent, 'kls'):
         kls = agent.kls
+    if hasattr(agent, 'entropys'):
+        entropys = agent.entropys
 
     best_reward = np.array(returns_mean).max()
 
@@ -153,7 +158,8 @@ def experiment(alg, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch, ep_per_
         'alg': alg,
         'mi_avg': mi_avg,
         'mus': mus,
-        'kls': kls
+        'kls': kls,
+        'entropys': entropys
     })
 
     joblib.dump(dump_dict, os.path.join(results_dir, f'{alg.__name__}_{seed}'))
@@ -183,7 +189,7 @@ def default_params():
         fit_per_epoch = 1, 
         ep_per_fit = 25,
         n_tilings = 1,
-        sigma_init = 4e-1,
+        sigma_init = 3e-1,
         seed = 0,
         sample_type = None,
         mi_type = 'regression',
