@@ -5,7 +5,7 @@ from scipy.optimize import minimize
 from mushroom_rl.algorithms.policy_search.black_box_optimization import BlackBoxOptimization
 from mushroom_rl.utils.parameters import to_parameter
 
-from mushroom_rl.utils.parameters import ExponentialParameter, LinearParameter
+from mushroom_rl.utils.parameters import ExponentialParameter, LinearParameter, Parameter
 
 from sklearn.feature_selection import mutual_info_regression
 
@@ -14,7 +14,7 @@ class REPS_MI(BlackBoxOptimization):
 	Episodic Relative Entropy Policy Search algorithm with MI estension
 
 	"""
-	def __init__(self, mdp_info, distribution, policy, eps, k, bins, mi_type='regression', mi_avg=True, oracle=None, features=None):
+	def __init__(self, mdp_info, distribution, policy, eps, gamma, k, bins, mi_type='regression', mi_avg=True, oracle=None, features=None):
 		"""
 		Constructor.
 
@@ -39,7 +39,15 @@ class REPS_MI(BlackBoxOptimization):
 		self.mi_avg = np.zeros(len(distribution._mu))
 		self.alpha = ExponentialParameter(1, exp=0.5)
 
-		self.beta = LinearParameter(0., threshold_value=1., n=150)
+		if gamma is -1:
+			print('Using LinearParameter 1->0')
+			self.beta = LinearParameter(0., threshold_value=1., n=100)
+		elif gamma is -2:
+			print('Using LinearParameter 0->1')
+			self.beta = LinearParameter(1., threshold_value=0., n=100)
+		else:
+			print('Using gamma')
+			self.beta = Parameter(1-gamma)
 		# self.beta = ExponentialParameter(1., exp=0.5)
 
 		self._add_save_attr(_eps='mushroom')

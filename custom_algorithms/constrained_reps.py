@@ -34,6 +34,7 @@ class ConstrainedREPS(BlackBoxOptimization):
 
         self.mus = []
         self.kls = []
+        self.entropys = []
 
         super().__init__(mdp_info, distribution, policy, features)
 
@@ -51,10 +52,11 @@ class ConstrainedREPS(BlackBoxOptimization):
 
         d = np.exp(Jep / eta_opt)
 
-        kl, mu = self.distribution.con_wmle(theta, d, self._eps(), self._kappa())
+        kl, entropy, mu = self.distribution.con_wmle(theta, d, self._eps(), self._kappa())
         
         self.mus += [mu]
         self.kls += [kl]
+        self.entropys += [entropy]
 
     @staticmethod
     def _dual_function(eta_array, *args):

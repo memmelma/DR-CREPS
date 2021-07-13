@@ -169,10 +169,11 @@ class GaussianDiagonalDistribution(Distribution):
         sigma_inv = np.linalg.inv(sigma)
         sigma_new_inv = np.linalg.inv(sigma_new)
         kl = GaussianDiagonalDistribution._closed_form_KL_constraint_M_projection(mu, mu_new, sigma, sigma_new, sigma_inv, sigma_new_inv, logdet_sigma, logdet_sigma_new, n_dims)
+        entropy = GaussianDiagonalDistribution._closed_form_entropy(logdet_sigma_new, n_dims) - GaussianDiagonalDistribution._closed_form_entropy(logdet_sigma, n_dims)
         
         # tqdm.write(f'\nKL constraint: KL: {kl:2.6f} eps: {eps:2.6f}')
 
-        return kl, self._mu
+        return kl, entropy, self._mu
 
     def con_wmle_mi(self, theta, weights, eps, kappa, indices):
         
@@ -211,10 +212,11 @@ class GaussianDiagonalDistribution(Distribution):
         sigma_inv = np.linalg.inv(sigma)
         sigma_new_inv = np.linalg.inv(sigma_new)
         kl = GaussianDiagonalDistribution._closed_form_KL_constraint_M_projection(mu, mu_new, sigma, sigma_new, sigma_inv, sigma_new_inv, logdet_sigma, logdet_sigma_new, n_dims)
+        entropy = GaussianDiagonalDistribution._closed_form_entropy(logdet_sigma_new, n_dims) - GaussianDiagonalDistribution._closed_form_entropy(logdet_sigma, n_dims)
         
         # tqdm.write(f'\nKL constraint: KL: {kl:2.6f} eps: {eps:2.6f}')
 
-        return kl, self._mu
+        return kl, entropy, self._mu
 
     def diff_log(self, theta):
         n_dims = len(self._mu)

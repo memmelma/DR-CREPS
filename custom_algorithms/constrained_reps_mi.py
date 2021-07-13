@@ -5,7 +5,7 @@ from scipy.optimize import minimize
 from mushroom_rl.algorithms.policy_search.black_box_optimization import BlackBoxOptimization
 from mushroom_rl.utils.parameters import to_parameter
 
-from mushroom_rl.utils.parameters import ExponentialParameter
+from mushroom_rl.utils.parameters import ExponentialParameter, LinearParameter, Parameter
 
 from sklearn.feature_selection import mutual_info_regression
 
@@ -16,7 +16,7 @@ class ConstrainedREPSMI(BlackBoxOptimization):
 	Peters J.. 2013.
 
 	"""
-	def __init__(self, mdp_info, distribution, policy, eps, kappa, k, bins, mi_type='regression', mi_avg=True, oracle=None, features=None):
+	def __init__(self, mdp_info, distribution, policy, eps, kappa, gamma, k, bins, mi_type='regression', mi_avg=True, oracle=None, features=None):
 		"""
 		Constructor.
 
@@ -47,8 +47,19 @@ class ConstrainedREPSMI(BlackBoxOptimization):
 
 		self.mus = []
 		self.kls = []
-
+		self.entropys = []
+		
 		self.oracle = oracle
+
+		if gamma is -1:
+			print('Using LinearParameter 1->0')
+			self.beta = LinearParameter(0., threshold_value=1., n=100)
+		elif gamma is -2:
+			print('Using LinearParameter 0->1')
+			self.beta = LinearParameter(1., threshold_value=0., n=100)
+		else:
+			print('Using gamma')
+			self.beta = Parameter(1-gamma)
 
 		super().__init__(mdp_info, distribution, policy, features)
 
@@ -89,6 +100,9 @@ class ConstrainedREPSMI(BlackBoxOptimization):
 		return H
 	
 	def _update(self, Jep, theta):
+
+		self.distribution._gamma = 1 - self.beta()
+
 		# REPS
 		eta_start = np.ones(1)
 
@@ -107,8 +121,12 @@ class ConstrainedREPSMI(BlackBoxOptimization):
 		
 		if not self._mi_avg:
 			self.mi_avg = mi
+			# print('self._mi_avg False', self._mi_avg)
+			# print(self.mi_avg)
 		else:
 			self.mi_avg = self.mi_avg + self.alpha() * ( mi - self.mi_avg )
+			# print('self._mi_avg True', self._mi_avg)
+			# print(self.mi_avg)
 
 		self.mis += [self.mi_avg]
 		
@@ -127,10 +145,11 @@ class ConstrainedREPSMI(BlackBoxOptimization):
 			top_k_mi = self.oracle
 
 		# Constrained Update
-		kl, mu = self.distribution.con_wmle_mi(theta, d, self._eps(), self._kappa(), top_k_mi)
+		kl, entropy, mu = self.distribution.con_wmle_mi(theta, d, self._eps(), self._kappa(), top_k_mi)
 		
 		self.mus += [mu]
 		self.kls += [kl]
+		self.entropys += [entropy]
 
 	@staticmethod
 	def _dual_function(eta_array, *args):
