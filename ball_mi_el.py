@@ -30,7 +30,7 @@ from custom_distributions.gaussian_custom import GaussianDiagonalDistribution, G
 
 from custom_algorithms.more import MORE
 
-def experiment(alg, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch, ep_per_fit, n_basis=20, horizon=1000, sigma_init=1e-3, seed=42, sample_type=None, mi_type='regression', mi_avg=True, results_dir='results', quiet=True):
+def experiment(alg, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch, ep_per_fit, n_basis=20, horizon=1000, sigma_init=1e-0, seed=42, sample_type=None, mi_type='regression', mi_avg=True, results_dir='results', quiet=True):
     
     # MDP
     mdp = BallRollingGym(horizon=horizon, gamma=0.99, observation_ids=[0,1,2,3], render=not quiet)
@@ -49,7 +49,7 @@ def experiment(alg, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch, ep_per_
 
     # policy = DeterministicPolicy(mu=approximator)
 
-    policy = ProMPPolicy(n_basis=n_basis, basis_width=0.001, maxSteps=horizon, output=mdp.info.action_space.shape)
+    policy = ProMPPolicy(n_basis=n_basis, basis_width=1e-3, maxSteps=horizon, output=mdp.info.action_space.shape)
 
     mu = np.zeros(policy.weights_size)
     if type(sigma_init) == float:
@@ -178,23 +178,23 @@ def experiment(alg, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch, ep_per_
 
 def default_params():
     defaults = dict(
-        alg = 'ConstrainedREPSMI',
+        alg = 'REPS',
         # alg = 'REPS_MI',
-        eps = 0.7,
+        eps = 1.5,
         k = 0.2,
-        bins = 3,
+        bins = 4,
         kappa = 2,
         gamma= 0.1,
         n_epochs = 200, 
         fit_per_epoch = 1, 
         ep_per_fit = 10,
         n_basis=20,
-        horizon=500,
-        sigma_init=1e-1,
+        horizon=350,
+        sigma_init=30.,
         seed = 0,
         sample_type = None,
         mi_type = 'regression',
-        mi_avg = True,
+        mi_avg = False,
         results_dir = 'results',
         quiet = True
     )

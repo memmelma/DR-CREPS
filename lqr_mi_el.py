@@ -24,14 +24,16 @@ from custom_algorithms.constrained_reps_mi import ConstrainedREPSMI
 
 from custom_distributions.gaussian_custom import GaussianDiagonalDistribution, GaussianCholeskyDistribution
 
-def experiment(alg, lqr_dim, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch, ep_per_fit, sigma_init=1e-3, env_seed=42, n_ineff=-1, seed=42, sample_type=None, mi_type='regression', mi_avg=True, results_dir='results', quiet=True):
+def experiment(alg, lqr_dim, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch, ep_per_fit, sigma_init=1e-3, env_seed=42, n_ineff=-1, seed=42, sample_type=None, mi_type='regression', mi_avg=1, results_dir='results', quiet=True):
     
+    mi_avg = bool(mi_avg)
+
     if n_ineff < 0:
         n_ineff = round(lqr_dim / 2)
     np.random.seed(seed)
     
     horizon = 50
-    mdp = LQR.generate(dimensions=lqr_dim, horizon=horizon, episodic=False, max_pos=1., max_action=1., eps=0.5)
+    mdp = LQR.generate(dimensions=lqr_dim, horizon=horizon, episodic=False, max_pos=1., max_action=1., eps=0.1)# eps=0.5)
 
     if env_seed >= 0:
         rng = default_rng(seed=env_seed)
@@ -39,10 +41,10 @@ def experiment(alg, lqr_dim, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch
 
         for p in ineff_params:
             # mdp.A[p][p] = 1e-10
-            mdp.Q[p][p] = 1e-10
-            mdp.R[p][p] = 1e-10
-            mdp.B[p][p] = 1e-10
-        print('\nA', mdp.A, '\nQ', mdp.Q, '\nR', mdp.R, '\nB', mdp.B, '\nineff_params', ineff_params)
+            mdp.B[p][p] = 1e-20
+            mdp.Q[p][p] = 1e-20
+            # mdp.R[p][p] = 1e-20
+        print('\nA', mdp.A, '\nB', mdp.B, '\nQ', mdp.Q, '\nR', mdp.R, '\nineff_params', ineff_params)
 
     else:
         ineff_params = []
@@ -56,9 +58,9 @@ def experiment(alg, lqr_dim, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch
         state, reward, _, __ = mdp.step(action)
         optimal_reward += reward
     
-    mdp.Q[mdp.Q == 1e-10] = 0
-    mdp.R[mdp.R == 1e-10] = 0
-    mdp.B[mdp.B == 1e-10] = 0
+    # mdp.Q[mdp.Q == 1e-10] = 0
+    # mdp.R[mdp.R == 1e-10] = 0
+    # mdp.B[mdp.B == 1e-10] = 0
 
     init_params = locals()
     
@@ -80,6 +82,8 @@ def experiment(alg, lqr_dim, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch
             distribution.set_fixed_sample(gamma=gamma)
     elif sample_type == 'percentage':
         distribution.set_percentage_sample(gamma=gamma)
+    elif sample_type == 'importance':
+        distribution.set_importance_sample()
 
     # algorithms
     if alg == 'REPS':
@@ -88,7 +92,7 @@ def experiment(alg, lqr_dim, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch
 
     elif alg == 'REPS_MI':
         alg = REPS_MI
-        params = {'eps': eps, 'k': k, 'bins': bins, 'mi_type': mi_type, 'mi_avg': mi_avg}
+        params = {'eps': eps, 'gamma': gamma, 'k': k, 'bins': bins, 'mi_type': mi_type, 'mi_avg': mi_avg}
 
     elif alg == 'REPS_MI_ORACLE':
         alg = REPS_MI
@@ -108,7 +112,7 @@ def experiment(alg, lqr_dim, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch
     elif alg == 'ConstrainedREPSMI':
         alg = ConstrainedREPSMI
 
-        params = {'eps': eps, 'k': k, 'kappa': kappa, 'bins': bins, 'mi_type': mi_type, 'mi_avg': mi_avg}
+        params = {'eps': eps, 'k': k, 'kappa': kappa, 'gamma': gamma, 'bins': bins, 'mi_type': mi_type, 'mi_avg': mi_avg}
 
     elif alg == 'ConstrainedREPSMIOracle':
         alg = ConstrainedREPSMI
@@ -118,11 +122,11 @@ def experiment(alg, lqr_dim, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch
                 for j in range(lqr_dim):
                     oracle += [i*lqr_dim + j]
         print(oracle)
-        params = {'eps': eps, 'k': k, 'kappa': kappa, 'oracle': oracle, 'bins': bins, 'mi_type': mi_type}
+        params = {'eps': eps, 'k': k, 'kappa': kappa, 'gamma': gamma, 'oracle': oracle, 'bins': bins, 'mi_type': mi_type}
 
     elif alg == 'MORE':
         alg = MORE
-        params = {'eps': eps}
+        params = {'eps': eps, 'kappa': kappa}
     
     elif alg == 'RWR':
         alg = RWR
@@ -144,6 +148,14 @@ def experiment(alg, lqr_dim, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch
 
     for i in range(n_epochs):
         
+        # from mushroom_rl.utils.parameters import to_parameter
+        # print(policy.weights_size)
+        # if hasattr(core.agent, '_k'):
+        #     if i+k > policy.weights_size:
+        #         core.agent._k = to_parameter(policy.weights_size)
+        #     else:
+        #         core.agent._k = to_parameter(i+k)
+
         core.learn(n_episodes=fit_per_epoch * ep_per_fit,
                    n_episodes_per_fit=ep_per_fit, quiet=quiet)
 
@@ -160,6 +172,7 @@ def experiment(alg, lqr_dim, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch
 
     mus = None
     kls = None
+    entropys = None
     mi_avg = None
 
     if hasattr(agent, 'mis'):
@@ -168,6 +181,8 @@ def experiment(alg, lqr_dim, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch
         mus = agent.mus
     if hasattr(agent, 'kls'):
         kls = agent.kls
+    if hasattr(agent, 'entropys'):
+        entropys = agent.entropys
 
     best_reward = np.array(returns_mean).max()
 
@@ -184,6 +199,7 @@ def experiment(alg, lqr_dim, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch
         'mi_avg': mi_avg,
         'mus': mus,
         'kls': kls,
+        'entropys': entropys,
         'ineff_params': ineff_params
     })
 
@@ -198,23 +214,24 @@ def experiment(alg, lqr_dim, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch
 
 def default_params():
     defaults = dict(
-        alg = 'MORE',
-        lqr_dim = 10, 
+        alg = 'REPS_MI',
+        # alg = 'MORE',
+        lqr_dim = 3,
         eps = 0.7,
-        k = 1,
-        bins = 3,
+        k = 2,
+        bins = 4,
         kappa = 2,
         gamma = 0.1,
-        n_epochs = 150,
+        n_epochs = 4,
         fit_per_epoch = 1, 
-        ep_per_fit = 10,
+        ep_per_fit = 25,
         sigma_init=1e-1,
         seed = 0,
         n_ineff = 0,
         env_seed = -1,
-        sample_type = 'percentage',
+        sample_type = 'importance',
         mi_type = 'regression',
-        mi_avg = True,
+        mi_avg = 0, # False
         results_dir = 'results',
         quiet = True
     )
@@ -241,7 +258,7 @@ def parse_args():
     parser.add_argument('--sigma-init', type=float)
     parser.add_argument('--sample-type', type=str)
     parser.add_argument('--mi-type', type=str)
-    parser.add_argument('--mi-avg', type=str)
+    parser.add_argument('--mi-avg', type=int)
     parser.add_argument('--results-dir', type=str)
     parser.add_argument('--quiet', type=bool)
 
