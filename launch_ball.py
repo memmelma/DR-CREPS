@@ -20,7 +20,7 @@ if __name__ == '__main__':
 						n_jobs=-1,
 						use_timestamp=True)
 	
-	launcher.add_default_params(n_epochs=250, fit_per_epoch=1, ep_per_fit=25, n_basis=20, horizon=750, sigma_init=1e-0, mi_type='regression', sample_type='percentage')
+	launcher.add_default_params(n_epochs=250, fit_per_epoch=1, ep_per_fit=25, n_basis=20, horizon=2, sigma_init=1e-0, mi_type='regression', sample_type='percentage')
 	
 	# eps = 0.7
 	# kappa = 3.

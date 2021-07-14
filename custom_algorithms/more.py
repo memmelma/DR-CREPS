@@ -24,7 +24,7 @@ class MORE(BlackBoxOptimization):
     "Model-Based Relative Entropy Stochastic Search"
     Abdolmaleki, Abbas & Lioutikov, Rudolf & Peters, Jan & Lau, Nuno & Reis, Luís & Neumann, Gerhard.
     """
-    def __init__(self, mdp_info, distribution, policy, eps, features=None):
+    def __init__(self, mdp_info, distribution, policy, eps, kappa, features=None):
         """
         Constructor.
 
@@ -36,9 +36,10 @@ class MORE(BlackBoxOptimization):
 
         """
         # whether to use entropy constraint
-        self.no_entropy = False
+        self.no_entropy = True
 
         self.eps = eps
+        self.kappa = -kappa
 
         # MORE only supports full Covariance Matrix
         n = len(distribution._mu)
@@ -48,7 +49,7 @@ class MORE(BlackBoxOptimization):
 
             if isinstance(distribution, GaussianDiagonalDistribution):
                 sig_t = np.diag(dist_params[n:]**2)
-                sig_t = np.diag(dist_params[n:])
+                # sig_t = np.diag(dist_params[n:])
             elif isinstance(distribution, GaussianDistribution):
                 sig_t = distribution._sigma
             else:
@@ -63,29 +64,42 @@ class MORE(BlackBoxOptimization):
             # sigma = sigma@sigma.T
             distribution = GaussianCholeskyDistribution(mu, sigma)
 
+        print('Init Entropy:', distribution.entropy())
         # set beta as specified in paper -> MORE page 4
-        gamma = 0.99
-        entropy_policy_min = -75
-        entropy_policy = distribution.entropy()
-        self.kappa = gamma * (entropy_policy - entropy_policy_min) + entropy_policy_min
-        print('entropy_policy', entropy_policy, 'kappa', self.kappa, 'dim', policy.weights_size)
+        # gamma = 0.99
+        # entropy_policy_min = self.kappa
+        # entropy_policy = distribution.entropy()
+        # self.kappa = gamma * (entropy_policy - entropy_policy_min) + entropy_policy_min
+        # print('entropy_policy', entropy_policy, 'kappa', self.kappa, 'dim', policy.weights_size)
         
-        poly_basis = PolynomialBasis().generate(2, policy.weights_size)
-        self.phi_ = Features(basis_list=poly_basis)
+        # TODO rm
+        # self.policy = policy
+
+        poly_basis_quadratic = PolynomialBasis().generate(2, policy.weights_size)
+        self.phi_quadratic_ = Features(basis_list=poly_basis_quadratic)
         
-        self.regressor = Regressor(LinearApproximator,
-                      input_shape=(len(poly_basis),),
+        self.regressor_quadratic = Regressor(LinearApproximator,
+                      input_shape=(len(poly_basis_quadratic),),
+                      output_shape=(1,))
+
+        poly_basis_linear = PolynomialBasis().generate(1, policy.weights_size)
+        self.phi_linear_ = Features(basis_list=poly_basis_linear)
+
+        self.regressor_linear = Regressor(LinearApproximator,
+                      input_shape=(len(poly_basis_linear),),
                       output_shape=(1,))
         
         self._add_save_attr(eps='primitive')
         self._add_save_attr(kappa='primitive')
 
+        self.kls = []
+        self.entropys = []
+
         super().__init__(mdp_info, distribution, policy, features)
 
     def _update(self, Jep, theta):
-        
         gamma = 0.99
-        entropy_policy_min = -75
+        entropy_policy_min = self.kappa
         entropy_policy = self.distribution.entropy()
         self.kappa = gamma * (entropy_policy - entropy_policy_min) + entropy_policy_min
 
@@ -100,15 +114,17 @@ class MORE(BlackBoxOptimization):
         # # Gaussian sigma
         # sig_t = self.distribution._sigma
 
-        # create polynomial features
-        features = self.phi_(theta)
-        Jep = ( Jep - np.mean(Jep, keepdims=True, axis=0) ) / np.std(Jep, keepdims=True, axis=0)
+        R, r, r_0 = self.regression(theta, Jep, n)
         
-        # fit linear regression
-        self.regressor.fit(features, Jep)
+        # # create polynomial features
+        # features = self.phi_(theta)
+        # Jep = ( Jep - np.mean(Jep, keepdims=True, axis=0) ) / np.std(Jep, keepdims=True, axis=0)
+        
+        # # fit linear regression
+        # self.regressor.fit(features, Jep)
 
-        # get quadratic surrogate model from learned regression
-        R, r, r_0 = MORE._get_quadratic_model_from_regressor(self.regressor, n, theta, features)
+        # # get quadratic surrogate model from learned regression
+        # R, r, r_0 = MORE._get_quadratic_model_from_regressor(self.regressor, n, theta, features)
         
         if self.no_entropy:
             self.kappa = -1
@@ -118,8 +134,8 @@ class MORE(BlackBoxOptimization):
         res = minimize(MORE._dual_function, eta_omg_start,
                        bounds=((np.finfo(np.float32).eps, np.inf),(np.finfo(np.float32).eps, np.inf)),
                        args=(sig_t, mu_t, R, r, r_0, self.eps, self.kappa, n),
-                    #    method=None)
-                       method='SLSQP')
+                       method=None)
+                    #    method='SLSQP')
 
         eta_opt, omg_opt = res.x[0], res.x[1]
         if not res.success:
@@ -133,7 +149,7 @@ class MORE(BlackBoxOptimization):
         mu_t1, sig_t1 = MORE._closed_form_mu_t1_sig_t1(sig_t, mu_t, R, r, eta_opt, omg_opt)
 
         # round to decimal for constraint checks
-        dec = 2
+        dec = 4
         # check entropy constraint
         H_t1 = MORE._closed_form_entropy(sig_t1, n)
         if not np.round(H_t1,dec) >= np.round(self.kappa,dec) and not self.no_entropy:
@@ -152,28 +168,36 @@ class MORE(BlackBoxOptimization):
         # self.distribution._mu = mu_t1.flatten()
         # self.distribution._sigma = sig_t1
 
+        self.kls += [kl]
+        self.entropys += [H_t1-self.kappa]
+
     @staticmethod
     def _dual_function(lag_array, Q, b, R, r, r_0, eps, kappa, n):
         eta, omg = lag_array[0], lag_array[1]
         F, f = MORE._get_F_f(Q, b, R, r, eta)
 
         if kappa is not -1:
-            # original paper ( no **n in logdet & no r_0 )
+            # original paper ( no **n in logdet & no r_0 ) added + r_0 instead of normalization
             slogdet_0 = np.linalg.slogdet( (2*np.pi) * Q )
             slogdet_1 = np.linalg.slogdet( (2*np.pi) * (eta + omg) * F )
-            term1 = (f.T @ F @ f) - eta * (b.T @ np.linalg.inv(Q) @ b) - eta * slogdet_0[1] + (eta + omg) * slogdet_1[1]
+            term1 = (f.T @ F @ f) - eta * (b.T @ np.linalg.inv(Q) @ b) - eta * slogdet_0[1] + (eta + omg) * slogdet_1[1] + r_0
 
             # REPS compendium
-            slogdet_0 = np.linalg.slogdet( (2*np.pi)**n * Q )
-            slogdet_1 = np.linalg.slogdet( (2*np.pi)**n * (eta + omg) * F )
-            term1 = (f.T @ F @ f) - eta * (b.T @ np.linalg.inv(Q) @ b) - eta * slogdet_0[1] + (eta + omg) * slogdet_1[1] + r_0
+            # slogdet_0 = np.linalg.slogdet( (2*np.pi)**n * Q )
+            # slogdet_1 = np.linalg.slogdet( (2*np.pi)**n * (eta + omg) * F )
+            # term1 = (f.T @ F @ f) - eta * (b.T @ np.linalg.inv(Q) @ b) - eta * slogdet_0[1] + (eta + omg) * slogdet_1[1] + r_0
             
             return eta * eps - omg * kappa + 0.5 * term1[0]
 
         else:
             # REPS compendium: MORE w/o Entropy Constraint (or REPS with Quadratic Model)
-            slogdet_0 = np.linalg.slogdet( (2.*np.pi)**n * Q )
-            slogdet_1 = np.linalg.slogdet( (2.*np.pi)**n * eta * F )
+            # slogdet_0 = np.linalg.slogdet( (2.*np.pi)**n * Q )
+            # slogdet_1 = np.linalg.slogdet( (2.*np.pi)**n * eta * F )
+
+            # adaptation ( no **n in logdet & no r_0 )
+            slogdet_0 = np.linalg.slogdet( (2.*np.pi) * Q )
+            slogdet_1 = np.linalg.slogdet( (2.*np.pi) * eta * F )
+
             term1 = (f.T @ F @ f) - eta * (b.T @ np.linalg.inv(Q) @ b) - eta * slogdet_0[1] + eta * slogdet_1[1] + r_0
             
             return eta * eps + 0.5 * term1[0]
@@ -183,7 +207,6 @@ class MORE(BlackBoxOptimization):
         F, f = MORE._get_F_f(Q, b, R, r, eta)
         mu_t1 = F @ f
         sig_t1 = F * (eta + omg)
-        tqdm.write(f'{eta} {omg}')
         return mu_t1, sig_t1
 
     @staticmethod
@@ -193,6 +216,50 @@ class MORE(BlackBoxOptimization):
         f = eta * Q_inv @ b + r
         return F, f
     
+    def regression(self, theta, Jep, n):
+
+        # Jep = ( Jep - np.mean(Jep, keepdims=True, axis=0) ) / np.std(Jep, keepdims=True, axis=0)
+
+        # create polynomial features
+        features_quadratic = self.phi_quadratic_(theta)
+        
+        # fit linear regression
+        self.regressor_quadratic.fit(features_quadratic, Jep)
+
+        # get quadratic surrogate model from learned regression
+        R, r, r_0 = MORE._get_quadratic_model_from_regressor(self.regressor_quadratic, n, theta, features_quadratic)
+
+        # force R to be negative definite
+        w, v = np.linalg.eig(R)
+        w[w >= 0.0] = -1e-12
+        R = v @ np.diag(w) @ v.T
+        R = 0.5 * (R + R.T)
+
+        # create polynomial features
+        
+        features_linear = self.phi_linear_(theta)
+
+        # refit linear regression w/o quadratic term
+        # Jep - theta @ R @ theta.T = Jep w/o quadratic term/features
+        aux = Jep - np.einsum('nk,kh,nh->n', theta, R, theta)
+        self.regressor_linear.fit(features_linear, aux)
+        
+        beta = self.regressor_linear.get_weights()
+        r_0 = beta[0]
+        r = beta[1:][:,np.newaxis]
+
+        # verification that components got reconstructed correctly
+        theta_pred = np.atleast_2d(theta[0])
+        theta_pred = theta
+        quadratic_pred = theta_pred @ R @ theta_pred.T + theta_pred @ r + r_0
+        regressor_pred = self.regressor_quadratic.predict(features_quadratic)
+        mean_pred = round(np.mean(quadratic_pred[0]),4)
+        mean_regress = round(np.mean(regressor_pred[0]),4)
+        # assert mean_pred == mean_regress, \
+        #     f'Quadratic Model != Regressor quadratic : model {mean_pred} regressor {mean_regress}'
+
+        return R, r, r_0
+
     @staticmethod
     def _get_quadratic_model_from_regressor(regressor, n, theta, features):
         
@@ -218,8 +285,8 @@ class MORE(BlackBoxOptimization):
         theta_pred = np.atleast_2d(theta[0])
         quadratic_pred = theta_pred @ R @ theta_pred.T + theta_pred @ r + r_0
         regressor_pred = regressor.predict(features)[0]
-        assert round(quadratic_pred[0][0],4) == round(regressor_pred[0],4), \
-            f'Quadratic Model != Regressor quadratic : model {quadratic_pred[0][0]} regressor {regressor_pred[0]}'
+        # assert round(quadratic_pred[0][0],4) == round(regressor_pred[0],4), \
+        #     f'Quadratic Model != Regressor quadratic : model {quadratic_pred[0][0]} regressor {regressor_pred[0]}'
 
         return R, r, r_0
 

@@ -160,7 +160,7 @@ def default_params():
 def parse_args():
     parser = argparse.ArgumentParser()
     
-    parser.add_argument('--n-tilings', type=str)
+    parser.add_argument('--n-tilings', type=int)
 
     parser.add_argument('--alg', type=str)
     parser.add_argument('--eps', type=float)
