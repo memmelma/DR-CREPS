@@ -9,6 +9,8 @@ from mushroom_rl.utils.parameters import ExponentialParameter, LinearParameter, 
 
 from sklearn.feature_selection import mutual_info_regression
 
+from scipy.stats import pearsonr
+
 class REPS_MI(BlackBoxOptimization):
 	"""
 	Episodic Relative Entropy Policy Search algorithm with MI estension
@@ -46,7 +48,6 @@ class REPS_MI(BlackBoxOptimization):
 			print('Using LinearParameter 0->1')
 			self.beta = LinearParameter(1., threshold_value=0., n=100)
 		else:
-			print('Using gamma')
 			self.beta = Parameter(1-gamma)
 		# self.beta = ExponentialParameter(1., exp=0.5)
 
@@ -78,6 +79,12 @@ class REPS_MI(BlackBoxOptimization):
 			mi = np.array(mi)
 
 		return mi
+
+	def compute_pearson(self, theta, Jep):
+		p = []
+		for i in range(theta.shape[1]):
+			p += [pearsonr(theta[:,i], Jep)[0]]
+		return np.abs(p)
 
 	def MI_from_samples(self, x, y, bins):
 		c_XY = np.histogram2d(x, y, bins)[0]
@@ -115,9 +122,11 @@ class REPS_MI(BlackBoxOptimization):
 		d = np.exp(Jep / eta_opt)
 		
 		mi = self.compute_mi(theta, Jep, type=self._mi_type)
+		
+		pearson = self.compute_pearson(theta, Jep)
 				
 		if not self._mi_avg:
-			self.mi_avg = mi
+			self.mi_avg = mi / np.max(mi)
 		else:
 			self.mi_avg = self.mi_avg + self.alpha() * ( mi - self.mi_avg )
 		self.mis += [self.mi_avg]
@@ -133,6 +142,8 @@ class REPS_MI(BlackBoxOptimization):
 		else:
 			top_k_mi = self.mi_avg.argsort()[-int(self._k()):][::-1]
 		
+		self.distribution._importance = self.mi_avg / np.sum(self.mi_avg)
+		print(self.mi_avg, self.mi_avg / np.sum(self.mi_avg))
 		if self.oracle != None:
 			top_k_mi = self.oracle
 		
