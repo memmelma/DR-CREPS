@@ -2,7 +2,6 @@ import os
 import argparse
 import joblib
 import numpy as np
-from numpy.random import default_rng
 import matplotlib.pyplot as plt
 
 from mushroom_rl.core import Core
@@ -17,25 +16,25 @@ from mushroom_rl.policy import DeterministicPolicy
 from mushroom_rl.approximators.parametric import LinearApproximator
 from mushroom_rl.approximators.regressor import Regressor
 
-from mushroom_rl.algorithms.policy_search.black_box_optimization import REPS, RWR
+from utils_el import init_distribution, init_algorithm, log_constraints
 
-from custom_algorithms.constrained_reps import ConstrainedREPS
-from custom_algorithms.constrained_reps_mi import ConstrainedREPSMI
+def experiment( n_tilings, \
+                alg, eps, kappa, k, \
+                sigma_init, distribution, \
+                mi_type, bins, sample_type, gamma, mi_avg, \
+                n_epochs, fit_per_epoch, ep_per_fit, \
+                seed, results_dir, quiet):
 
-from custom_distributions.gaussian_custom import GaussianDiagonalDistribution
+    quiet = bool(quiet)
+    mi_avg = bool(mi_avg)
+    init_params = locals()
+    np.random.seed(seed)
+    os.makedirs(results_dir, exist_ok=True)
 
-from custom_algorithms.more import MORE
-from custom_algorithms.reps_mi import REPS_MI
-
-def experiment(alg, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch, ep_per_fit, n_tilings=1, sigma_init=1e-3, seed=42, sample_type=None, mi_type='regression', mi_avg=True, results_dir='results', quiet=True):
-    
     # MDP
     mdp = ShipSteering()
 
-    init_params = locals()
-    
-    os.makedirs(results_dir, exist_ok=True)
-      # Policy
+    # Policy
     high = [150, 150, np.pi]
     low = [0, 0, -np.pi]
     # low = [0, 0, -np.pi, -0.26]
@@ -54,56 +53,16 @@ def experiment(alg, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch, ep_per_
 
     approximator = Regressor(LinearApproximator, input_shape=input_shape,
                              output_shape=mdp.info.action_space.shape)
-
     policy = DeterministicPolicy(approximator)
 
-    # sigma_init = 4e-1
-    print(policy.weights_size)
-    mu = np.zeros(policy.weights_size)
-    if type(sigma_init) == float:
-        sigma = sigma_init * np.ones(policy.weights_size)
-        distribution = GaussianDiagonalDistribution(mu, sigma)
-    else:
-        distribution = sigma_init
-
-    print(distribution.get_parameters())
+    # init distribution
+    distribution = init_distribution(mu_init=0, sigma_init=sigma_init, size=policy.weights_size, sample_type=sample_type, gamma=gamma, distribution_class=distribution)
     
-    # sample type
-    if sample_type == 'fixed':
-            distribution.set_fixed_sample(gamma=gamma)
-    elif sample_type == 'percentage':
-        distribution.set_percentage_sample(gamma=gamma)
-
-    # algorithms
-    if alg == 'REPS':
-        alg = REPS
-        params = {'eps': eps}
-    
-    elif alg == 'REPS_MI':
-        alg = REPS_MI
-        params = {'eps': eps, 'k': k, 'bins': bins, 'mi_type': mi_type, 'mi_avg': mi_avg}
-
-    # constrained
-    elif alg == 'ConstrainedREPS':
-        alg = ConstrainedREPS
-        params = {'eps': eps, 'kappa': kappa}
-
-    elif alg == 'ConstrainedREPSMI':
-        alg = ConstrainedREPSMI
-        params = {'eps': eps, 'k': k, 'kappa': kappa, 'bins': bins, 'mi_type': mi_type, 'mi_avg': mi_avg}
-
-    elif alg == 'MORE':
-        alg = MORE
-        params = {'eps': eps, 'kappa': kappa}
-    
-    elif alg == 'RWR':
-        alg = RWR
-        params = {'beta': eps}
-
-    # Agent
+    # init agent
+    alg, params = init_algorithm(algorithm_class=alg, params=init_params)
     agent = alg(mdp.info, distribution, policy, features=features, **params)
 
-    # Train
+    # train
     core = Core(agent, mdp)
 
     dataset_eval = core.evaluate(n_episodes=ep_per_fit, quiet=quiet)
@@ -128,25 +87,10 @@ def experiment(alg, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch, ep_per_
         returns_std += [np.std(J)]
     
 
+    # logging
     gain_policy = policy.get_weights()
-
-    mus = None
-    kls = None
-    entropys = None
-    mi_avg = None
-
-    if hasattr(agent, 'mis'):
-        mi_avg = agent.mis
-    if hasattr(agent, 'mus'):
-        mus = agent.mus
-    if hasattr(agent, 'kls'):
-        kls = agent.kls
-    if hasattr(agent, 'entropys'):
-        entropys = agent.entropys
-
+    mus, kls, entropys, mi_avg = log_constraints(agent)
     best_reward = np.array(returns_mean).max()
-
-    del init_params['mdp']
 
     dump_dict = dict({
         'returns_mean': returns_mean,
@@ -179,47 +123,66 @@ def experiment(alg, eps, k, bins, kappa, gamma, n_epochs, fit_per_epoch, ep_per_
 
 def default_params():
     defaults = dict(
-        alg = 'REPS_MI',
-        eps = 1.,
-        k = 75,
-        bins = 3,
+        # environment
+        n_tilings = 1,
+
+        # algorithm
+        alg = 'REPS',
+        eps = 1.0,
         kappa = 2,
-        gamma= 0.1,
-        n_epochs = 25, 
+        k = 25,
+
+        # distribution
+        sigma_init = 30.,
+        distribution = 'diag',
+
+        # MI related
+        mi_type = 'regression',
+        bins = 4,
+        sample_type = None,
+        gamma = 0.1,
+        mi_avg = 0, # False
+
+        # training
+        n_epochs = 4,
         fit_per_epoch = 1, 
         ep_per_fit = 25,
-        n_tilings = 1,
-        sigma_init = 3e-1,
+
+        # misc
         seed = 0,
-        sample_type = None,
-        mi_type = 'regression',
-        mi_avg = True,
         results_dir = 'results',
-        quiet = True
+        quiet = 1 # True
     )
 
     return defaults
 
+
 def parse_args():
     parser = argparse.ArgumentParser()
     
+    parser.add_argument('--n-tilings', type=str)
+
     parser.add_argument('--alg', type=str)
     parser.add_argument('--eps', type=float)
-    parser.add_argument('--k', type=float)
-    parser.add_argument('--bins', type=int)
     parser.add_argument('--kappa', type=float)
+    parser.add_argument('--k', type=int)
+
+    parser.add_argument('--sigma-init', type=float)
+    parser.add_argument('--distribution', type=str)
+
+    parser.add_argument('--mi-type', type=str)
+    parser.add_argument('--bins', type=int)
+    parser.add_argument('--sample-type', type=str)
     parser.add_argument('--gamma', type=float)
+    parser.add_argument('--mi-avg', type=int)
+
     parser.add_argument('--n-epochs', type=int)
     parser.add_argument('--fit-per-epoch', type=int)
     parser.add_argument('--ep-per-fit', type=int)
-    parser.add_argument('--n-tilings', type=int)
+
     parser.add_argument('--seed', type=int)
-    parser.add_argument('--sigma-init', type=float)
-    parser.add_argument('--sample-type', type=str)
-    parser.add_argument('--mi-type', type=str)
-    parser.add_argument('--mi-avg', type=str)
     parser.add_argument('--results-dir', type=str)
-    parser.add_argument('--quiet', type=bool)
+    parser.add_argument('--quiet', type=int)
 
     parser.set_defaults(**default_params())
     args = parser.parse_args()

@@ -9,7 +9,7 @@ if __name__ == '__main__':
 	experiment_name = f'ship3dim_tiles_iprl_exp'
 	
 	launcher = Launcher(exp_name=experiment_name,
-						python_file='ship_mi_el',
+						python_file='el_ship_mi',
 						n_exp=25,
 						# memory=-1,
 						days=2,
