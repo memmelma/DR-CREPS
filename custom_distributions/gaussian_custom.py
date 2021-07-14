@@ -85,7 +85,9 @@ class GaussianDiagonalDistribution(Distribution):
 
         self._gamma = 0
         self._sample_type = None
+        
         self._top_k = []
+        self._importance = None
 
         self._add_save_attr(
             _mu='numpy',
@@ -100,6 +102,9 @@ class GaussianDiagonalDistribution(Distribution):
         self._gamma = gamma
         self._sample_type = 'percentage'
 
+    def set_importance_sample(self):
+        self._sample_type = 'importance'
+
     def sample(self):
         from copy import copy
         std_tmp = copy(self._std**2)
@@ -110,7 +115,9 @@ class GaussianDiagonalDistribution(Distribution):
             std_tmp[~selection] = self._gamma
         elif self._sample_type == 'percentage' and len(self._top_k):
             std_tmp[~selection] = std_tmp[~selection] * self._gamma
-        
+        elif self._sample_type == 'importance' and self._importance is not None:
+            std_tmp = std_tmp * self._importance
+
         sigma = np.diag(std_tmp)
         return np.random.multivariate_normal(self._mu, sigma)
 
