@@ -127,13 +127,13 @@ def default_params():
         n_tilings = 1,
 
         # algorithm
-        alg = 'REPS',
+        alg = 'ConstrainedREPS',
         eps = 1.0,
         kappa = 2,
         k = 25,
 
         # distribution
-        sigma_init = 30.,
+        sigma_init = 1e-1,
         distribution = 'diag',
 
         # MI related
