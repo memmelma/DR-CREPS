@@ -53,10 +53,10 @@ class ConstrainedREPSMI(BlackBoxOptimization):
 		
 		self.oracle = oracle
 
-		if gamma is -1:
+		if gamma == -1:
 			print('Using LinearParameter 1->0')
 			self.beta = LinearParameter(0., threshold_value=1., n=100)
-		elif gamma is -2:
+		elif gamma == -2:
 			print('Using LinearParameter 0->1')
 			self.beta = LinearParameter(1., threshold_value=0., n=100)
 		else:
