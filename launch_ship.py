@@ -21,9 +21,9 @@ if __name__ == '__main__':
 	
 	launcher.add_default_params(eps=1.,
                                 n_tilings=1,
-                                sigma_init=4e-1,
+                                sigma_init=5e-2,
                                 n_epochs=25, 
-                                fit_per_epoch=1, ep_per_fit=25,   
+                                fit_per_epoch=1, ep_per_fit=100,   
                                 mi_type='regression', bins=4, sample_type='percentage')
 
 	# TODO remove on tiling dimension
