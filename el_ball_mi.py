@@ -67,8 +67,6 @@ def experiment( n_basis, horizon, \
     mus, kls, entropys, mi_avg = log_constraints(agent)
     best_reward = np.array(returns_mean).max()
 
-    del init_params['mdp']
-
     dump_dict = dict({
         'returns_mean': returns_mean,
         'returns_std': returns_std,
@@ -99,8 +97,8 @@ def experiment( n_basis, horizon, \
 def default_params():
     defaults = dict(
         # environment
-        n_basis=20,
-        horizon=750,
+        n_basis = 20,
+        horizon = 750,
 
         # algorithm
         alg = 'REPS',
