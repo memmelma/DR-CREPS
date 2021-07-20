@@ -18,10 +18,10 @@ def init_distribution(mu_init=0, sigma_init=1e-3, size=1, sample_type=None, gamm
 
         # load full covariance
         if type(sigma_init) != float:
-            sigma = sigma_init
+            distribution = sigma_init
         else:
             sigma = sigma_init * np.ones(size)
-        distribution = GaussianDiagonalDistribution(mu, sigma)
+            distribution = GaussianDiagonalDistribution(mu, sigma)
 
         if sample_type == 'fixed':
             distribution.set_fixed_sample(gamma=gamma)

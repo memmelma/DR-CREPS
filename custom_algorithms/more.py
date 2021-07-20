@@ -184,7 +184,7 @@ class MORE(BlackBoxOptimization):
         eta, omg = lag_array[0], lag_array[1]
         F, f = MORE._get_F_f(Q, b, R, r, eta)
 
-        if kappa is not -1:
+        if kappa != -1:
             # original paper ( no **n in logdet & no r_0 ) added + r_0 instead of normalization
             slogdet_0 = np.linalg.slogdet( (2*np.pi) * Q )
             slogdet_1 = np.linalg.slogdet( (2*np.pi) * (eta + omg) * F )

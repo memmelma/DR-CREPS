@@ -38,9 +38,10 @@ def experiment(alg, params, n_epochs, fit_per_epoch, ep_per_fit):
     mdp = ShipSteering()
 
     # Policy
-    high = [150, 150, np.pi]
-    low = [0, 0, -np.pi]
-    n_tiles = [5, 5, 6]
+    high = [150, 150, np.pi, np.pi / 12.]
+    low = [0, 0, -np.pi, -np.pi / 12.]
+    n_tiles = [5, 5, 6, 3]
+
     low = np.array(low, dtype=np.float)
     high = np.array(high, dtype=np.float)
     n_tilings = 1
@@ -54,10 +55,12 @@ def experiment(alg, params, n_epochs, fit_per_epoch, ep_per_fit):
     approximator = Regressor(LinearApproximator, input_shape=input_shape,
                              output_shape=mdp.info.action_space.shape)
 
+    print('action space', mdp.info.action_space.low, mdp.info.action_space.high)
     policy = DeterministicPolicy(approximator)
+    print('policy.weights_size', policy.weights_size)
 
     mu = np.zeros(policy.weights_size)
-    sigma = 4e-1 * np.ones(policy.weights_size)
+    sigma = 1e-1 * np.ones(policy.weights_size)
     distribution = GaussianDiagonalDistribution(mu, sigma)
 
     # Agent
@@ -80,9 +83,9 @@ def experiment(alg, params, n_epochs, fit_per_epoch, ep_per_fit):
 if __name__ == '__main__':
 
     algs_params = [
-        (MORE, {'eps': 2.0}),
-        # (ConstrainedREPSMI, {'eps':1.0, 'kappa':2, 'k':25, 'bins':3}),
-        # (REPS, {'eps': 1.0}),
+        # (MORE, {'eps': 2.0})
+        # (ConstrainedREPSMI, {'eps': 1.0, 'kappa':5, 'k':400, 'bins':4, 'gamma':0.1}),
+        (REPS, {'eps': 1.0}),
         # (RWR, {'beta': 0.7}),
         # (PGPE, {'optimizer': AdaptiveOptimizer(eps=1.5)}),
         ]

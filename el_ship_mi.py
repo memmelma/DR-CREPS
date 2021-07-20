@@ -41,8 +41,8 @@ def experiment( n_tilings, \
     # high = [150, 150, np.pi, 0.26]
     n_tiles = [5, 5, 6]
     # n_tiles = [5, 5, 6, 5]
-    low = np.array(low, dtype=np.float)
-    high = np.array(high, dtype=np.float)
+    low = np.array(low, dtype=float)
+    high = np.array(high, dtype=float)
     n_tilings = n_tilings
 
     tilings = Tiles.generate(n_tilings=n_tilings, n_tiles=n_tiles, low=low,
@@ -78,7 +78,7 @@ def experiment( n_tilings, \
         core.learn(n_episodes=fit_per_epoch * ep_per_fit,
                    n_episodes_per_fit=ep_per_fit, quiet=quiet)
 
-        dataset_eval = core.evaluate(n_episodes=ep_per_fit, quiet=quiet)
+        dataset_eval = core.evaluate(n_episodes=ep_per_fit, quiet=quiet, render=not quiet)
         # print('distribution parameters: ', distribution.get_parameters())
         J = compute_J(dataset_eval, gamma=mdp.info.gamma)
         print('J at iteration ' + str(i) + ': ' + str(round(np.mean(J),4)))
@@ -127,13 +127,13 @@ def default_params():
         n_tilings = 1,
 
         # algorithm
-        alg = 'ConstrainedREPS',
+        alg = 'ConstrainedREPSMI',
         eps = 1.0,
-        kappa = 2,
+        kappa = 6.0,
         k = 25,
 
         # distribution
-        sigma_init = 1e-1,
+        sigma_init = 5e-2,
         distribution = 'diag',
 
         # MI related
@@ -144,9 +144,9 @@ def default_params():
         mi_avg = 0, # False
 
         # training
-        n_epochs = 4,
+        n_epochs = 10,
         fit_per_epoch = 1, 
-        ep_per_fit = 25,
+        ep_per_fit = 100,
 
         # misc
         seed = 0,
