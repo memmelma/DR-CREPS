@@ -22,7 +22,7 @@ from utils_el import init_distribution, init_algorithm, log_constraints
 def experiment( lqr_dim, n_ineff, env_seed, \
                 alg, eps, kappa, k, \
                 sigma_init, distribution, \
-                mi_type, bins, sample_type, gamma, mi_avg, \
+                method, mi_type, bins, sample_type, gamma, mi_avg, \
                 n_epochs, fit_per_epoch, ep_per_fit, \
                 seed, results_dir, quiet):
     
@@ -157,21 +157,22 @@ def experiment( lqr_dim, n_ineff, env_seed, \
 def default_params():
     defaults = dict(
         # environment
-        lqr_dim = 5,
-        n_ineff = 5,
+        lqr_dim = 10,
+        n_ineff = 3,
         env_seed = -1,
 
         # algorithm
-        alg = 'REPS',
-        eps = 0.7,
+        alg = 'ConstrainedREPSMIFull',
+        eps = 2.2,
         kappa = 2,
-        k = 9,
+        k = 5,
 
         # distribution
         sigma_init = 1e-1,
         distribution = 'diag',
 
         # MI related
+        method = 'MI', # Pearson
         mi_type = 'regression',
         bins = 4,
         sample_type = None,
@@ -207,6 +208,7 @@ def parse_args():
     parser.add_argument('--sigma-init', type=float)
     parser.add_argument('--distribution', type=str)
 
+    parser.add_argument('--method', type=str)
     parser.add_argument('--mi-type', type=str)
     parser.add_argument('--bins', type=int)
     parser.add_argument('--sample-type', type=str)

@@ -10,6 +10,9 @@ class Distribution(Serializable):
 
     """
 
+    def update_importance(self, importance):
+        pass
+    
     def sample(self):
         """
         Draw a sample from the distribution.

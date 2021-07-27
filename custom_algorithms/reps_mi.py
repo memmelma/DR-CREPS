@@ -16,7 +16,7 @@ class REPS_MI(BlackBoxOptimization):
 	Episodic Relative Entropy Policy Search algorithm with MI estension
 
 	"""
-	def __init__(self, mdp_info, distribution, policy, eps, gamma, k, bins, mi_type='regression', mi_avg=True, oracle=None, features=None):
+	def __init__(self, mdp_info, distribution, policy, eps, gamma, k, bins, method='MI', mi_type='regression', mi_avg=True, oracle=None, features=None):
 		"""
 		Constructor.
 
@@ -36,6 +36,7 @@ class REPS_MI(BlackBoxOptimization):
 
 		self._mi_type = mi_type
 		self._mi_avg = mi_avg
+		self.method = method
 
 		self.mis = []
 		self.mi_avg = np.zeros(len(distribution._mu))
@@ -84,7 +85,9 @@ class REPS_MI(BlackBoxOptimization):
 		p = []
 		for i in range(theta.shape[1]):
 			p += [pearsonr(theta[:,i], Jep)[0]]
-		return np.abs(p)
+			# p += [np.corrcoef(theta[:,i], Jep)[0][1]]
+		p = np.abs(p)
+		return np.nan_to_num(p)
 
 	def MI_from_samples(self, x, y, bins):
 		c_XY = np.histogram2d(x, y, bins)[0]
@@ -121,12 +124,14 @@ class REPS_MI(BlackBoxOptimization):
 
 		d = np.exp(Jep / eta_opt)
 		
-		mi = self.compute_mi(theta, Jep, type=self._mi_type)
 		
-		pearson = self.compute_pearson(theta, Jep)
-				
+		if self.method == 'MI':
+			mi = self.compute_mi(theta, Jep, type=self._mi_type)
+		elif self.method == 'Pearson':
+			mi = self.compute_pearson(theta, Jep)
+			print(mi)
 		if not self._mi_avg:
-			self.mi_avg = mi / np.max(mi)
+			self.mi_avg = mi / np.max((1e-18,np.max(mi)))
 		else:
 			self.mi_avg = self.mi_avg + self.alpha() * ( mi - self.mi_avg )
 		self.mis += [self.mi_avg]
@@ -142,13 +147,14 @@ class REPS_MI(BlackBoxOptimization):
 		else:
 			top_k_mi = self.mi_avg.argsort()[-int(self._k()):][::-1]
 		
-		self.distribution._importance = self.mi_avg / np.sum(self.mi_avg)
-		print(self.mi_avg, self.mi_avg / np.sum(self.mi_avg))
 		if self.oracle != None:
 			top_k_mi = self.oracle
-		
+
 		self.distribution._top_k = top_k_mi
 		self.distribution.mle(theta, d)
+
+		importance = self.mi_avg #/ np.sum(self.mi_avg)
+		self.distribution.update_importance(importance)
 
 	@staticmethod
 	def _dual_function(eta_array, *args):

@@ -11,14 +11,14 @@ from sklearn.feature_selection import mutual_info_regression
 
 from scipy.stats import pearsonr
 
-class ConstrainedREPSMI(BlackBoxOptimization):
+class ConstrainedREPSMIFull(BlackBoxOptimization):
 	"""
 	Episodic Relative Entropy Policy Search algorithm with constrained policy update.
 	"A Survey on Policy Search for Robotics", Deisenroth M. P., Neumann G.,
 	Peters J.. 2013.
 
 	"""
-	def __init__(self, mdp_info, distribution, policy, eps, kappa, gamma, k, bins, mi_type='regression', method='MI', mi_avg=True, oracle=None, features=None):
+	def __init__(self, mdp_info, distribution, policy, eps, kappa, gamma, k, bins, mi_type='regression', mi_avg=True, method='MI', oracle=None, features=None):
 		"""
 		Constructor.
 
@@ -39,10 +39,10 @@ class ConstrainedREPSMI(BlackBoxOptimization):
 
 		self._mi_type = mi_type
 		self._mi_avg = mi_avg
-		self.method = method
 
 		self.mis = []
 		self.mi_avg = np.zeros(len(distribution._mu))
+		self.method = method
 		self.alpha = ExponentialParameter(1, exp=0.5)
 
 		self._add_save_attr(_eps='mushroom')
@@ -88,9 +88,7 @@ class ConstrainedREPSMI(BlackBoxOptimization):
 		p = []
 		for i in range(theta.shape[1]):
 			p += [pearsonr(theta[:,i], Jep)[0]]
-			# p += [np.corrcoef(theta[:,i], Jep)[0][1]]
-		p = np.abs(p)
-		return np.nan_to_num(p)
+		return np.abs(p)
 
 	def MI_from_samples(self, x, y, bins):
 		c_XY = np.histogram2d(x, y, bins)[0]
@@ -113,13 +111,16 @@ class ConstrainedREPSMI(BlackBoxOptimization):
 
 		self.distribution._gamma = 1 - self.beta()
 
+		theta_old = np.copy(theta)
+		theta = ( np.linalg.inv(self.distribution._u) @ ( theta.T - self.distribution._mu[:,None] ) ).T
+
 		# REPS
 		eta_start = np.ones(1)
 
-		res = minimize(ConstrainedREPSMI._dual_function, eta_start,
-					   jac=ConstrainedREPSMI._dual_function_diff,
+		res = minimize(ConstrainedREPSMIFull._dual_function, eta_start,
+					   jac=ConstrainedREPSMIFull._dual_function_diff,
 					   bounds=((np.finfo(np.float32).eps, np.inf),),
-					   args=(self._eps(), Jep, theta))
+					   args=(self._eps(), Jep, theta_old))
 
 		eta_opt = res.x.item()
 
@@ -133,9 +134,13 @@ class ConstrainedREPSMI(BlackBoxOptimization):
 			mi = self.compute_pearson(theta, Jep)
 
 		if not self._mi_avg:
-			self.mi_avg = mi / np.max((1e-18,np.max(mi)))
+			self.mi_avg = mi / np.max(mi)
+			# print('self._mi_avg False', self._mi_avg)
+			# print(self.mi_avg)
 		else:
 			self.mi_avg = self.mi_avg + self.alpha() * ( mi - self.mi_avg )
+			# print('self._mi_avg True', self._mi_avg)
+			# print(self.mi_avg)
 
 		self.mis += [self.mi_avg]
 		
@@ -149,13 +154,13 @@ class ConstrainedREPSMI(BlackBoxOptimization):
 			top_k_mi = top_mi
 		else:
 			top_k_mi = self.mi_avg.argsort()[-int(self._k()):][::-1]
-		
+
 		if self.oracle != None:
 			top_k_mi = self.oracle
 
 		# Constrained Update
-		kl, entropy, mu = self.distribution.con_wmle_mi(theta, d, self._eps(), self._kappa(), top_k_mi)
-		
+		kl, entropy, mu = self.distribution.con_wmle_mi(theta_old, d, self._eps(), self._kappa(), top_k_mi)
+
 		importance = self.mi_avg #/ np.sum(self.mi_avg)
 		self.distribution.update_importance(importance)
 

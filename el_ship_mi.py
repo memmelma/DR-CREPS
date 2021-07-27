@@ -21,7 +21,7 @@ from utils_el import init_distribution, init_algorithm, log_constraints
 def experiment( n_tilings, \
                 alg, eps, kappa, k, \
                 sigma_init, distribution, \
-                mi_type, bins, sample_type, gamma, mi_avg, \
+                method, mi_type, bins, sample_type, gamma, mi_avg, \
                 n_epochs, fit_per_epoch, ep_per_fit, \
                 seed, results_dir, quiet):
 
@@ -57,7 +57,7 @@ def experiment( n_tilings, \
 
     # init distribution
     distribution = init_distribution(mu_init=0, sigma_init=sigma_init, size=policy.weights_size, sample_type=sample_type, gamma=gamma, distribution_class=distribution)
-    
+
     # init agent
     alg, params = init_algorithm(algorithm_class=alg, params=init_params)
     agent = alg(mdp.info, distribution, policy, features=features, **params)
@@ -85,8 +85,7 @@ def experiment( n_tilings, \
         
         returns_mean += [np.mean(J)]
         returns_std += [np.std(J)]
-    
-
+        
     # logging
     gain_policy = policy.get_weights()
     mus, kls, entropys, mi_avg = log_constraints(agent)
@@ -98,6 +97,7 @@ def experiment( n_tilings, \
         # 'agent': agent,
         'gain_policy': gain_policy,
         'best_reward': best_reward,
+        'optimal_reward': np.ones_like(best_reward)*-59,
         'init_params': init_params,
         'alg': alg,
         'mi_avg': mi_avg,
@@ -127,19 +127,20 @@ def default_params():
         n_tilings = 1,
 
         # algorithm
-        alg = 'ConstrainedREPSMI',
+        alg = 'REPS_MI',
         eps = 1.0,
         kappa = 6.0,
         k = 25,
 
         # distribution
-        sigma_init = 5e-2,
+        sigma_init = 7e-2,
         distribution = 'diag',
 
         # MI related
+        method = 'Pearson', # Pearson
         mi_type = 'regression',
         bins = 4,
-        sample_type = None,
+        sample_type = 'importance',
         gamma = 0.1,
         mi_avg = 0, # False
 
@@ -149,7 +150,7 @@ def default_params():
         ep_per_fit = 100,
 
         # misc
-        seed = 0,
+        seed = 2,
         results_dir = 'results',
         quiet = 1 # True
     )
@@ -170,6 +171,7 @@ def parse_args():
     parser.add_argument('--sigma-init', type=float)
     parser.add_argument('--distribution', type=str)
 
+    parser.add_argument('--method', type=str)
     parser.add_argument('--mi-type', type=str)
     parser.add_argument('--bins', type=int)
     parser.add_argument('--sample-type', type=str)

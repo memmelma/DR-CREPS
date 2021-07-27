@@ -11,14 +11,12 @@ from sklearn.feature_selection import mutual_info_regression
 
 from scipy.stats import pearsonr
 
-class ConstrainedREPSMI(BlackBoxOptimization):
+class REPS_MI_full(BlackBoxOptimization):
 	"""
-	Episodic Relative Entropy Policy Search algorithm with constrained policy update.
-	"A Survey on Policy Search for Robotics", Deisenroth M. P., Neumann G.,
-	Peters J.. 2013.
+	Episodic Relative Entropy Policy Search algorithm with MI estension
 
 	"""
-	def __init__(self, mdp_info, distribution, policy, eps, kappa, gamma, k, bins, mi_type='regression', method='MI', mi_avg=True, oracle=None, features=None):
+	def __init__(self, mdp_info, distribution, policy, eps, gamma, k, bins, mi_type='regression', method='MI', mi_avg=True, oracle=None, features=None):
 		"""
 		Constructor.
 
@@ -32,7 +30,6 @@ class ConstrainedREPSMI(BlackBoxOptimization):
 
 		"""
 		self._eps = to_parameter(eps)
-		self._kappa = to_parameter(kappa)
 		self._k = to_parameter(k)
 		self._bins = to_parameter(bins)
 		self._entropy_X = distribution.entropy() / len(distribution._mu)
@@ -45,15 +42,6 @@ class ConstrainedREPSMI(BlackBoxOptimization):
 		self.mi_avg = np.zeros(len(distribution._mu))
 		self.alpha = ExponentialParameter(1, exp=0.5)
 
-		self._add_save_attr(_eps='mushroom')
-		self._add_save_attr(_kappa='mushroom')
-
-		self.mus = []
-		self.kls = []
-		self.entropys = []
-		
-		self.oracle = oracle
-
 		if gamma == -1:
 			print('Using LinearParameter 1->0')
 			self.beta = LinearParameter(0., threshold_value=1., n=100)
@@ -62,6 +50,15 @@ class ConstrainedREPSMI(BlackBoxOptimization):
 			self.beta = LinearParameter(1., threshold_value=0., n=100)
 		else:
 			self.beta = Parameter(1-gamma)
+		# self.beta = ExponentialParameter(1., exp=0.5)
+
+		self._add_save_attr(_eps='mushroom')
+		self._add_save_attr(_kappa='mushroom')
+
+		self.mus = []
+		self.kls = []
+
+		self.oracle = oracle
 
 		super().__init__(mdp_info, distribution, policy, features)
 
@@ -88,9 +85,7 @@ class ConstrainedREPSMI(BlackBoxOptimization):
 		p = []
 		for i in range(theta.shape[1]):
 			p += [pearsonr(theta[:,i], Jep)[0]]
-			# p += [np.corrcoef(theta[:,i], Jep)[0][1]]
-		p = np.abs(p)
-		return np.nan_to_num(p)
+		return np.abs(p)
 
 	def MI_from_samples(self, x, y, bins):
 		c_XY = np.histogram2d(x, y, bins)[0]
@@ -110,33 +105,35 @@ class ConstrainedREPSMI(BlackBoxOptimization):
 		return H
 	
 	def _update(self, Jep, theta):
-
+		
 		self.distribution._gamma = 1 - self.beta()
+		
+		theta_old = np.copy(theta)
+		theta = ( np.linalg.inv(self.distribution._u) @ ( theta.T - self.distribution._mu[:,None] ) ).T
 
 		# REPS
 		eta_start = np.ones(1)
 
-		res = minimize(ConstrainedREPSMI._dual_function, eta_start,
-					   jac=ConstrainedREPSMI._dual_function_diff,
+		res = minimize(REPS_MI_full._dual_function, eta_start,
+					   jac=REPS_MI_full._dual_function_diff,
 					   bounds=((np.finfo(np.float32).eps, np.inf),),
-					   args=(self._eps(), Jep, theta))
+					   args=(self._eps(), Jep, theta_old))
 
 		eta_opt = res.x.item()
 
 		Jep -= np.max(Jep)
 
 		d = np.exp(Jep / eta_opt)
-		
+
 		if self.method == 'MI':
 			mi = self.compute_mi(theta, Jep, type=self._mi_type)
 		elif self.method == 'Pearson':
 			mi = self.compute_pearson(theta, Jep)
-
+				
 		if not self._mi_avg:
-			self.mi_avg = mi / np.max((1e-18,np.max(mi)))
+			self.mi_avg = mi / np.max(mi)
 		else:
 			self.mi_avg = self.mi_avg + self.alpha() * ( mi - self.mi_avg )
-
 		self.mis += [self.mi_avg]
 		
 		if self._k() < 1:
@@ -153,15 +150,11 @@ class ConstrainedREPSMI(BlackBoxOptimization):
 		if self.oracle != None:
 			top_k_mi = self.oracle
 
-		# Constrained Update
-		kl, entropy, mu = self.distribution.con_wmle_mi(theta, d, self._eps(), self._kappa(), top_k_mi)
-		
-		importance = self.mi_avg #/ np.sum(self.mi_avg)
-		self.distribution.update_importance(importance)
+		self.distribution._top_k = top_k_mi
+		self.distribution.mle(theta_old, d)
 
-		self.mus += [mu]
-		self.kls += [kl]
-		self.entropys += [entropy]
+		importance = self.mi_avg # / np.sum(self.mi_avg)
+		self.distribution.update_importance(importance)
 
 	@staticmethod
 	def _dual_function(eta_array, *args):

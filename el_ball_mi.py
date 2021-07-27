@@ -16,7 +16,7 @@ from utils_el import init_distribution, init_algorithm, log_constraints
 def experiment( n_basis, horizon, \
                 alg, eps, kappa, k, \
                 sigma_init, distribution, \
-                mi_type, bins, sample_type, gamma, mi_avg, \
+                method, mi_type, bins, sample_type, gamma, mi_avg, \
                 n_epochs, fit_per_epoch, ep_per_fit, \
                 seed, results_dir, quiet):
                 
@@ -111,6 +111,7 @@ def default_params():
         distribution = 'diag',
 
         # MI related
+        method ='MI', # Pearson
         mi_type = 'regression',
         bins = 4,
         sample_type = None,
@@ -145,6 +146,7 @@ def parse_args():
     parser.add_argument('--sigma-init', type=float)
     parser.add_argument('--distribution', type=str)
 
+    parser.add_argument('--method', type=str)
     parser.add_argument('--mi-type', type=str)
     parser.add_argument('--bins', type=int)
     parser.add_argument('--sample-type', type=str)
