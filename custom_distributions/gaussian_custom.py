@@ -453,7 +453,7 @@ class GaussianDistributionMI(Distribution):
 
         return kl, entropy, self._mu
 
-    def con_wmle_mi_full(self, theta, weights, eps, kappa, indices):
+    def con_wmle_full(self, theta, weights, eps, kappa, indices):
         
         self._top_k = indices
 
@@ -462,15 +462,9 @@ class GaussianDistributionMI(Distribution):
         mu_old = np.copy(self._mu)
         s_old = np.copy(self._s)
 
-        # get mu and sigma in pca space
-        mu = self._u.T @ self._vh.T @ self._mu
+        # get sigma in pca space and initialze mu
+        mu = np.zeros_like(self._mu)
         sigma = np.diag(self._s)
-        # sigma = self._s
-        
-        # n_dims = len(indices)
-        # mu = self._u.T @ self._vh.T @ self._mu[indices]
-        # sigma =  self._s[indices]
-        # theta = theta[:, indices]
 
         eta_omg_opt_start = np.array([1000, 1])
         res = minimize(GaussianCholeskyDistribution._lagrangian_eta_omg, eta_omg_opt_start,
@@ -481,22 +475,12 @@ class GaussianDistributionMI(Distribution):
 
         mu_new, sigma_new = GaussianCholeskyDistribution.closed_form_mu1_sigma_new(weights, theta, mu, sigma, n_dims, eps, eta_opt, omg_opt, kappa)
         
-        sigma_new = np.diag(sigma_new)
-        # project mu and sigma back to original space
-        # mu_new_tmp = np.copy(mu_old)
-        # mu_new_tmp[indices] = mu_new
-        # mu_new = self._u @ self._vh @ mu_new_tmp
-
-        mu_new = self._u @ self._vh @ mu_new
-        
-        # sigma_new_tmp = np.copy(s_old)
-        # sigma_new_tmp[indices] = sigma_new
-        # sigma_new = self._u @ np.diag(sigma_new_tmp) @ self._vh
-        
-        sigma_new = self._u @ np.diag(sigma_new) @ self._vh
+        # transform back to original space and update mu
+        mu_new = self._mu + self._u @ mu_new
+        sigma_new = self._u @ sigma_new @ self._vh
 
         # store old mu and sigma
-        mu = mu_old # np.copy(self._mu)
+        mu = mu_old
         sigma = np.copy(self._u @ np.diag(s_old) @ self._vh)
 
         # set new parameters
@@ -510,6 +494,63 @@ class GaussianDistributionMI(Distribution):
         sigma_new_inv = np.linalg.inv(sigma_new)
         kl = GaussianCholeskyDistribution._closed_form_KL_constraint_M_projection(mu, mu_new, sigma, sigma_new, sigma_inv, sigma_new_inv, logdet_sigma, logdet_sigma_new, n_dims)
         entropy = GaussianCholeskyDistribution._closed_form_entropy(logdet_sigma_new, n_dims) - GaussianCholeskyDistribution._closed_form_entropy(logdet_sigma, n_dims)
+        print(kl, entropy)
+        return kl, entropy, self._mu
+
+    def con_wmle_mi_full(self, theta, weights, eps, kappa, indices):
+        
+        self._top_k = indices
+
+        n_dims = len(self._mu)
+
+        mu_old_true = np.copy(self._mu)
+        s_old_true = np.copy(self._s)
+
+        # get mu and sigma in pca space
+        # mu = self._u.T @ self._vh.T @ self._mu
+        mu = np.zeros_like(self._mu)
+        sigma = np.sqrt(self._s)
+        mu_old = np.copy(mu)
+        sigma_old = np.copy(sigma)
+
+        n_dims = len(indices)
+        mu = mu[indices]
+        sigma =  sigma[indices]
+        theta = theta[:, indices]
+
+        eta_omg_opt_start = np.array([1000, 1])
+        res = minimize(GaussianDiagonalDistribution._lagrangian_eta_omg, eta_omg_opt_start,
+                       bounds=((np.finfo(np.float32).eps, np.inf),(np.finfo(np.float32).eps, np.inf)),
+                       args=(weights, theta, mu, sigma, n_dims, eps, kappa))
+        
+        eta_opt, omg_opt  = res.x[0], res.x[1]
+
+        mu_new, sigma_new = GaussianDiagonalDistribution.closed_form_mu1_sigma_new(weights, theta, mu, sigma, n_dims, eps, eta_opt, omg_opt, kappa)
+
+        # project mu and sigma back to original space
+        mu_new_tmp = np.copy(mu_old)
+        mu_new_tmp[indices] = mu_new
+        mu_new = self._mu + self._u @ mu_new_tmp
+
+        sigma_new_tmp = np.copy(sigma_old)
+        sigma_new_tmp[indices] = sigma_new
+        sigma_new = self._u @ np.diag(sigma_new_tmp**2) @ self._vh
+
+        # store old mu and sigma
+        mu = mu_old_true
+        sigma = np.copy(self._u @ np.diag(s_old_true) @ self._vh)
+
+        # set new parameters
+        self._u, self._s, self._vh = np.linalg.svd(sigma_new)
+        self._mu = mu_new
+        
+        # compute kl and entropy in original space
+        (sign_sigma, logdet_sigma) = np.linalg.slogdet(sigma)
+        (sign_sigma_new, logdet_sigma_new) = np.linalg.slogdet(sigma_new)
+        sigma_inv = np.linalg.inv(sigma)
+        sigma_new_inv = np.linalg.inv(sigma_new)
+        kl = GaussianDiagonalDistribution._closed_form_KL_constraint_M_projection(mu, mu_new, sigma, sigma_new, sigma_inv, sigma_new_inv, logdet_sigma, logdet_sigma_new, n_dims)
+        entropy = GaussianDiagonalDistribution._closed_form_entropy(logdet_sigma_new, n_dims) - GaussianDiagonalDistribution._closed_form_entropy(logdet_sigma, n_dims)
         print(kl, entropy)
         return kl, entropy, self._mu
 

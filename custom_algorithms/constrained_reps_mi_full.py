@@ -112,8 +112,10 @@ class ConstrainedREPSMIFull(BlackBoxOptimization):
 		self.distribution._gamma = 1 - self.beta()
 
 		theta_old = np.copy(theta)
-		theta = ( np.linalg.inv(self.distribution._u) @ ( theta.T - self.distribution._mu[:,None] ) ).T
-
+		theta_prime = ( self.distribution._u.T @ ( theta.T - self.distribution._mu[:,None] ) ).T
+		# remove for con_wmle_mi
+		theta_old = theta_prime
+		
 		# REPS
 		eta_start = np.ones(1)
 
@@ -129,18 +131,14 @@ class ConstrainedREPSMIFull(BlackBoxOptimization):
 		d = np.exp(Jep / eta_opt)
 		
 		if self.method == 'MI':
-			mi = self.compute_mi(theta, Jep, type=self._mi_type)
+			mi = self.compute_mi(theta_prime, Jep, type=self._mi_type)
 		elif self.method == 'Pearson':
-			mi = self.compute_pearson(theta, Jep)
+			mi = self.compute_pearson(theta_prime, Jep)
 
 		if not self._mi_avg:
 			self.mi_avg = mi / np.max(mi)
-			# print('self._mi_avg False', self._mi_avg)
-			# print(self.mi_avg)
 		else:
 			self.mi_avg = self.mi_avg + self.alpha() * ( mi - self.mi_avg )
-			# print('self._mi_avg True', self._mi_avg)
-			# print(self.mi_avg)
 
 		self.mis += [self.mi_avg]
 		
@@ -159,7 +157,9 @@ class ConstrainedREPSMIFull(BlackBoxOptimization):
 			top_k_mi = self.oracle
 
 		# Constrained Update
-		kl, entropy, mu = self.distribution.con_wmle_mi(theta_old, d, self._eps(), self._kappa(), top_k_mi)
+		# kl, entropy, mu = self.distribution.con_wmle_mi(theta_old, d, self._eps(), self._kappa(), top_k_mi)
+		kl, entropy, mu = self.distribution.con_wmle_mi_full(theta_old, d, self._eps(), self._kappa(), top_k_mi)
+		# kl, entropy, mu = self.distribution.con_wmle_full(theta_old, d, self._eps(), self._kappa(), top_k_mi)
 
 		importance = self.mi_avg #/ np.sum(self.mi_avg)
 		self.distribution.update_importance(importance)
