@@ -494,7 +494,6 @@ class GaussianDistributionMI(Distribution):
         sigma_new_inv = np.linalg.inv(sigma_new)
         kl = GaussianCholeskyDistribution._closed_form_KL_constraint_M_projection(mu, mu_new, sigma, sigma_new, sigma_inv, sigma_new_inv, logdet_sigma, logdet_sigma_new, n_dims)
         entropy = GaussianCholeskyDistribution._closed_form_entropy(logdet_sigma_new, n_dims) - GaussianCholeskyDistribution._closed_form_entropy(logdet_sigma, n_dims)
-        print(kl, entropy)
         return kl, entropy, self._mu
 
     def con_wmle_mi_full(self, theta, weights, eps, kappa, indices):
@@ -544,14 +543,16 @@ class GaussianDistributionMI(Distribution):
         self._u, self._s, self._vh = np.linalg.svd(sigma_new)
         self._mu = mu_new
         
+        # logdet_sigma, n_dims
+
         # compute kl and entropy in original space
+        n_dims = len(self._mu)
         (sign_sigma, logdet_sigma) = np.linalg.slogdet(sigma)
         (sign_sigma_new, logdet_sigma_new) = np.linalg.slogdet(sigma_new)
         sigma_inv = np.linalg.inv(sigma)
         sigma_new_inv = np.linalg.inv(sigma_new)
         kl = GaussianDiagonalDistribution._closed_form_KL_constraint_M_projection(mu, mu_new, sigma, sigma_new, sigma_inv, sigma_new_inv, logdet_sigma, logdet_sigma_new, n_dims)
         entropy = GaussianDiagonalDistribution._closed_form_entropy(logdet_sigma_new, n_dims) - GaussianDiagonalDistribution._closed_form_entropy(logdet_sigma, n_dims)
-        print(kl, entropy)
         return kl, entropy, self._mu
 
     def entropy(self):
