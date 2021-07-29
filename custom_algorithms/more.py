@@ -107,7 +107,8 @@ class MORE(BlackBoxOptimization):
             entropy_policy = self.distribution.entropy()
             self.kappa = gamma * (entropy_policy - entropy_policy_min) + entropy_policy_min
         
-        # self.kappa = self.distribution.entropy() - 4.0
+        # tqdm.write('Using different way to determine beta : distribution.entropy + kappa')
+        self.kappa = self.distribution.entropy() + self.xi
 
         # get distribution parameters mu and sigma
         n = len(self.distribution._mu)
@@ -176,7 +177,7 @@ class MORE(BlackBoxOptimization):
 
         self.kls += [kl]
         # self.entropys += [H_t1-self.kappa]
-        print(H_t1-entropy_policy, H_t1, entropy_policy, entropy_policy_min, self.kappa)
+        tqdm.write(f'policy change {np.round(H_t1-entropy_policy,4)} | kappa {self.xi} | using beta = distribution.entropy + kappa')
         self.entropys += [H_t1-entropy_policy]
 
     @staticmethod
