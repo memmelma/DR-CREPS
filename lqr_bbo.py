@@ -12,8 +12,9 @@ from mushroom_rl.utils.dataset import compute_J
 from mushroom_rl.utils.optimizers import AdaptiveOptimizer
 
 from custom_algorithms.more import MORE
+from custom_algorithms.constrained_reps_mi_full import ConstrainedREPSMIFull
 
-from custom_distributions.gaussian_custom import GaussianDiagonalDistribution, GaussianCholeskyDistribution
+from custom_distributions.gaussian_custom import GaussianDiagonalDistribution, GaussianCholeskyDistribution, GaussianDistributionMI
 """
 This script aims to replicate the experiments on the LQR MDP using episode-based
 policy search algorithms, also known as Black Box policy search algorithms.
@@ -23,7 +24,7 @@ policy search algorithms, also known as Black Box policy search algorithms.
 tqdm.monitor_interval = 0
 
 
-def experiment(alg, params, n_epochs, fit_per_epoch, ep_per_fit):
+def experiment(alg, params, distribution, n_epochs, fit_per_epoch, ep_per_fit):
     np.random.seed()
 
     logger = Logger(alg.__name__, results_dir=None)
@@ -31,7 +32,7 @@ def experiment(alg, params, n_epochs, fit_per_epoch, ep_per_fit):
     logger.info('Experiment Algorithm: ' + alg.__name__)
 
     # MDP
-    mdp = LQR.generate(dimensions=5, horizon=50, episodic=False, max_pos=1., max_action=1.)
+    mdp = LQR.generate(dimensions=7, horizon=50, episodic=False, max_pos=1., max_action=1.)
 
     approximator = Regressor(LinearApproximator,
                              input_shape=mdp.info.observation_space.shape,
@@ -40,15 +41,23 @@ def experiment(alg, params, n_epochs, fit_per_epoch, ep_per_fit):
     policy = DeterministicPolicy(mu=approximator)
 
     mu = np.zeros(policy.weights_size)
-    sigma = 1e-3 * np.eye(policy.weights_size)
+    # sigma = 1e-3 * np.eye(policy.weights_size)
     # sigma = 1e-1 * np.eye(policy.weights_size)
-    distribution = GaussianCholeskyDistribution(mu, sigma)
+    # distribution = GaussianCholeskyDistribution(mu, sigma)
 
     # sigma = 1e-3 * np.eye(policy.weights_size)
     # distribution = GaussianDistribution(mu, sigma)
 
     # sigma = 3e-1 * np.ones(policy.weights_size)
     # distribution = GaussianDiagonalDistribution(mu, sigma)
+    
+    if distribution == GaussianDiagonalDistribution:
+        sigma = np.sqrt(1e-1) * np.ones(policy.weights_size)
+    else:
+        sigma = 1e-1 * np.eye(policy.weights_size)
+    # distribution = GaussianDistributionMI(mu, sigma)
+
+    distribution = distribution(mu, sigma)
 
     # Agent
     agent = alg(mdp.info, distribution, policy, **params)
@@ -67,17 +76,22 @@ def experiment(alg, params, n_epochs, fit_per_epoch, ep_per_fit):
         J = compute_J(dataset_eval, gamma=mdp.info.gamma)
         # logger.epoch_info(i+1, J=np.mean(J), distribution_parameters=distribution.get_parameters())
         logger.epoch_info(i+1, J=np.mean(J))
-        print('entropy', distribution.entropy())
+        # print('entropy', distribution.entropy())
 
 
 if __name__ == '__main__':
     optimizer = AdaptiveOptimizer(eps=0.05)
 
-    algs = [REPS, MORE, ConstrainedREPS]
-    params = [{'eps':0.5}, {'eps':0.7, 'kappa': 250}, {'eps':0.5, 'kappa':5}]
+    algs = [MORE, REPS, REPS, ]
+    params = [{'eps':2.5, 'kappa':1}, {'eps':2.5}, {'eps':2.5}]
+    distributions = [GaussianCholeskyDistribution, GaussianDiagonalDistribution, GaussianCholeskyDistribution]
+
+    algs = [ConstrainedREPSMIFull, REPS]
+    params = [{'eps':2.5, 'kappa':5., 'gamma':0.1, 'k':25, 'bins':4}, {'eps':2.5}]
+    distributions = [GaussianDistributionMI, GaussianCholeskyDistribution]
 
     # algs = [REPS, RWR, PGPE, ConstrainedREPS]
     # params = [{'eps': 0.5}, {'beta': 0.7}, {'optimizer': optimizer}, {'eps':0.5, 'kappa':5}]
 
-    for alg, params in zip(algs, params):
-        experiment(alg, params, n_epochs=5, fit_per_epoch=10, ep_per_fit=100)
+    for alg, params, distribution in zip(algs, params, distributions):
+        experiment(alg, params, distribution, n_epochs=5, fit_per_epoch=1, ep_per_fit=100)
