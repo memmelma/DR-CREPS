@@ -13,7 +13,7 @@ from mushroom_rl.utils.dataset import compute_J
 from mushroom_rl.utils.optimizers import AdaptiveOptimizer
 
 from custom_algorithms.constrained_reps_mi import ConstrainedREPSMI
-from custom_distributions.gaussian_custom import GaussianDiagonalDistribution
+from custom_distributions.gaussian_custom import GaussianDiagonalDistribution, GaussianCholeskyDistribution
 
 from tqdm import tqdm
 
@@ -27,7 +27,7 @@ using policy gradient algorithms.
 tqdm.monitor_interval = 0
 
 
-def experiment(alg, params, n_epochs, fit_per_epoch, ep_per_fit):
+def experiment(alg, params, distribution, n_epochs, fit_per_epoch, ep_per_fit):
     np.random.seed()
 
     logger = Logger(alg.__name__, results_dir=None)
@@ -38,9 +38,12 @@ def experiment(alg, params, n_epochs, fit_per_epoch, ep_per_fit):
     mdp = ShipSteering()
 
     # Policy
-    high = [150, 150, np.pi, np.pi / 12.]
-    low = [0, 0, -np.pi, -np.pi / 12.]
-    n_tiles = [5, 5, 6, 3]
+    # high = [150, 150, np.pi, np.pi / 12.]
+    # low = [0, 0, -np.pi, -np.pi / 12.]
+    # n_tiles = [5, 5, 6, 3]
+    high = [150, 150, np.pi]
+    low = [0, 0, -np.pi]
+    n_tiles = [5, 5, 6]
 
     low = np.array(low, dtype=np.float)
     high = np.array(high, dtype=np.float)
@@ -60,9 +63,12 @@ def experiment(alg, params, n_epochs, fit_per_epoch, ep_per_fit):
     print('policy.weights_size', policy.weights_size)
 
     mu = np.zeros(policy.weights_size)
-    sigma = 1e-1 * np.ones(policy.weights_size)
-    distribution = GaussianDiagonalDistribution(mu, sigma)
-
+    if distribution == GaussianDiagonalDistribution:
+        sigma = 1e-1 * np.ones(policy.weights_size)
+        distribution = GaussianDiagonalDistribution(mu, sigma)
+    else:
+        sigma = 1e-1**2 * np.eye(policy.weights_size)
+        distribution = distribution(mu, sigma)
     # Agent
     agent = alg(mdp.info, distribution, policy, features=phi, **params)
 
@@ -90,6 +96,14 @@ if __name__ == '__main__':
         # (PGPE, {'optimizer': AdaptiveOptimizer(eps=1.5)}),
         ]
 
-    for alg, params in algs_params:
-        experiment(alg, params, n_epochs=25, fit_per_epoch=1, ep_per_fit=20)
+    algs = [REPS, REPS, MORE]
+    params = [{'eps':1.}, {'eps':1.}, {'eps':3., 'kappa':50000}]
+    distributions = [GaussianCholeskyDistribution, GaussianDiagonalDistribution, GaussianCholeskyDistribution]
+
+    algs = [MORE]
+    params = [{'eps':7., 'kappa':10000}]
+    distributions = [GaussianCholeskyDistribution]
+
+    for alg, params, distribution in zip(algs, params, distributions):
+        experiment(alg, params, distribution, n_epochs=5, fit_per_epoch=1, ep_per_fit=250)
         # experiment(alg, params, n_epochs=200, fit_per_epoch=1, ep_per_fit=25)
