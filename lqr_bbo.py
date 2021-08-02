@@ -31,7 +31,7 @@ def experiment(alg, params, n_epochs, fit_per_epoch, ep_per_fit):
     logger.info('Experiment Algorithm: ' + alg.__name__)
 
     # MDP
-    mdp = LQR.generate(dimensions=5, horizon=50, episodic=False, max_pos=1., max_action=1.)
+    mdp = LQR.generate(dimensions=10, horizon=50, episodic=False, max_pos=1., max_action=1.)
 
     approximator = Regressor(LinearApproximator,
                              input_shape=mdp.info.observation_space.shape,
@@ -40,7 +40,7 @@ def experiment(alg, params, n_epochs, fit_per_epoch, ep_per_fit):
     policy = DeterministicPolicy(mu=approximator)
 
     mu = np.zeros(policy.weights_size)
-    sigma = 1e-3 * np.eye(policy.weights_size)
+    sigma = 3e-1 * np.eye(policy.weights_size)
     # sigma = 1e-1 * np.eye(policy.weights_size)
     distribution = GaussianCholeskyDistribution(mu, sigma)
 
@@ -74,10 +74,10 @@ if __name__ == '__main__':
     optimizer = AdaptiveOptimizer(eps=0.05)
 
     algs = [REPS, MORE, ConstrainedREPS]
-    params = [{'eps':0.5}, {'eps':0.7, 'kappa': 250}, {'eps':0.5, 'kappa':5}]
+    params = [{'eps':0.5}, {'eps':0.7, 'kappa': 500}, {'eps':0.5, 'kappa':5}]
 
     # algs = [REPS, RWR, PGPE, ConstrainedREPS]
     # params = [{'eps': 0.5}, {'beta': 0.7}, {'optimizer': optimizer}, {'eps':0.5, 'kappa':5}]
 
     for alg, params in zip(algs, params):
-        experiment(alg, params, n_epochs=5, fit_per_epoch=10, ep_per_fit=100)
+        experiment(alg, params, n_epochs=5, fit_per_epoch=10, ep_per_fit=250)
