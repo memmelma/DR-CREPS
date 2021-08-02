@@ -177,11 +177,10 @@ class GaussianDiagonalDistribution(Distribution):
         mu = self._mu
         sigma = self._std
 
-        eta_omg_opt_start = np.array([1000, 0])
+        eta_omg_opt_start =  np.array([1., 1.])
         res = minimize(GaussianDiagonalDistribution._lagrangian_eta_omg, eta_omg_opt_start,
                        bounds=((np.finfo(np.float32).eps, np.inf),(np.finfo(np.float32).eps, np.inf)),
-                       args=(weights, theta, mu, sigma, n_dims, eps, kappa),
-                       method='SLSQP')
+                       args=(weights, theta, mu, sigma, n_dims, eps, kappa))
 
         eta_opt, omg_opt  = res.x[0], res.x[1]
 
@@ -215,11 +214,10 @@ class GaussianDiagonalDistribution(Distribution):
         sigma = self._std[indices]
         theta = theta[:, indices] 
 
-        eta_omg_opt_start = np.array([1000, 0])
+        eta_omg_opt_start = np.array([1., 1.])
         res = minimize(GaussianDiagonalDistribution._lagrangian_eta_omg, eta_omg_opt_start,
                        bounds=((np.finfo(np.float32).eps, np.inf),(np.finfo(np.float32).eps, np.inf)),
-                       args=(weights, theta, mu, sigma, n_dims, eps, kappa),
-                       method='SLSQP')
+                       args=(weights, theta, mu, sigma, n_dims, eps, kappa))
 
         eta_opt, omg_opt  = res.x[0], res.x[1]
 
@@ -289,8 +287,8 @@ class GaussianDiagonalDistribution(Distribution):
         weights_sum = np.sum(weights)
 
         mu_new = (weights @ theta + eta * mu) / (weights_sum + eta)
-        sigma_new = np.sqrt( ( np.sum([w_i * (theta_i-mu_new)**2 for theta_i, w_i in zip(theta, weights)], axis=0) + eta*sigma**2 + eta*(mu_new - mu)**2 ) / ( weights_sum + eta - omg ) )
-
+        sigma_new = ( np.sum([w_i * (theta_i-mu_new)**2 for theta_i, w_i in zip(theta, weights)], axis=0) + eta*sigma**2 + eta*(mu_new - mu)**2 ) / ( weights_sum + eta - omg )
+        sigma_new = np.sqrt(sigma_new)
         return mu_new, sigma_new
 
     @staticmethod
@@ -351,7 +349,7 @@ class GaussianDistributionMI(Distribution):
         """
         self._mu = mu
         self._u, self._s, self._vh = np.linalg.svd(sigma)
-
+        print(self._u, self._s, self._vh)
         self._gamma = 0
         self._sample_type = None
         
@@ -432,7 +430,7 @@ class GaussianDistributionMI(Distribution):
         mu = self._mu
         sigma = self._u @ np.diag(self._s) @ self._vh
 
-        eta_omg_opt_start = np.array([1000, 0])
+        eta_omg_opt_start =  np.array([1., 1.])
         res = minimize(GaussianCholeskyDistribution._lagrangian_eta_omg, eta_omg_opt_start,
                        bounds=((np.finfo(np.float32).eps, np.inf),(np.finfo(np.float32).eps, np.inf)),
                        args=(weights, theta, mu, sigma, n_dims, eps, kappa))
@@ -466,7 +464,7 @@ class GaussianDistributionMI(Distribution):
         mu = np.zeros_like(self._mu)
         sigma = np.diag(self._s)
 
-        eta_omg_opt_start = np.array([1000, 1])
+        eta_omg_opt_start = np.array([1., 1.])
         res = minimize(GaussianCholeskyDistribution._lagrangian_eta_omg, eta_omg_opt_start,
                        bounds=((np.finfo(np.float32).eps, np.inf),(np.finfo(np.float32).eps, np.inf)),
                        args=(weights, theta, mu, sigma, n_dims, eps, kappa))
@@ -518,7 +516,7 @@ class GaussianDistributionMI(Distribution):
         sigma =  sigma[indices]
         theta = theta[:, indices]
 
-        eta_omg_opt_start = np.array([1000, 1])
+        eta_omg_opt_start = np.array([1., 1.])
         res = minimize(GaussianDiagonalDistribution._lagrangian_eta_omg, eta_omg_opt_start,
                        bounds=((np.finfo(np.float32).eps, np.inf),(np.finfo(np.float32).eps, np.inf)),
                        args=(weights, theta, mu, sigma, n_dims, eps, kappa))
@@ -545,6 +543,7 @@ class GaussianDistributionMI(Distribution):
         self._mu = mu_new
         
         # compute kl and entropy in original space
+        n_dims = len(self._mu)
         (sign_sigma, logdet_sigma) = np.linalg.slogdet(sigma)
         (sign_sigma_new, logdet_sigma_new) = np.linalg.slogdet(sigma_new)
         sigma_inv = np.linalg.inv(sigma)
@@ -628,11 +627,10 @@ class GaussianCholeskyDistribution(Distribution):
         mu =self._mu
         sigma = self._chol_sigma.dot(self._chol_sigma.T)
         
-        eta_omg_opt_start = np.array([1000, 0])
+        eta_omg_opt_start =  np.array([1., 1.])
         res = minimize(GaussianCholeskyDistribution._lagrangian_eta_omg, eta_omg_opt_start,
                        bounds=((np.finfo(np.float32).eps, np.inf),(np.finfo(np.float32).eps, np.inf)),
-                       args=(weights, theta, mu, sigma, n_dims, eps, kappa),
-                       method='SLSQP')
+                       args=(weights, theta, mu, sigma, n_dims, eps, kappa))
         
         eta_opt, omg_opt  = res.x[0], res.x[1]
 
