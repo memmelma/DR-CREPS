@@ -24,7 +24,7 @@ tqdm.monitor_interval = 0
 class Network(nn.Module):
     def __init__(self, in_features, out_features, *args, **kwargs) -> None:
         super(Network, self).__init__()
-        hidden_features = in_features[0] // 2
+        hidden_features = 32 # in_features[0] // 2
         layers = [nn.Linear(in_features[0], hidden_features)]
         layers += [nn.ReLU()]
         layers += [nn.Linear(hidden_features, out_features=out_features[0])]
@@ -52,7 +52,6 @@ def experiment(alg, params, n_epochs, fit_per_epoch, ep_per_fit):
     policy = DeterministicPolicy(mu=approximator)
 
     mu = np.zeros(policy.weights_size)
-
     # sigma = 1e-3 * np.eye(policy.weights_size)
     # sigma = 1e-1 * np.eye(policy.weights_size)
     # distribution = GaussianCholeskyDistribution(mu, sigma)
@@ -87,10 +86,10 @@ if __name__ == '__main__':
     optimizer = AdaptiveOptimizer(eps=0.05)
 
     algs = [REPS, MORE, ConstrainedREPS]
-    params = [{'eps':1.5}, {'eps':0.7, 'kappa': 250}, {'eps':0.5, 'kappa':5}]
+    params = [{'eps':4.5}, {'eps':0.7, 'kappa': 250}, {'eps':0.5, 'kappa':5}]
 
     # algs = [REPS, RWR, PGPE, ConstrainedREPS]
     # params = [{'eps': 0.5}, {'beta': 0.7}, {'optimizer': optimizer}, {'eps':0.5, 'kappa':5}]
 
     for alg, params in zip(algs, params):
-        experiment(alg, params, n_epochs=5, fit_per_epoch=1, ep_per_fit=100)
+        experiment(alg, params, n_epochs=10, fit_per_epoch=1, ep_per_fit=100)
