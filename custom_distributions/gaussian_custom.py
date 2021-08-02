@@ -177,7 +177,7 @@ class GaussianDiagonalDistribution(Distribution):
         mu = self._mu
         sigma = self._std
 
-        eta_omg_opt_start =  np.array([1., 1.])
+        eta_omg_opt_start = np.array([1., 1.])
         res = minimize(GaussianDiagonalDistribution._lagrangian_eta_omg, eta_omg_opt_start,
                        bounds=((np.finfo(np.float32).eps, np.inf),(np.finfo(np.float32).eps, np.inf)),
                        args=(weights, theta, mu, sigma, n_dims, eps, kappa))
@@ -287,7 +287,7 @@ class GaussianDiagonalDistribution(Distribution):
         weights_sum = np.sum(weights)
 
         mu_new = (weights @ theta + eta * mu) / (weights_sum + eta)
-        sigma_new = ( np.sum([w_i * (theta_i-mu_new)**2 for theta_i, w_i in zip(theta, weights)], axis=0) + eta*sigma**2 + eta*(mu_new - mu)**2 ) / ( weights_sum + eta - omg )
+        sigma_new =  ( np.sum([w_i * (theta_i-mu_new)**2 for theta_i, w_i in zip(theta, weights)], axis=0) + eta*sigma**2 + eta*(mu_new - mu)**2 ) / ( weights_sum + eta - omg )
         sigma_new = np.sqrt(sigma_new)
         return mu_new, sigma_new
 
@@ -349,7 +349,7 @@ class GaussianDistributionMI(Distribution):
         """
         self._mu = mu
         self._u, self._s, self._vh = np.linalg.svd(sigma)
-        print(self._u, self._s, self._vh)
+
         self._gamma = 0
         self._sample_type = None
         
@@ -430,7 +430,7 @@ class GaussianDistributionMI(Distribution):
         mu = self._mu
         sigma = self._u @ np.diag(self._s) @ self._vh
 
-        eta_omg_opt_start =  np.array([1., 1.])
+        eta_omg_opt_start = np.array([1., 1.])
         res = minimize(GaussianCholeskyDistribution._lagrangian_eta_omg, eta_omg_opt_start,
                        bounds=((np.finfo(np.float32).eps, np.inf),(np.finfo(np.float32).eps, np.inf)),
                        args=(weights, theta, mu, sigma, n_dims, eps, kappa))
@@ -494,7 +494,7 @@ class GaussianDistributionMI(Distribution):
         entropy = GaussianCholeskyDistribution._closed_form_entropy(logdet_sigma_new, n_dims) - GaussianCholeskyDistribution._closed_form_entropy(logdet_sigma, n_dims)
         return kl, entropy, self._mu
 
-    def con_wmle_mi_full(self, theta, weights, eps, kappa, indices):
+    def con_wmle_mi_diag(self, theta, weights, eps, kappa, indices):
         
         self._top_k = indices
 
@@ -551,6 +551,70 @@ class GaussianDistributionMI(Distribution):
         sigma_new_inv = np.linalg.inv(sigma_new)
         kl = GaussianDiagonalDistribution._closed_form_KL_constraint_M_projection(mu, mu_new, sigma, sigma_new, sigma_inv, sigma_new_inv, logdet_sigma, logdet_sigma_new, n_dims)
         entropy = GaussianDiagonalDistribution._closed_form_entropy(logdet_sigma_new, n_dims) - GaussianDiagonalDistribution._closed_form_entropy(logdet_sigma, n_dims)
+        return kl, entropy, self._mu
+
+    def con_wmle_mi_full(self, theta, weights, eps, kappa, indices):
+        
+        self._top_k = indices
+
+        n_dims = len(self._mu)
+
+        mu = self._mu
+        sigma = self._u @ np.diag(self._s) @ self._vh
+        mu_old = np.copy(mu)
+        sigma_old = np.copy(sigma)
+
+        n_dims = len(indices)
+
+        mu = mu[indices]
+        sigma = np.diag(np.diag(sigma_old)[indices])
+        for i, idx_i in enumerate(indices):
+            for j, idx_j in enumerate(indices):
+                if i is not j:
+                    sigma[i,j] = sigma_old[idx_i,idx_j]
+
+        theta = theta[:, indices]
+
+        eta_omg_opt_start = np.array([1, 1])
+        res = minimize(GaussianCholeskyDistribution._lagrangian_eta_omg, eta_omg_opt_start,
+                       bounds=((np.finfo(np.float32).eps, np.inf),(np.finfo(np.float32).eps, np.inf)),
+                       args=(weights, theta, mu, sigma, n_dims, eps, kappa))
+        
+        eta_opt, omg_opt  = res.x[0], res.x[1]
+
+        mu_new, sigma_new = GaussianCholeskyDistribution.closed_form_mu1_sigma_new(weights, theta, mu, sigma, n_dims, eps, eta_opt, omg_opt, kappa)
+
+        
+        mu_new_tmp = mu_old
+        mu_new_tmp[indices] = mu_new
+        mu_new = mu_new_tmp
+
+        sigma_new_tmp = sigma_old
+        sigma_new_tmp[indices,indices] = np.diag(sigma_new)
+        for i, idx_i in enumerate(indices):
+            for j, idx_j in enumerate(indices):
+                if i is not j:
+                    sigma_new_tmp[idx_i,idx_j] = sigma_new[i,j]
+        sigma_new = sigma_new_tmp
+
+        # store old mu and sigma
+        mu = mu_old
+        sigma = sigma_old
+
+        # set new parameters
+        self._u, self._s, self._vh = np.linalg.svd(sigma_new)
+        self._mu = mu_new
+        
+        
+
+        # compute kl and entropy in original space
+        n_dims = len(self._mu)
+        (sign_sigma, logdet_sigma) = np.linalg.slogdet(sigma)
+        (sign_sigma_new, logdet_sigma_new) = np.linalg.slogdet(sigma_new)
+        sigma_inv = np.linalg.inv(sigma)
+        sigma_new_inv = np.linalg.inv(sigma_new)
+        kl = GaussianCholeskyDistribution._closed_form_KL_constraint_M_projection(mu, mu_new, sigma, sigma_new, sigma_inv, sigma_new_inv, logdet_sigma, logdet_sigma_new, n_dims)
+        entropy = GaussianCholeskyDistribution._closed_form_entropy(logdet_sigma_new, n_dims) - GaussianCholeskyDistribution._closed_form_entropy(logdet_sigma, n_dims)
         return kl, entropy, self._mu
 
     def entropy(self):
@@ -627,7 +691,7 @@ class GaussianCholeskyDistribution(Distribution):
         mu =self._mu
         sigma = self._chol_sigma.dot(self._chol_sigma.T)
         
-        eta_omg_opt_start =  np.array([1., 1.])
+        eta_omg_opt_start = np.array([1., 1.])
         res = minimize(GaussianCholeskyDistribution._lagrangian_eta_omg, eta_omg_opt_start,
                        bounds=((np.finfo(np.float32).eps, np.inf),(np.finfo(np.float32).eps, np.inf)),
                        args=(weights, theta, mu, sigma, n_dims, eps, kappa))
