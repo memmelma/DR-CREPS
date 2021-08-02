@@ -1,18 +1,19 @@
 from itertools import product
-from math import gamma
 from experiment_launcher import Launcher
+import numpy as np
 
 if __name__ == '__main__':
 
 	local = False
 	test = False
 
-	experiment_name = f'ball_eps_kappa'
+	# experiment_name = f'ball_sample'
+	experiment_name = f'ball_all_best_25'
 	
-	launcher = Launcher(exp_name=experiment_name,
-						python_file='el_ball_mi',
-						n_exp=25,
-						memory=5000,
+	launcher = Launcher(experiment_name,
+						'el_ball_mi',
+						25,
+						memory=1000,
 						days=2,
 						hours=24,
 						minutes=0,
@@ -20,106 +21,61 @@ if __name__ == '__main__':
 						n_jobs=-1,
 						use_timestamp=True)
 	
-	launcher.add_default_params(n_epochs=250, fit_per_epoch=1, ep_per_fit=25, n_basis=20, horizon=2, sigma_init=1e-0, mi_type='regression', sample_type='percentage')
+	launcher.add_default_params(n_epochs=250, fit_per_epoch=1, ep_per_fit=25, \
+								n_basis=20, horizon=750, \
+								sigma_init=1e-0, distribution='diag', bins=4, mi_type='regression', mi_avg=0)
 	
-	# eps = 0.7
-	# kappa = 3.
-	# launcher.add_experiment(alg='REPS', eps=eps)
-	# launcher.add_experiment(alg='RWR', eps=eps)
-	# launcher.add_experiment(alg='ConstrainedREPS', eps=eps, kappa=kappa)
-	# launcher.add_experiment(alg='ConstrainedREPSMI', eps=eps, k=25, gamma=1e-1, kappa=kappa)
+	# # all best
+	# launcher.add_experiment(alg='ConstrainedREPS', eps=2.7, kappa=6.)
+	# launcher.add_experiment(alg='REPS', eps=0.7)
+	# launcher.add_experiment(alg='REPS_MI', eps=0.7, k=110, sample_type='percentage', gamma=0.9)
+	# launcher.add_experiment(alg='ConstrainedREPSMI', eps=2.7, kappa=6., k=65, sample_type='percentage', gamma=0.5)
+	# launcher.add_experiment(alg='RWR', eps=1.7)
+	
 
 	# eps and kappa:
-	import numpy as np
-	for eps in np.arange(0.2, 2.3, 0.5):
-		eps = round(eps,1)
-		# REPS
-		launcher.add_experiment(alg='REPS', eps=eps)
-		# RWR
-		launcher.add_experiment(alg='RWR', eps=eps)
+	# for eps in np.arange(0.2, 3.3, 0.5):
+	# 	eps = round(eps,1)
+	# 	# REPS
+	# 	launcher.add_experiment(alg='REPS', eps=eps)
+	# 	# RWR
+	# 	launcher.add_experiment(alg='RWR', eps=eps)
 		
-		for kappa in np.arange(2., 10., 2.):
-			kappa = round(kappa,1)
-			# Constrained REPS
-			launcher.add_experiment(alg='ConstrainedREPS', eps=eps, kappa=kappa)
+	# 	for kappa in np.arange(2., 18., 2.):
+	# 		kappa = round(kappa,1)
+	# 		# Constrained REPS
+	# 		launcher.add_experiment(alg='ConstrainedREPS', eps=eps, kappa=kappa)
 
-	# k -> lqr w/ 10dim has 100 parameters
-	# for k in range(5, 100, 5):
-	# 	 eps = 4.0
-	# 	 kappa = 6.0
-	# 	 launcher.add_experiment(alg='ConstrainedREPSMI', eps=eps, kappa=kappa, sample_type=None, k=k)
-		
-	# 	 eps = 0.6
-	# 	 launcher.add_experiment(alg='REPS_MI', eps=eps, sample_type=None, k=k)
+	# # hyperparameters according to max reward
+	# for k in range(5, 140, 15):
+	# 	eps = 2.7
+	# 	kappa = 6.0
+	# 	launcher.add_experiment(alg='ConstrainedREPSMI', k=k, sample_type=None, eps=eps, kappa=kappa)
+	# 	launcher.add_experiment(alg='ConstrainedREPSMI', k=k, sample_type='importance', eps=eps, kappa=kappa)
+	# 	for gama in np.arange(0.1, 1.0, 0.2):
+	# 		gama = round(gama,1)
+	# 		launcher.add_experiment(alg='ConstrainedREPSMI', k=k, sample_type='percentage', gamma=gama, eps=eps, kappa=kappa)
+
+	# 	eps = 0.7
+	# 	# launcher.add_experiment(alg='REPS_MI', k=k, sample_type=None, eps=eps) # -> REPS
+	# 	launcher.add_experiment(alg='REPS_MI', k=k, sample_type='importance', eps=eps)
+
+	# 	for gama in np.arange(0.1, 1.0, 0.2):
+	# 		gama = round(gama,1)
+	# 		launcher.add_experiment(alg='REPS_MI', k=k, sample_type='percentage', gamma=gama, eps=eps)
+
+	# # MI vs Pearson
+	# launcher.add_experiment(alg='REPS_MI', k=110, method='Pearson', sample_type='percentage', gamma=0.9, eps=0.7)
+	# launcher.add_experiment(alg='REPS_MI', k=110, method='Pearson', sample_type='PRO', eps=0.7)
+
+	# launcher.add_experiment(alg='ConstrainedREPSMI', k=65, method='Pearson', sample_type='percentage', gamma=0.5, eps=2.7, kappa=6.)
+	# launcher.add_experiment(alg='ConstrainedREPSMI', k=65, method='Pearson', sample_type='PRO', eps=2.7, kappa=6.)
 	
-	# n_epochs=500,
-	
-	# ours vs ours
-	# k
-	# launcher.add_experiment(alg='ConstrainedREPS', sample_type=None, kappa=2
-	# launcher.add_experiment(alg='ConstrainedREPSMI', k=5, sample_type=None, kappa=2)
-	# launcher.add_experiment(alg='ConstrainedREPSMI', k=25, sample_type=None, kappa=2)
-	# launcher.add_experiment(alg='ConstrainedREPSMI', k=50, sample_type=None, kappa=2)
-	# launcher.add_experiment(alg='ConstrainedREPSMI', k=100, sample_type=None, kappa=2)
-	# launcher.add_experiment(alg='ConstrainedREPSMI', k=250, sample_type=None, kappa=2)
-	# launcher.add_experiment(alg='ConstrainedREPSMI', k=500, sample_type=None, kappa=2)
+	# launcher.add_experiment(alg='REPS_MI', k=110, method='MI', sample_type='percentage', gamma=0.9, eps=0.7)
+	# launcher.add_experiment(alg='REPS_MI', k=110, method='MI', sample_type='PRO', eps=0.7)
 
-	# launcher.add_experiment(alg='RWR')
-	# launcher.add_experiment(alg='REPS')
-
-	# launcher.add_experiment(alg='REPS_MI', k=25) 
-	# launcher.add_experiment(alg='REPS_MI', k=100)
-
-	# launcher.add_experiment(alg='ConstrainedREPS', kappa=5)
-
-	# launcher.add_experiment(alg='ConstrainedREPSMI', gamma=0.1, k=25, kappa=5)
-	# launcher.add_experiment(alg='ConstrainedREPSMI', gamma=0.1, k=100, kappa=5)
-
-	# launcher.add_experiment(alg='REPS')
-	# launcher.add_experiment(alg='RWR', eps=0.5)
-	# launcher.add_experiment(alg='RWR', eps=0.7)
-	# launcher.add_experiment(alg='ConstrainedREPS')
-
-	# launcher.add_experiment(alg='ConstrainedREPSMI', bins=3, k=0.2)
-	# launcher.add_experiment(alg='ConstrainedREPSMI', bins=3, k=0.4)
-	# launcher.add_experiment(alg='ConstrainedREPSMI', bins=3, k=0.6)
-	# launcher.add_experiment(alg='ConstrainedREPSMI', bins=4, k=0.8)
-	# launcher.add_experiment(alg='ConstrainedREPSMI', bins=3, k=25)
-
-	# launcher.add_experiment(alg='ConstrainedREPSMI', bins=4, k=0.2)
-	# launcher.add_experiment(alg='ConstrainedREPSMI', bins=4, k=0.4)
-	# launcher.add_experiment(alg='ConstrainedREPSMI', bins=4, k=0.6)
-	# launcher.add_experiment(alg='ConstrainedREPSMI', bins=4, k=0.8)
-	# launcher.add_experiment(alg='ConstrainedREPSMI', bins=4, k=25)
-
-	# launcher.add_experiment(alg='ConstrainedREPSMI', k=5, eps=0.7, sample_type='percentage', gamma=0.1)
-	# launcher.add_experiment(alg='ConstrainedREPSMI', k=25, eps=0.7, sample_type='percentage', gamma=0.1)
-	# launcher.add_experiment(alg='ConstrainedREPSMI', k=0.2, eps=0.7, sample_type='percentage', gamma=0.1)
-	# launcher.add_experiment(alg='ConstrainedREPSMI', k=0.6, eps=0.7, sample_type='percentage', gamma=0.1)
-	# launcher.add_experiment(alg='ConstrainedREPSMI', k=0.8, eps=0.7, sample_type='percentage', gamma=0.1)
-
-	# launcher.add_experiment(alg='ConstrainedREPSMI', k=5, eps=0.7, sample_type='percentage', gamma=0.1, bins=3, mi_type='sample')
-	# launcher.add_experiment(alg='ConstrainedREPSMI', k=25, eps=0.7, sample_type='percentage', gamma=0.1, bins=3, mi_type='sample')
-	# launcher.add_experiment(alg='ConstrainedREPSMI', k=5, eps=0.7, sample_type='percentage', gamma=0.1, bins=4, mi_type='sample')
-	# launcher.add_experiment(alg='ConstrainedREPSMI', k=25, eps=0.7, sample_type='percentage', gamma=0.1, bins=4, mi_type='sample')
-
-	# launcher.add_experiment(alg='REPS', sigma_init=1e-3)
-	# launcher.add_experiment(alg='ConstrainedREPS', sigma_init=1e-1)
-	# launcher.add_experiment(alg='ConstrainedREPSMI', sigma_init=1e-1)
-	
-	# launcher.add_experiment(alg='REPS', sigma_init=1e-1)
-	# launcher.add_experiment(alg='MORE', sigma_init=1e-1)
-
-	# launcher.add_experiment(alg='ConstrainedREPSMI', k=k, sample_type='fixed', gamma=1e-5)
-	# launcher.add_experiment(alg='ConstrainedREPSMI', k=k, sample_type='percentage', gamma=0.1)
-
-	# launcher.add_experiment(alg='ConstrainedREPSMI', k=25, sample_type='fixed', gamma=1e-5)
-	# launcher.add_experiment(alg='ConstrainedREPSMI', k=25, sample_type='percentage', gamma=0.1)
-
-	# launcher.add_experiment(alg='ConstrainedREPSMI', k=25)
-	# launcher.add_experiment(alg='ConstrainedREPSMI', k=50)
-	# launcher.add_experiment(alg='ConstrainedREPSMI', k=75)
-
+	# launcher.add_experiment(alg='ConstrainedREPSMI', k=65, method='MI', sample_type='percentage', gamma=0.5, eps=2.7, kappa=6.)
+	# launcher.add_experiment(alg='ConstrainedREPSMI', k=65, method='MI', sample_type='PRO', eps=2.7, kappa=6.)
 
 	print(experiment_name)
 
