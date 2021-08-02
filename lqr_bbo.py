@@ -32,7 +32,7 @@ def experiment(alg, params, distribution, n_epochs, fit_per_epoch, ep_per_fit):
     logger.info('Experiment Algorithm: ' + alg.__name__)
 
     # MDP
-    mdp = LQR.generate(dimensions=7, horizon=50, episodic=False, max_pos=1., max_action=1.)
+    mdp = LQR.generate(dimensions=10, horizon=50, episodic=False, max_pos=1., max_action=1.)
 
     approximator = Regressor(LinearApproximator,
                              input_shape=mdp.info.observation_space.shape,

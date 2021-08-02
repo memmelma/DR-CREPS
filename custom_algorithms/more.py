@@ -43,40 +43,12 @@ class MORE(BlackBoxOptimization):
         self.xi = -kappa
         self.kappa = 0 # -kappa
 
-        # MORE only supports full Covariance Matrix
-        n = len(distribution._mu)
-        dist_params = distribution.get_parameters()
-        
         if not isinstance(distribution, GaussianCholeskyDistribution):
-
-            if isinstance(distribution, GaussianDiagonalDistribution):
-                sig_t = np.diag(dist_params[n:]**2)
-                # sig_t = np.diag(dist_params[n:])
-            elif isinstance(distribution, GaussianDistribution):
-                sig_t = distribution._sigma
-            else:
-                print('Not a valid distribution, please use GaussianCholeskyDistribution, GaussianDiagonalDistribution, GaussianDistribution.')
-                exit()
-            
-            print('Only GaussianCholeskyDistribution is supported, replacing distribution.')
-
-            # replace current distribution with GaussianCholeskyDistribution
-            mu = distribution._mu
-            sigma = sig_t[0][0] * np.eye(policy.weights_size)
-            # sigma = sigma@sigma.T
-            distribution = GaussianCholeskyDistribution(mu, sigma)
-
+            print('Only GaussianCholeskyDistribution is supported')
+            exit()
+    
         print('Init Entropy:', distribution.entropy())
-        # set beta as specified in paper -> MORE page 4
-        # gamma = 0.99
-        # entropy_policy_min = self.kappa
-        # entropy_policy = distribution.entropy()
-        # self.kappa = gamma * (entropy_policy - entropy_policy_min) + entropy_policy_min
-        # print('entropy_policy', entropy_policy, 'kappa', self.kappa, 'dim', policy.weights_size)
-        
-        # TODO rm
-        # self.policy = policy
-
+   
         poly_basis_quadratic = PolynomialBasis().generate(2, policy.weights_size)
         self.phi_quadratic_ = Features(basis_list=poly_basis_quadratic)
         
@@ -165,7 +137,7 @@ class MORE(BlackBoxOptimization):
         # check KL constraint
         kl = MORE._closed_form_KL(mu_t1, mu_t, sig_t1, sig_t, n)
         if not np.round(kl,dec) <= np.round(self.eps,dec):
-            tqdm.write(f'KL constraint violated KL {kl} eps {self.eps}')
+            tqdm.write(f'KL constraint violated KL {np.round(kl,4)[0][0]} eps {self.eps}')
         
         # update cholesky distribution
         dist_params = np.concatenate((mu_t1.flatten(), np.linalg.cholesky(sig_t1)[np.tril_indices(n)].flatten()))
@@ -178,6 +150,7 @@ class MORE(BlackBoxOptimization):
         self.kls += [kl]
         # self.entropys += [H_t1-self.kappa]
         tqdm.write(f'policy change {np.round(H_t1-entropy_policy,4)} | kappa {self.xi} | using beta = distribution.entropy + kappa')
+        tqdm.write(f'kl change {np.round(kl,4)[0][0]} | eps {self.eps}')
         self.entropys += [H_t1-entropy_policy]
 
     @staticmethod
