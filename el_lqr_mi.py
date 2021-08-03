@@ -4,7 +4,6 @@ import joblib
 from tqdm import tqdm
 import numpy as np
 from numpy.random import default_rng
-import matplotlib.pyplot as plt
 
 from mushroom_rl.approximators.parametric import LinearApproximator
 from mushroom_rl.approximators.regressor import Regressor
@@ -45,7 +44,29 @@ def experiment( lqr_dim, n_ineff, env_seed, \
             mdp.B[p][p] = 1e-20
             mdp.Q[p][p] = 1e-20
             # mdp.R[p][p] = 1e-20
-        print('\nA', mdp.A, '\nB', mdp.B, '\nQ', mdp.Q, '\nR', mdp.R, '\nineff_params', ineff_params)
+        
+        n_corr = 50
+        corr_params_0 = rng.choice(lqr_dim, size=n_corr, replace=True)
+        corr_params_1 = rng.choice(lqr_dim, size=n_corr, replace=True)
+        for p_0, p_1 in zip(corr_params_0, corr_params_1):
+            if p_0 != p_1 and p_0 not in ineff_params and p_1 not in ineff_params:
+                B = np.random.uniform(0.2, 0.5)
+                Q = np.random.uniform(0.2, 0.5)
+                
+                # mdp.A[p_0][p_1] = Q
+                # mdp.A[p_1][p_0] = Q
+                mdp.B[p_0][p_1] = B
+                mdp.B[p_1][p_0] = B
+                # mdp.Q[p_0][p_1] = Q
+                # mdp.Q[p_1][p_0] = Q
+
+                # mdp.B[p_0][p_1] = np.random.uniform(0, 0.5) # 5e-1
+                # mdp.B[p_1][p_0] = np.random.uniform(0, 0.5) # 5e-1
+                # mdp.Q[p_0][p_1] = np.random.uniform(0, 0.5) # 5e-1
+                # mdp.Q[p_1][p_0] = np.random.uniform(0, 0.5) # 5e-1
+        
+        # print('\nA', mdp.A, '\nB', mdp.B, '\nQ', mdp.Q, '\nR', mdp.R, '\nineff_params', ineff_params)
+
     else:
         ineff_params = []
     
@@ -110,18 +131,21 @@ def experiment( lqr_dim, n_ineff, env_seed, \
     returns_std = [np.std(J)]
 
     for i in range(n_epochs):
-
-        core.learn(n_episodes=fit_per_epoch * ep_per_fit,
-                   n_episodes_per_fit=ep_per_fit, quiet=quiet)
-
-        dataset_eval = core.evaluate(n_episodes=ep_per_fit, quiet=quiet)
-        # print('distribution parameters: ', distribution.get_parameters())
-        J = compute_J(dataset_eval, gamma=mdp.info.gamma)
-        print('J at iteration ' + str(i) + ': ' + str(round(np.mean(J),4)))
         
-        returns_mean += [np.mean(J)]
-        returns_std += [np.std(J)]
-    
+        try:
+            core.learn(n_episodes=fit_per_epoch * ep_per_fit,
+                    n_episodes_per_fit=ep_per_fit, quiet=quiet)
+
+            dataset_eval = core.evaluate(n_episodes=ep_per_fit, quiet=quiet)
+            # print('distribution parameters: ', distribution.get_parameters())
+            J = compute_J(dataset_eval, gamma=mdp.info.gamma)
+            print('J at iteration ' + str(i) + ': ' + str(round(np.mean(J),4)))
+            
+            returns_mean += [np.mean(J)]
+            returns_std += [np.std(J)]
+        except np.linalg.LinAlgError as error:
+            print(error)
+            break
 
     # logging
     gain_policy = policy.get_weights()
@@ -159,20 +183,26 @@ def default_params():
         # environment
         lqr_dim = 10,
         n_ineff = 3,
-        env_seed = -1,
+        env_seed = 0, # -1,
 
         # algorithm
-        alg = 'ConstrainedREPSMIFull',
-        eps = 2.2,
-        kappa = 2,
-        k = 5,
+        alg = 'MORE',
+        # alg = 'ConstrainedREPSMIFull',
+        # alg = 'ConstrainedREPSMI',
+        # alg = 'REPS',
+        eps = 3.5,
+        kappa = 1.,
+        k = 30,
 
         # distribution
-        sigma_init = 1e-1,
-        distribution = 'diag',
+        # sigma_init = 1e-1,
+        distribution = 'cholesky',
+        sigma_init = 3e-1,
+        # distribution = 'cholesky',
+        # distribution = 'mi',
 
         # MI related
-        method = 'MI', # Pearson
+        method = 'Pearson', # Pearson
         mi_type = 'regression',
         bins = 4,
         sample_type = None,
@@ -180,9 +210,9 @@ def default_params():
         mi_avg = 0, # False
 
         # training
-        n_epochs = 4,
+        n_epochs = 5,
         fit_per_epoch = 1, 
-        ep_per_fit = 25,
+        ep_per_fit = 100,
 
         # misc
         seed = 0,
