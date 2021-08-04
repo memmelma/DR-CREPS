@@ -40,33 +40,25 @@ def experiment( lqr_dim, n_ineff, env_seed, \
         rng = default_rng(seed=env_seed)
         ineff_params = rng.choice(lqr_dim, size=n_ineff, replace=False)
         for p in ineff_params:
-            # mdp.A[p][p] = 1e-10
             mdp.B[p][p] = 1e-20
             mdp.Q[p][p] = 1e-20
-            # mdp.R[p][p] = 1e-20
         
-        n_corr = 50
-        corr_params_0 = rng.choice(lqr_dim, size=n_corr, replace=True)
-        corr_params_1 = rng.choice(lqr_dim, size=n_corr, replace=True)
-        for p_0, p_1 in zip(corr_params_0, corr_params_1):
-            if p_0 != p_1 and p_0 not in ineff_params and p_1 not in ineff_params:
-                B = np.random.uniform(0.2, 0.5)
-                Q = np.random.uniform(0.2, 0.5)
-                
-                # mdp.A[p_0][p_1] = Q
-                # mdp.A[p_1][p_0] = Q
-                mdp.B[p_0][p_1] = B
-                mdp.B[p_1][p_0] = B
-                # mdp.Q[p_0][p_1] = Q
-                # mdp.Q[p_1][p_0] = Q
-
-                # mdp.B[p_0][p_1] = np.random.uniform(0, 0.5) # 5e-1
-                # mdp.B[p_1][p_0] = np.random.uniform(0, 0.5) # 5e-1
-                # mdp.Q[p_0][p_1] = np.random.uniform(0, 0.5) # 5e-1
-                # mdp.Q[p_1][p_0] = np.random.uniform(0, 0.5) # 5e-1
+        if env_seed == 42:
+            n_corr = 50
+            corr_params_0 = rng.choice(lqr_dim, size=n_corr, replace=True)
+            corr_params_1 = rng.choice(lqr_dim, size=n_corr, replace=True)
+            for p_0, p_1 in zip(corr_params_0, corr_params_1):
+                if p_0 != p_1 and p_0 not in ineff_params and p_1 not in ineff_params:
+                    B = np.random.uniform(0, 0.5)
+                    Q = np.random.uniform(0, 0.5)
+                    mdp.A[p_0][p_1] = Q
+                    mdp.A[p_1][p_0] = Q
+                    mdp.B[p_0][p_1] = B
+                    mdp.B[p_1][p_0] = B
         
         # print('\nA', mdp.A, '\nB', mdp.B, '\nQ', mdp.Q, '\nR', mdp.R, '\nineff_params', ineff_params)
 
+    # env_seed < 0 for standard behavior
     else:
         ineff_params = []
     
@@ -187,18 +179,15 @@ def default_params():
 
         # algorithm
         alg = 'MORE',
-        # alg = 'ConstrainedREPSMIFull',
-        # alg = 'ConstrainedREPSMI',
-        # alg = 'REPS',
-        eps = 3.5,
-        kappa = 1.,
+        eps = 4.,
+        kappa = 2.,
         k = 30,
 
         # distribution
         # sigma_init = 1e-1,
-        distribution = 'cholesky',
+        # distribution = 'diag',
         sigma_init = 3e-1,
-        # distribution = 'cholesky',
+        distribution = 'cholesky',
         # distribution = 'mi',
 
         # MI related
@@ -212,7 +201,7 @@ def default_params():
         # training
         n_epochs = 5,
         fit_per_epoch = 1, 
-        ep_per_fit = 100,
+        ep_per_fit = 200,
 
         # misc
         seed = 0,
