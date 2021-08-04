@@ -89,6 +89,8 @@ def experiment( lqr_dim, n_ineff, env_seed, \
                              output_shape=mdp.info.action_space.shape)
     policy = DeterministicPolicy(mu=approximator)
 
+    print('parameters', policy.weights_size)
+
     # init distribution
     distribution = init_distribution(mu_init=0, sigma_init=sigma_init, size=policy.weights_size, sample_type=sample_type, gamma=gamma, distribution_class=distribution)
 
@@ -132,20 +134,20 @@ def experiment( lqr_dim, n_ineff, env_seed, \
 
     for i in range(n_epochs):
         
-        try:
-            core.learn(n_episodes=fit_per_epoch * ep_per_fit,
-                    n_episodes_per_fit=ep_per_fit, quiet=quiet)
+        # try:
+        core.learn(n_episodes=fit_per_epoch * ep_per_fit,
+                n_episodes_per_fit=ep_per_fit, quiet=quiet)
 
-            dataset_eval = core.evaluate(n_episodes=ep_per_fit, quiet=quiet)
-            # print('distribution parameters: ', distribution.get_parameters())
-            J = compute_J(dataset_eval, gamma=mdp.info.gamma)
-            print('J at iteration ' + str(i) + ': ' + str(round(np.mean(J),4)))
-            
-            returns_mean += [np.mean(J)]
-            returns_std += [np.std(J)]
-        except np.linalg.LinAlgError as error:
-            print(error)
-            break
+        dataset_eval = core.evaluate(n_episodes=ep_per_fit, quiet=quiet)
+        # print('distribution parameters: ', distribution.get_parameters())
+        J = compute_J(dataset_eval, gamma=mdp.info.gamma)
+        print('J at iteration ' + str(i) + ': ' + str(round(np.mean(J),4)))
+        
+        returns_mean += [np.mean(J)]
+        returns_std += [np.std(J)]
+        # except np.linalg.LinAlgError as error:
+        #     print(error)
+        #     break
 
     # logging
     gain_policy = policy.get_weights()
@@ -183,26 +185,25 @@ def default_params():
         # environment
         lqr_dim = 10,
         n_ineff = 3,
-        env_seed = 0, # -1,
+        env_seed = 42, # -1,
 
         # algorithm
-        alg = 'MORE',
-        # alg = 'ConstrainedREPSMIFull',
-        # alg = 'ConstrainedREPSMI',
+        # alg = 'MORE',
+        # alg = 'REPS_MI',
         # alg = 'REPS',
-        eps = 3.5,
+        alg = 'REPS_MI_full',
+        eps = 1.,
         kappa = 1.,
-        k = 30,
+        k = 20,
 
         # distribution
-        # sigma_init = 1e-1,
-        distribution = 'cholesky',
         sigma_init = 3e-1,
+        # distribution = 'diag',
         # distribution = 'cholesky',
-        # distribution = 'mi',
+        distribution = 'mi',
 
         # MI related
-        method = 'Pearson', # Pearson
+        method = 'MI', # Pearson
         mi_type = 'regression',
         bins = 4,
         sample_type = None,
@@ -210,9 +211,9 @@ def default_params():
         mi_avg = 0, # False
 
         # training
-        n_epochs = 5,
+        n_epochs = 100,
         fit_per_epoch = 1, 
-        ep_per_fit = 100,
+        ep_per_fit = 25,
 
         # misc
         seed = 0,
