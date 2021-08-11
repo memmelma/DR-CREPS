@@ -57,6 +57,11 @@ def experiment( n_tilings, \
 
     # init distribution
     distribution = init_distribution(mu_init=0, sigma_init=sigma_init, size=policy.weights_size, sample_type=sample_type, gamma=gamma, distribution_class=distribution)
+    
+    print('parameters', policy.weights_size)
+
+    # TODO
+    distribution = joblib.load('logs/ship/all_best_25/alg_ConstrainedREPSMI/k_75/sample_type_percentage/gamma_0.9/eps_5.3/kappa_14.0/ConstrainedREPSMI_0_state')['distribution']
 
     # init agent
     alg, params = init_algorithm(algorithm_class=alg, params=init_params)
@@ -69,7 +74,9 @@ def experiment( n_tilings, \
     # print('distribution parameters: ', distribution.get_parameters())
     J = compute_J(dataset_eval, gamma=mdp.info.gamma)
     print('J at start : ' + str(np.mean(J)))
-    
+
+    print(agent.states)
+    exit()
     returns_mean = [np.mean(J)]
     returns_std = [np.std(J)]
 
@@ -137,17 +144,17 @@ def default_params():
         distribution = 'diag',
 
         # MI related
-        method = 'Pearson', # Pearson
+        method = 'MI', # Pearson
         mi_type = 'regression',
         bins = 4,
-        sample_type = 'importance',
+        sample_type = None,
         gamma = 0.1,
         mi_avg = 0, # False
 
         # training
         n_epochs = 10,
         fit_per_epoch = 1, 
-        ep_per_fit = 100,
+        ep_per_fit = 1,
 
         # misc
         seed = 2,
