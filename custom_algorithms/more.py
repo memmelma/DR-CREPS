@@ -69,10 +69,16 @@ class MORE(BlackBoxOptimization):
         self.kls = []
         self.entropys = []
 
+        # self._upd = 0
         super().__init__(mdp_info, distribution, policy, features)
 
     def _update(self, Jep, theta):
         
+        # store = dict({'x':theta, 'r':Jep})
+        # np.save(f'iter_{self._upd}', store, allow_pickle=True)
+        # self._upd += 1
+        # tqdm.write(f'reward {np.mean(Jep)}')
+
         if self.kappa != -1:
             gamma = 0.99
             entropy_policy_min = self.xi
@@ -95,26 +101,18 @@ class MORE(BlackBoxOptimization):
 
         R, r, r_0 = self.regression(theta, Jep, n)
         
-        # # create polynomial features
-        # features = self.phi_(theta)
-        # Jep = ( Jep - np.mean(Jep, keepdims=True, axis=0) ) / np.std(Jep, keepdims=True, axis=0)
-        
-        # # fit linear regression
-        # self.regressor.fit(features, Jep)
-
-        # # get quadratic surrogate model from learned regression
-        # R, r, r_0 = MORE._get_quadratic_model_from_regressor(self.regressor, n, theta, features)
-        
         if self.no_entropy:
             self.kappa = -1
         
         # MORE lagrangian -> bounds from MORE page 3
-        eta_omg_start = np.array([1, 1])
+        eta_omg_start = np.array([1., 1.])
+        # eta_omg_start = np.array([100., 1000.])
         res = minimize(MORE._dual_function, eta_omg_start,
                        bounds=((np.finfo(np.float32).eps, np.inf),(np.finfo(np.float32).eps, np.inf)),
+                    #    bounds=((1e-8, 1e8), (1e-8, 1e8)),
                        args=(sig_t, mu_t, R, r, r_0, self.eps, self.kappa, n),
                        method=None)
-                    #    method='SLSQP')
+                    #    method='L-BFGS-B')
 
         eta_opt, omg_opt = res.x[0], res.x[1]
         if not res.success:
@@ -150,7 +148,6 @@ class MORE(BlackBoxOptimization):
         self.kls += [kl]
         # self.entropys += [H_t1-self.kappa]
         tqdm.write(f'policy change {np.round(H_t1-entropy_policy,4)} | kappa {self.xi} | using beta = distribution.entropy + kappa')
-        tqdm.write(f'kl change {np.round(kl,4)[0][0]} | eps {self.eps}')
         self.entropys += [H_t1-entropy_policy]
 
     @staticmethod
