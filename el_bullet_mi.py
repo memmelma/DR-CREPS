@@ -47,7 +47,7 @@ def experiment( env_name, horizon, env_gamma, \
     os.makedirs(results_dir, exist_ok=True)
 
     # MDP
-    mdp = Gym(env_name, horizon=horizon, gamma=0.99)
+    mdp = Gym(env_name, horizon=None if horizon == 0 else horizon, gamma=0.99)
     
     approximator = Regressor(TorchApproximator,
                              network = Network,
@@ -70,9 +70,11 @@ def experiment( env_name, horizon, env_gamma, \
     dataset_eval = core.evaluate(n_episodes=ep_per_fit, quiet=quiet)
     # print('distribution parameters: ', distribution.get_parameters())
     J = compute_J(dataset_eval, gamma=mdp.info.gamma)
+    R = compute_J(dataset_eval, gamma=1.)
     print('J at start : ' + str(np.mean(J)))
     
     returns_mean = [np.mean(J)]
+    reward_mean = [np.mean(R)]
     returns_std = [np.std(J)]
 
     for i in range(n_epochs):
@@ -83,11 +85,46 @@ def experiment( env_name, horizon, env_gamma, \
         dataset_eval = core.evaluate(n_episodes=ep_per_fit, quiet=quiet)
         # print('distribution parameters: ', distribution.get_parameters())
         J = compute_J(dataset_eval, gamma=mdp.info.gamma)
+        R = compute_J(dataset_eval, gamma=1.)
         print('J at iteration ' + str(i) + ': ' + str(round(np.mean(J),4)))
         
         returns_mean += [np.mean(J)]
+        reward_mean += [np.mean(R)]
         returns_std += [np.std(J)]
-    
+
+        # logging inside
+        gain_policy = policy.get_weights()
+        mus, kls, entropys, mi_avg = log_constraints(agent)
+        best_reward = np.array(returns_mean).max()
+
+        dump_dict = dict({
+            'returns_mean': returns_mean,
+            'reward_mean': reward_mean,
+            'returns_std': returns_std,
+            'gain_policy': gain_policy,
+            'best_reward': best_reward,
+            'init_params': init_params,
+            'alg': alg,
+            'mi_avg': mi_avg,
+            'mus': mus,
+            'kls': kls,
+            'entropys': entropys
+        })
+
+        joblib.dump(dump_dict, os.path.join(results_dir, f'{alg.__name__}_{seed}'))
+        
+        dump_state = dict({
+            'distribution': distribution
+        })
+
+        joblib.dump(dump_state, os.path.join(results_dir, f'{alg.__name__}_{seed}_state'))
+
+        filename = os.path.join(results_dir, f'log_{alg.__name__}_{seed}.txt')
+        os.makedirs(results_dir, exist_ok=True)
+        with open(filename, 'w') as file:
+            for key in init_params.keys():
+                file.write(f'{key}: {init_params[key]}\n')
+
     # logging
     gain_policy = policy.get_weights()
     mus, kls, entropys, mi_avg = log_constraints(agent)
@@ -124,7 +161,7 @@ def default_params():
     defaults = dict(
         # environment
         env_name = 'HopperBulletEnv-v0',
-        horizon = None,
+        horizon = 0, # None
         env_gamma = 0.99,
 
         # algorithm
@@ -153,7 +190,7 @@ def default_params():
         # misc
         seed = 0,
         results_dir = 'results',
-        quiet = 0 # True
+        quiet = 1 # True
     )
 
     return defaults
