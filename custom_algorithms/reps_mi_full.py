@@ -151,7 +151,8 @@ class REPS_MI_full(BlackBoxOptimization):
 			top_k_mi = self.oracle
 
 		self.distribution._top_k = top_k_mi
-		self.distribution.mle(theta_old, d)
+		# self.distribution.mle_mi_diag(theta_old, d)
+		self.distribution.mle_mi_full(theta_old, top_k_mi, d)
 
 		importance = self.mi_avg # / np.sum(self.mi_avg)
 		self.distribution.update_importance(importance)

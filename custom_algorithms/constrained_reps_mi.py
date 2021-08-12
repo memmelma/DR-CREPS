@@ -56,7 +56,8 @@ class ConstrainedREPSMI(BlackBoxOptimization):
 
 		if gamma == -1:
 			print('Using LinearParameter 1->0')
-			self.beta = LinearParameter(0., threshold_value=1., n=100)
+			self.beta = LinearParameter(0., threshold_value=1., n=50)
+			# self.beta = LinearParameter(0., threshold_value=1., n=100)
 		elif gamma == -2:
 			print('Using LinearParameter 0->1')
 			self.beta = LinearParameter(1., threshold_value=0., n=100)
@@ -112,6 +113,7 @@ class ConstrainedREPSMI(BlackBoxOptimization):
 	def _update(self, Jep, theta):
 
 		self.distribution._gamma = 1 - self.beta()
+		# self.distribution._gamma = np.cbrt(self.beta())
 
 		# REPS
 		eta_start = np.ones(1)
@@ -154,7 +156,8 @@ class ConstrainedREPSMI(BlackBoxOptimization):
 			top_k_mi = self.oracle
 
 		# Constrained Update
-		kl, entropy, mu = self.distribution.con_wmle_mi(theta, d, self._eps(), self._kappa(), top_k_mi)
+		# kl, entropy, mu = self.distribution.con_wmle_mi(theta, d, self._eps(), self._kappa(), top_k_mi)
+		kl, entropy, mu = self.distribution.con_wmle(theta, d, self._eps(), self._kappa(), top_k_mi)
 		
 		importance = self.mi_avg #/ np.sum(self.mi_avg)
 		self.distribution.update_importance(importance)
