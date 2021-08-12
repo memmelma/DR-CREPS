@@ -169,8 +169,10 @@ class GaussianDiagonalDistribution(Distribution):
             delta2 = (theta - self._mu)**2
             self._std = np.sqrt(weights.dot(delta2) / Z)
 
-    def con_wmle(self, theta, weights, eps, kappa):
+    def con_wmle(self, theta, weights, eps, kappa, indices=[]):
         
+        self._top_k = indices
+
         self.previous_std = np.copy(self._std)
         
         n_dims = len(self._mu)
@@ -405,7 +407,7 @@ class GaussianDistributionMI(Distribution):
         sigma = rho[n_dims:].reshape(n_dims, n_dims)
         self._u, self._s, self._vh = np.linalg.svd(sigma)
     
-    def mle(self, theta, weights=None):
+    def mle_mi_diag(self, theta, weights=None):
         if weights is None:
             self._mu = np.mean(theta, axis=0)
             sigma = np.cov(theta, rowvar=False)
@@ -421,6 +423,63 @@ class GaussianDistributionMI(Distribution):
             sigma = delta.T.dot(np.diag(weights)).dot(delta) / Z
 
         self._u, self._s, self._vh = np.linalg.svd(sigma)
+
+    def mle_mi_full(self, theta, indices, weights=None):
+        
+        self._top_k = indices
+
+        mu = np.zeros_like(self._mu)
+        mu_old = np.copy(self._mu)
+        sigma = np.diag(self._s)
+        sigma_old = np.copy(np.diag(self._s))
+
+        mu = mu[indices]
+        sigma = np.diag(np.diag(sigma_old)[indices])
+        for i, idx_i in enumerate(indices):
+            for j, idx_j in enumerate(indices):
+                if i is not j:
+                    sigma[i,j] = sigma_old[idx_i,idx_j]
+
+        theta = theta[:, indices]
+
+        # update
+        sumD = np.sum(weights)
+        sumD2 = np.sum(weights**2)
+        Z = sumD - sumD2 / sumD
+
+        # self._mu = weights.dot(theta) / sumD
+        mu_new = ( weights.dot(theta) / sumD )
+
+        # delta = theta - self._mu
+        delta = theta - mu_new
+
+        # sigma = delta.T.dot(np.diag(weights)).dot(delta) / Z
+        sigma_new = delta.T.dot(np.diag(weights)).dot(delta) / Z
+
+        mu_new_tmp = np.zeros_like(self._mu)
+        mu_new_tmp[indices] = mu_new
+        mu_new = mu_new_tmp
+
+        sigma_new_tmp = sigma_old
+        sigma_new_tmp[indices,indices] = np.diag(sigma_new)
+        for i, idx_i in enumerate(indices):
+            for j, idx_j in enumerate(indices):
+                if i is not j:
+                    sigma_new_tmp[idx_i,idx_j] = sigma_new[i,j]
+        sigma_new = sigma_new_tmp
+
+        # store old mu and sigma
+        mu = mu_old
+        sigma = sigma_old
+
+        # set new parameters
+        self._mu = self._u.T @ mu_old - self._mu 
+        sigma_new = self._u @ sigma_new @ self._vh
+        self._u, self._s, self._vh = np.linalg.svd(sigma_new)
+        self._mu = mu_new
+
+        np.linalg.cholesky(sigma_new)
+
 
     def con_wmle_mi(self, theta, weights, eps, kappa, indices):
         # not really mi
@@ -557,14 +616,10 @@ class GaussianDistributionMI(Distribution):
         
         self._top_k = indices
 
-        n_dims = len(self._mu)
-
-        mu = self._mu
-        sigma = self._u @ np.diag(self._s) @ self._vh
-        mu_old = np.copy(mu)
-        sigma_old = np.copy(sigma)
-
-        n_dims = len(indices)
+        mu = np.zeros_like(self._mu)
+        mu_old = np.copy(self._mu)
+        sigma = np.diag(self._s)
+        sigma_old = np.copy(np.diag(self._s))
 
         mu = mu[indices]
         sigma = np.diag(np.diag(sigma_old)[indices])
@@ -572,7 +627,8 @@ class GaussianDistributionMI(Distribution):
             for j, idx_j in enumerate(indices):
                 if i is not j:
                     sigma[i,j] = sigma_old[idx_i,idx_j]
-
+        
+        n_dims = len(mu)
         theta = theta[:, indices]
 
         eta_omg_opt_start = np.array([1, 1])
@@ -585,7 +641,7 @@ class GaussianDistributionMI(Distribution):
         mu_new, sigma_new = GaussianCholeskyDistribution.closed_form_mu1_sigma_new(weights, theta, mu, sigma, n_dims, eps, eta_opt, omg_opt, kappa)
 
         
-        mu_new_tmp = mu_old
+        mu_new_tmp = np.zeros_like(self._mu)
         mu_new_tmp[indices] = mu_new
         mu_new = mu_new_tmp
 
@@ -602,11 +658,14 @@ class GaussianDistributionMI(Distribution):
         sigma = sigma_old
 
         # set new parameters
+        self._mu = self._u.T @ mu_old - self._mu 
+        sigma_new = self._u @ sigma_new @ self._vh
         self._u, self._s, self._vh = np.linalg.svd(sigma_new)
         self._mu = mu_new
-        
-        
 
+        np.linalg.cholesky(sigma_new)
+        
+        
         # compute kl and entropy in original space
         n_dims = len(self._mu)
         (sign_sigma, logdet_sigma) = np.linalg.slogdet(sigma)
@@ -615,6 +674,7 @@ class GaussianDistributionMI(Distribution):
         sigma_new_inv = np.linalg.inv(sigma_new)
         kl = GaussianCholeskyDistribution._closed_form_KL_constraint_M_projection(mu, mu_new, sigma, sigma_new, sigma_inv, sigma_new_inv, logdet_sigma, logdet_sigma_new, n_dims)
         entropy = GaussianCholeskyDistribution._closed_form_entropy(logdet_sigma_new, n_dims) - GaussianCholeskyDistribution._closed_form_entropy(logdet_sigma, n_dims)
+        print(kl, entropy)
         return kl, entropy, self._mu
 
     def entropy(self):
