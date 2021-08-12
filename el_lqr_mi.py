@@ -1,7 +1,6 @@
 import os
 import argparse
 import joblib
-from tqdm import tqdm
 import numpy as np
 from numpy.random import default_rng
 
@@ -18,6 +17,7 @@ from custom_algorithms.constrained_reps_mi import ConstrainedREPSMI
 
 from utils_el import init_distribution, init_algorithm, log_constraints
 
+
 def experiment( lqr_dim, n_ineff, env_seed, \
                 alg, eps, kappa, k, \
                 sigma_init, distribution, \
@@ -33,30 +33,39 @@ def experiment( lqr_dim, n_ineff, env_seed, \
 
     # init LQR
     horizon = 50
-    mdp = LQR.generate(dimensions=lqr_dim, horizon=50, episodic=False, max_pos=1., max_action=1., eps=0.1)# eps=0.5)
+    mdp = LQR.generate(dimensions=lqr_dim, horizon=50, episodic=False, max_pos=1., max_action=1., eps=0.1)
 
     # init reduced LQR
     if env_seed >= 0:
+
         rng = default_rng(seed=env_seed)
-        ineff_params = rng.choice(lqr_dim, size=n_ineff, replace=False)
+        choice = np.arange(0,lqr_dim,1)
+        rng.shuffle(choice)
+
+        ineff_params = choice[:n_ineff]
+        eff_params = choice[n_ineff:]
+
+        oracle = []
+        tmp = np.arange(0,lqr_dim**2,1)
+        for p in eff_params:
+            oracle += tmp[p*lqr_dim:(p+1)*lqr_dim].tolist()
+        init_params['oracle'] = oracle
+
         for p in ineff_params:
             mdp.B[p][p] = 1e-20
             mdp.Q[p][p] = 1e-20
         
         if env_seed == 42:
-            n_corr = 50
-            corr_params_0 = rng.choice(lqr_dim, size=n_corr, replace=True)
-            corr_params_1 = rng.choice(lqr_dim, size=n_corr, replace=True)
+            n_corr = 5 * lqr_dim
+            corr_params_0 = rng.choice(eff_params, size=n_corr, replace=True)
+            corr_params_1 = rng.choice(eff_params, size=n_corr, replace=True)
             for p_0, p_1 in zip(corr_params_0, corr_params_1):
-                if p_0 != p_1 and p_0 not in ineff_params and p_1 not in ineff_params:
-                    B = np.random.uniform(0, 0.5)
-                    Q = np.random.uniform(0, 0.5)
-                    mdp.A[p_0][p_1] = Q
-                    mdp.A[p_1][p_0] = Q
-                    mdp.B[p_0][p_1] = B
-                    mdp.B[p_1][p_0] = B
-        
-        # print('\nA', mdp.A, '\nB', mdp.B, '\nQ', mdp.Q, '\nR', mdp.R, '\nineff_params', ineff_params)
+                A = np.random.uniform(0, 0.5)
+                B = np.random.uniform(0, 0.5)
+                mdp.A[p_0][p_1] = A
+                mdp.A[p_1][p_0] = A
+                mdp.B[p_0][p_1] = B
+                mdp.B[p_1][p_0] = B
 
     # env_seed < 0 for standard behavior
     else:
@@ -71,53 +80,26 @@ def experiment( lqr_dim, n_ineff, env_seed, \
         state, reward, _, __ = mdp.step(action)
         optimal_reward += reward
     
-    # mdp.Q[mdp.Q == 1e-20] = 0
-    # mdp.R[mdp.R == 1e-20] = 0
-    # mdp.B[mdp.B == 1e-20] = 0
-    
     # init lower level policy
     approximator = Regressor(LinearApproximator,
                              input_shape=mdp.info.observation_space.shape,
                              output_shape=mdp.info.action_space.shape)
     policy = DeterministicPolicy(mu=approximator)
-
+    print('action space', mdp.info.action_space.shape)
     print('parameters', policy.weights_size)
 
     # init distribution
     distribution = init_distribution(mu_init=0, sigma_init=sigma_init, size=policy.weights_size, sample_type=sample_type, gamma=gamma, distribution_class=distribution)
 
-    # init algorithm
-    if alg == 'REPS_MI_ORACLE':
-        alg = REPS_MI
-        oracle = []
-        for i in range(lqr_dim):
-            if i not in ineff_params:
-                for j in range(lqr_dim):
-                    oracle += [i*lqr_dim + j]
-        print(oracle)
-        params = {'eps': eps, 'k': k, 'bins': bins, 'mi_type': mi_type, 'mi_avg': mi_avg, 'oracle': oracle}
+    alg, params = init_algorithm(algorithm_class=alg, params=init_params)
 
-    elif alg == 'ConstrainedREPSMIOracle':
-        alg = ConstrainedREPSMI
-        oracle = []
-        for i in range(lqr_dim):
-            if i not in ineff_params:
-                for j in range(lqr_dim):
-                    oracle += [i*lqr_dim + j]
-        print(oracle)
-        params = {'eps': eps, 'k': k, 'kappa': kappa, 'gamma': gamma, 'oracle': oracle, 'bins': bins, 'mi_type': mi_type}
-
-
-    # init agent
-    else:
-        alg, params = init_algorithm(algorithm_class=alg, params=init_params)
     agent = alg(mdp.info, distribution, policy, **params)
 
     # train
     core = Core(agent, mdp)
 
     dataset_eval = core.evaluate(n_episodes=ep_per_fit, quiet=quiet)
-    # print('distribution parameters: ', distribution.get_parameters())
+    
     J = compute_J(dataset_eval, gamma=mdp.info.gamma)
     print('J at start : ' + str(np.mean(J)))
     
@@ -126,20 +108,15 @@ def experiment( lqr_dim, n_ineff, env_seed, \
 
     for i in range(n_epochs):
         
-        # try:
         core.learn(n_episodes=fit_per_epoch * ep_per_fit,
                 n_episodes_per_fit=ep_per_fit, quiet=quiet)
 
         dataset_eval = core.evaluate(n_episodes=ep_per_fit, quiet=quiet)
-        # print('distribution parameters: ', distribution.get_parameters())
         J = compute_J(dataset_eval, gamma=mdp.info.gamma)
         print('J at iteration ' + str(i) + ': ' + str(round(np.mean(J),4)))
         
         returns_mean += [np.mean(J)]
         returns_std += [np.std(J)]
-        # except np.linalg.LinAlgError as error:
-        #     print(error)
-        #     break
 
     # logging
     gain_policy = policy.get_weights()
@@ -174,32 +151,37 @@ def experiment( lqr_dim, n_ineff, env_seed, \
 
 def default_params():
     defaults = dict(
+        
         # environment
         lqr_dim = 10,
-        n_ineff = 3,
-        env_seed = 42, # -1,
+        n_ineff = 7,
+        env_seed = 1,
 
         # algorithm
         # alg = 'MORE',
         # alg = 'REPS_MI',
         # alg = 'REPS',
-        alg = 'REPS_MI_full',
-        eps = 1.,
-        kappa = 1.,
+        # alg = 'REPS_MI_full',
+        # alg = 'REPS_MI',
+        alg = 'REPS_MI_ORACLE',
+        # alg = 'ConstrainedREPSMIOracle',
+        eps = .5,
+        kappa = .5,
         k = 20,
 
         # distribution
         sigma_init = 3e-1,
         # distribution = 'diag',
-        # distribution = 'cholesky',
-        distribution = 'mi',
+        distribution = 'diag',
+        # distribution = 'mi',
 
         # MI related
         method = 'MI', # Pearson
         mi_type = 'regression',
         bins = 4,
-        sample_type = None,
-        gamma = 0.1,
+        sample_type = 'percentage',
+        # sample_type = None,
+        gamma = -1,#0.9,
         mi_avg = 0, # False
 
         # training
