@@ -2,7 +2,6 @@ import os
 import argparse
 import joblib
 import numpy as np
-import matplotlib.pyplot as plt
 
 from mushroom_rl.core import Core
 from mushroom_rl.utils.dataset import compute_J
@@ -43,36 +42,40 @@ def experiment( n_tilings, \
     # n_tiles = [5, 5, 6, 5]
     low = np.array(low, dtype=float)
     high = np.array(high, dtype=float)
-    n_tilings = n_tilings
 
-    tilings = Tiles.generate(n_tilings=n_tilings, n_tiles=n_tiles, low=low,
-                             high=high)
+    tilings = Tiles.generate(n_tilings=n_tilings, n_tiles=n_tiles, 
+                            low=low, high=high)
 
     features = Features(tilings=tilings)
     input_shape = (features.size,)
-    
-    # Oracle
-    try:
-        approximator = Regressor(LinearApproximator, input_shape=input_shape,
-                                output_shape=mdp.info.action_space.shape)
-        policy = DeterministicPolicy(approximator)
-        alg_string = alg
-        distribution_string = distribution
-        distribution = joblib.load(f'logs/ship/all_best_25/alg_ConstrainedREPSMI/k_75/sample_type_percentage/gamma_0.9/eps_5.3/kappa_14.0/ConstrainedREPSMI_0_state')['distribution']
-        alg, params = init_algorithm(algorithm_class='ConstrainedREPSMI', params=init_params)
-        agent = alg(mdp.info, distribution, policy, features=features, **params)
-        core = Core(agent, mdp)
 
-        alg = alg_string
-        distribution = distribution_string
-        dataset_eval = core.evaluate(n_episodes=1, quiet=quiet)
-        
-        oracle = np.arange(0, policy.weights_size, 1)[agent.states > 0].tolist()
-        print('Successfully loaded Oracle!')
-    except:
-        if 'Oracle' in alg or 'ORACLE' in alg:
+    # Oracle
+    if 'Oracle' in alg or 'ORACLE' in alg:
+        try:
+            mdp_oracle = ShipSteering()
+            approximator_oracle = Regressor(LinearApproximator, input_shape=input_shape,
+                                    output_shape=mdp_oracle.info.action_space.shape)
+            policy_oracle = DeterministicPolicy(approximator_oracle)
+            distribution_oracle = joblib.load(f'logs/ship/all_best_25/alg_ConstrainedREPSMI/k_75/sample_type_percentage/gamma_0.9/eps_5.3/kappa_14.0/ConstrainedREPSMI_{seed}_state')['distribution']
+            alg_oracle, params_orcale = init_algorithm(algorithm_class='ConstrainedREPSMI', params=init_params)
+            agent_oracle = alg_oracle(mdp_oracle.info, distribution_oracle, policy_oracle, features=features, **params_orcale)
+            core_oracle = Core(agent_oracle, mdp_oracle)
+
+            eval_oracle = core_oracle.evaluate(n_episodes=1, quiet=quiet)
+            
+            oracle = np.arange(0, policy_oracle.weights_size, 1)[agent_oracle.states > 0].tolist()
+            del policy_oracle, distribution_oracle, alg_oracle, params_orcale, agent_oracle, core_oracle, eval_oracle, approximator_oracle, mdp_oracle
+            print('Successfully loaded Oracle!')
+        except:
             print('Failed to load Oracle!')
-            exit()
+            if seed > 0 and seed < 25 and tilings == 1:
+                oracle = [75, 80, 81, 86, 87, 92, 93, 100]
+                print('Using hard coded Oracle!')
+            else:
+                print('Define Oracle or specify path! Exiting...')
+                exit()
+        print(oracle)
+    else:
         oracle=None
     
     init_params['oracle'] = oracle
@@ -89,10 +92,6 @@ def experiment( n_tilings, \
     print('action space', mdp.info.action_space.shape)
     print('parameters', policy.weights_size)
 
-    # TODO
-    distribution = joblib.load('logs/ship/all_best_25/alg_ConstrainedREPSMI/k_75/sample_type_percentage/gamma_0.9/eps_5.3/kappa_14.0/ConstrainedREPSMI_0_state')['distribution']
-    # distribution = joblib.load('C:/Users/Marius/iprl_bbo/logs/ship/ConstrainedREPSMI_0_state')['distribution']
-    
     # init agent
     alg, params = init_algorithm(algorithm_class=alg, params=init_params)
     agent = alg(mdp.info, distribution, policy, features=features, **params)
