@@ -47,7 +47,7 @@ def experiment( env_name, horizon, env_gamma, \
     os.makedirs(results_dir, exist_ok=True)
 
     # MDP
-    mdp = Gym(env_name, horizon=None if horizon == 0 else horizon, gamma=0.99)
+    mdp = Gym(env_name, horizon=None if horizon == 0 else horizon, gamma=0.99, render=not quiet)
     
     approximator = Regressor(TorchApproximator,
                              network = Network,
