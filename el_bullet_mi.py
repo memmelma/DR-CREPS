@@ -132,6 +132,7 @@ def experiment( env_name, horizon, env_gamma, \
 
     dump_dict = dict({
         'returns_mean': returns_mean,
+        'reward_mean': reward_mean,
         'returns_std': returns_std,
         'gain_policy': gain_policy,
         'best_reward': best_reward,
