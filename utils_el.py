@@ -21,6 +21,7 @@ def init_distribution(mu_init=0, sigma_init=1e-3, size=1, sample_type=None, gamm
         # load full covariance
         if type(sigma_init) != float:
             distribution = sigma_init
+            print('Successfully loaded distribution!')
         else:
             sigma = sigma_init * np.ones(size)
             distribution = GaussianDiagonalDistribution(mu, sigma)
