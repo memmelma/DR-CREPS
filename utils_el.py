@@ -75,6 +75,10 @@ def init_algorithm(algorithm_class='REPS', params={}):
     elif algorithm_class == 'REPS_MI':
         alg = REPS_MI
         params = {'eps': params['eps'], 'gamma': params['gamma'], 'k': params['k'], 'bins': params['bins'], 'method': params['method'], 'mi_type': params['mi_type'], 'mi_avg': params['mi_avg']}
+      
+    elif algorithm_class == 'REPS_MI_ORACLE':
+        alg = REPS_MI
+        params = {'eps': params['eps'], 'gamma': params['gamma'], 'k': params['k'], 'bins': params['bins'], 'method': params['method'], 'mi_type': params['mi_type'], 'mi_avg': params['mi_avg'], 'oracle': params['oracle']}
 
     elif algorithm_class == 'RWR':
         alg = RWR
@@ -95,6 +99,10 @@ def init_algorithm(algorithm_class='REPS', params={}):
     elif algorithm_class == 'ConstrainedREPSMIFull':
         alg = ConstrainedREPSMIFull
         params = {'eps': params['eps'], 'k': params['k'], 'kappa': params['kappa'], 'gamma': params['gamma'], 'bins': params['bins'], 'method': params['method'], 'mi_type': params['mi_type'], 'mi_avg': params['mi_avg']}
+    
+    elif algorithm_class == 'ConstrainedREPSMIOracle':
+        alg = ConstrainedREPSMI
+        params = {'eps': params['eps'], 'k': params['k'], 'kappa': params['kappa'], 'gamma': params['gamma'], 'bins': params['bins'], 'method': params['method'], 'mi_type': params['mi_type'], 'mi_avg': params['mi_avg'], 'oracle': params['oracle']}
 
     return alg, params
 

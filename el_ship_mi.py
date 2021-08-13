@@ -50,19 +50,48 @@ def experiment( n_tilings, \
 
     features = Features(tilings=tilings)
     input_shape = (features.size,)
+    
+    # Oracle
+    try:
+        approximator = Regressor(LinearApproximator, input_shape=input_shape,
+                                output_shape=mdp.info.action_space.shape)
+        policy = DeterministicPolicy(approximator)
+        alg_string = alg
+        distribution_string = distribution
+        distribution = joblib.load(f'logs/ship/all_best_25/alg_ConstrainedREPSMI/k_75/sample_type_percentage/gamma_0.9/eps_5.3/kappa_14.0/ConstrainedREPSMI_0_state')['distribution']
+        alg, params = init_algorithm(algorithm_class='ConstrainedREPSMI', params=init_params)
+        agent = alg(mdp.info, distribution, policy, features=features, **params)
+        core = Core(agent, mdp)
 
+        alg = alg_string
+        distribution = distribution_string
+        dataset_eval = core.evaluate(n_episodes=1, quiet=quiet)
+        
+        oracle = np.arange(0, policy.weights_size, 1)[agent.states > 0].tolist()
+        print('Successfully loaded Oracle!')
+    except:
+        if 'Oracle' in alg or 'ORACLE' in alg:
+            print('Failed to load Oracle!')
+            exit()
+        oracle=None
+    
+    init_params['oracle'] = oracle
+
+    # init approximator
     approximator = Regressor(LinearApproximator, input_shape=input_shape,
                              output_shape=mdp.info.action_space.shape)
     policy = DeterministicPolicy(approximator)
 
+
     # init distribution
     distribution = init_distribution(mu_init=0, sigma_init=sigma_init, size=policy.weights_size, sample_type=sample_type, gamma=gamma, distribution_class=distribution)
     
+    print('action space', mdp.info.action_space.shape)
     print('parameters', policy.weights_size)
 
     # TODO
-    # distribution = joblib.load('logs/ship/all_best_25/alg_ConstrainedREPSMI/k_75/sample_type_percentage/gamma_0.9/eps_5.3/kappa_14.0/ConstrainedREPSMI_0_state')['distribution']
-    distribution = joblib.load('C:/Users/Marius/iprl_bbo/logs/ship/ConstrainedREPSMI_0_state')['distribution']
+    distribution = joblib.load('logs/ship/all_best_25/alg_ConstrainedREPSMI/k_75/sample_type_percentage/gamma_0.9/eps_5.3/kappa_14.0/ConstrainedREPSMI_0_state')['distribution']
+    # distribution = joblib.load('C:/Users/Marius/iprl_bbo/logs/ship/ConstrainedREPSMI_0_state')['distribution']
     
     # init agent
     alg, params = init_algorithm(algorithm_class=alg, params=init_params)
@@ -91,7 +120,11 @@ def experiment( n_tilings, \
         
         returns_mean += [np.mean(J)]
         returns_std += [np.std(J)]
-        
+
+    agent.states = np.zeros(policy.weights_size)
+    dataset_eval = core.evaluate(n_episodes=1, quiet=quiet, render=not quiet)
+    print(agent.states.astype(np.int32))
+
     # logging
     gain_policy = policy.get_weights()
     mus, kls, entropys, mi_avg = log_constraints(agent)
@@ -133,10 +166,14 @@ def default_params():
         n_tilings = 1,
 
         # algorithm
-        alg = 'REPS_MI',
-        eps = 1.0,
-        kappa = 6.0,
-        k = 25,
+        alg = 'REPS_MI_ORACLE',
+        # alg = 'ConstrainedREPSMIOracle',
+        # alg = 'ConstrainedREPSMI',
+        # alg = 'REPS_MI',
+        # alg = 'REPS',
+        eps = 0.9,
+        kappa = 14.0,
+        k = 8,
 
         # distribution
         sigma_init = 7e-2,
@@ -147,13 +184,13 @@ def default_params():
         mi_type = 'regression',
         bins = 4,
         sample_type = None,
-        gamma = 0.1,
+        gamma = 0.9,
         mi_avg = 0, # False
 
         # training
         n_epochs = 10,
         fit_per_epoch = 1, 
-        ep_per_fit = 1,
+        ep_per_fit = 25,
 
         # misc
         seed = 2,
