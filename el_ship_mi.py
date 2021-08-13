@@ -61,8 +61,9 @@ def experiment( n_tilings, \
     print('parameters', policy.weights_size)
 
     # TODO
-    distribution = joblib.load('logs/ship/all_best_25/alg_ConstrainedREPSMI/k_75/sample_type_percentage/gamma_0.9/eps_5.3/kappa_14.0/ConstrainedREPSMI_0_state')['distribution']
-
+    # distribution = joblib.load('logs/ship/all_best_25/alg_ConstrainedREPSMI/k_75/sample_type_percentage/gamma_0.9/eps_5.3/kappa_14.0/ConstrainedREPSMI_0_state')['distribution']
+    distribution = joblib.load('C:/Users/Marius/iprl_bbo/logs/ship/ConstrainedREPSMI_0_state')['distribution']
+    
     # init agent
     alg, params = init_algorithm(algorithm_class=alg, params=init_params)
     agent = alg(mdp.info, distribution, policy, features=features, **params)
@@ -70,13 +71,11 @@ def experiment( n_tilings, \
     # train
     core = Core(agent, mdp)
 
-    dataset_eval = core.evaluate(n_episodes=ep_per_fit, quiet=quiet)
+    dataset_eval = core.evaluate(n_episodes=ep_per_fit, quiet=quiet, render=not quiet)
     # print('distribution parameters: ', distribution.get_parameters())
     J = compute_J(dataset_eval, gamma=mdp.info.gamma)
     print('J at start : ' + str(np.mean(J)))
 
-    print(agent.states)
-    exit()
     returns_mean = [np.mean(J)]
     returns_std = [np.std(J)]
 
