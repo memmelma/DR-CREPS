@@ -52,21 +52,29 @@ def experiment( n_tilings, \
     input_shape = (features.size,)
     
     # Oracle
-    approximator = Regressor(LinearApproximator, input_shape=input_shape,
-                            output_shape=mdp.info.action_space.shape)
-    policy = DeterministicPolicy(approximator)
-    alg_string = alg
-    distribution_string = distribution
-    distribution = joblib.load(f'logs/ship/all_best_25/alg_ConstrainedREPSMI/k_75/sample_type_percentage/gamma_0.9/eps_5.3/kappa_14.0/ConstrainedREPSMI_0_state')['distribution']
-    alg, params = init_algorithm(algorithm_class='ConstrainedREPSMI', params=init_params)
-    agent = alg(mdp.info, distribution, policy, features=features, **params)
-    core = Core(agent, mdp)
+    try:
+        approximator = Regressor(LinearApproximator, input_shape=input_shape,
+                                output_shape=mdp.info.action_space.shape)
+        policy = DeterministicPolicy(approximator)
+        alg_string = alg
+        distribution_string = distribution
+        distribution = joblib.load(f'logs/ship/all_best_25/alg_ConstrainedREPSMI/k_75/sample_type_percentage/gamma_0.9/eps_5.3/kappa_14.0/ConstrainedREPSMI_0_state')['distribution']
+        alg, params = init_algorithm(algorithm_class='ConstrainedREPSMI', params=init_params)
+        agent = alg(mdp.info, distribution, policy, features=features, **params)
+        core = Core(agent, mdp)
 
-    alg = alg_string
-    distribution = distribution_string
-    dataset_eval = core.evaluate(n_episodes=1, quiet=quiet)
+        alg = alg_string
+        distribution = distribution_string
+        dataset_eval = core.evaluate(n_episodes=1, quiet=quiet)
+        
+        oracle = np.arange(0, policy.weights_size, 1)[agent.states > 0].tolist()
+        print('Successfully loaded Oracle!')
+    except:
+        if 'Oracle' in alg or 'ORACLE' in alg:
+            print('Failed to load Oracle!')
+            exit()
+        oracle=None
     
-    oracle = np.arange(0, policy.weights_size, 1)[agent.states > 0].tolist()
     init_params['oracle'] = oracle
 
     # init approximator
@@ -151,14 +159,14 @@ def experiment( n_tilings, \
 def default_params():
     defaults = dict(
         # environment
-        n_tilings = 2,
+        n_tilings = 1,
 
         # algorithm
-        # alg = 'REPS_MI_ORACLE',
+        alg = 'REPS_MI_ORACLE',
         # alg = 'ConstrainedREPSMIOracle',
         # alg = 'ConstrainedREPSMI',
         # alg = 'REPS_MI',
-        alg = 'REPS',
+        # alg = 'REPS',
         eps = 0.9,
         kappa = 14.0,
         k = 8,
