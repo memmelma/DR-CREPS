@@ -18,27 +18,25 @@ class MORE(BlackBoxOptimization):
     Peters, Jan R and Lau, Nuno and Pualo Reis, Luis and Neumann, Gerhard. 2015.
 
     """
-    def __init__(self, mdp_info, distribution, policy, eps, mu, sigma_init, h0=-75, gamma=0.99, features=None):
+    def __init__(self, mdp_info, distribution, policy, eps, mu, sigma, h0=-75, kappa=0.99, features=None):
         """
         Constructor.
 
         Args:
-            eps (float): the maximum admissible value for the Kullback-Leibler
+            eps ([float, Parameter]): the maximum admissible value for the Kullback-Leibler
                 divergence between the new distribution and the
                 previous one at each update step.
-            mu (float): initial mean of the Gaussian Cholesky Distribution.
-            sigma_init (float): initial covariance of the Gaussian Cholesky Distribution.
-            h0 (float): minimum exploration policy.
-            gamma (float): regularization parameter for the entropy decrease.
+            mu (float): initial mean vector of the Gaussian Cholesky Distribution.
+            sigma (float): initial covariance matrix of the Gaussian Cholesky Distribution.
+            h0 ([float, Parameter]): minimum exploration policy.
+            kappa ([float, Parameter]): regularization parameter for the entropy decrease.
 
         """
 
         self.eps = to_parameter(eps)
         self.h0 = to_parameter(h0)
-        self.gamma = to_parameter(gamma)
+        self.kappa = to_parameter(kappa)
 
-        mu = mu * np.ones(policy.weights_size)
-        sigma = sigma_init * np.eye(policy.weights_size)
         distribution = GaussianCholeskyDistribution(mu, sigma)
    
         poly_basis_quadratic = PolynomialBasis().generate(2, policy.weights_size)
@@ -55,13 +53,13 @@ class MORE(BlackBoxOptimization):
         
         self._add_save_attr(eps='primitive')
         self._add_save_attr(h0='primitive')
-        self._add_save_attr(gamma='primitive')
+        self._add_save_attr(kappa='primitive')
 
         super().__init__(mdp_info, distribution, policy, features)
 
     def _update(self, Jep, theta):
         
-        beta = self.gamma() * (self.distribution.entropy() - self.h0()) + self.h0()
+        beta = self.kappa() * (self.distribution.entropy() - self.h0()) + self.h0()
 
         n = len(self.distribution._mu)
         dist_params = self.distribution.get_parameters()
@@ -70,7 +68,7 @@ class MORE(BlackBoxOptimization):
         chol_sig_empty[np.tril_indices(n)] = dist_params[n:]
         sig_t = chol_sig_empty.dot(chol_sig_empty.T)
 
-        R, r, r_0 = self.fit_quadratic_surrogate(theta, Jep, n)
+        R, r, r_0 = self._fit_quadratic_surrogate(theta, Jep, n)
         
         eta_omg_start = np.ones(2)
         res = minimize(MORE._dual_function, eta_omg_start,
@@ -85,7 +83,7 @@ class MORE(BlackBoxOptimization):
         dist_params = np.concatenate((mu_t1.flatten(), np.linalg.cholesky(sig_t1)[np.tril_indices(n)].flatten()))
         self.distribution.set_parameters(dist_params)
     
-    def fit_quadratic_surrogate(self, theta, Jep, n):
+    def _fit_quadratic_surrogate(self, theta, Jep, n):
 
         Jep = ( Jep - np.mean(Jep, keepdims=True, axis=0) ) / np.std(Jep, keepdims=True, axis=0)
         
