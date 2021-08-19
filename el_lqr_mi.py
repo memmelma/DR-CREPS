@@ -12,9 +12,6 @@ from mushroom_rl.policy import DeterministicPolicy
 from mushroom_rl.utils.dataset import compute_J
 from mushroom_rl.solvers.lqr import compute_lqr_feedback_gain
 
-from custom_algorithms.reps_mi import REPS_MI
-from custom_algorithms.constrained_reps_mi import ConstrainedREPSMI
-
 from utils_el import init_distribution, init_algorithm, log_constraints
 
 
@@ -33,7 +30,7 @@ def experiment( lqr_dim, n_ineff, env_seed, \
 
     # init LQR
     horizon = 50
-    mdp = LQR.generate(dimensions=lqr_dim, horizon=50, episodic=False, max_pos=1., max_action=1., eps=0.1)
+    mdp = LQR.generate(dimensions=lqr_dim, horizon=horizon, max_pos=1., max_action=1.)
 
     # init reduced LQR
     if env_seed >= 0:
@@ -155,33 +152,24 @@ def default_params():
         # environment
         lqr_dim = 10,
         n_ineff = 7,
-        env_seed = 1,
+        env_seed = 0,
 
         # algorithm
-        # alg = 'MORE',
-        # alg = 'REPS_MI',
-        # alg = 'REPS',
-        # alg = 'REPS_MI_full',
-        # alg = 'REPS_MI',
         alg = 'REPS_MI_ORACLE',
-        # alg = 'ConstrainedREPSMIOracle',
         eps = .5,
         kappa = .5,
         k = 20,
 
         # distribution
         sigma_init = 3e-1,
-        # distribution = 'diag',
         distribution = 'diag',
-        # distribution = 'mi',
 
         # MI related
         method = 'MI', # Pearson
         mi_type = 'regression',
         bins = 4,
-        sample_type = 'percentage',
-        # sample_type = None,
-        gamma = -1,#0.9,
+        sample_type = None,
+        gamma = 1.,
         mi_avg = 0, # False
 
         # training
