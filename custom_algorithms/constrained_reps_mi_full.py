@@ -111,10 +111,8 @@ class ConstrainedREPSMIFull(BlackBoxOptimization):
 
 		self.distribution._gamma = 1 - self.beta()
 
-		theta_old = np.copy(theta)
 		theta_prime = ( self.distribution._u.T @ ( theta.T - self.distribution._mu[:,None] ) ).T
 		# remove for con_wmle_mi
-		theta_old = theta_prime
 		
 		# REPS
 		eta_start = np.ones(1)
@@ -122,7 +120,7 @@ class ConstrainedREPSMIFull(BlackBoxOptimization):
 		res = minimize(ConstrainedREPSMIFull._dual_function, eta_start,
 					   jac=ConstrainedREPSMIFull._dual_function_diff,
 					   bounds=((np.finfo(np.float32).eps, np.inf),),
-					   args=(self._eps(), Jep, theta_old))
+					   args=(self._eps(), Jep, theta_prime))
 
 		eta_opt = res.x.item()
 
@@ -157,12 +155,12 @@ class ConstrainedREPSMIFull(BlackBoxOptimization):
 			top_k_mi = self.oracle
 
 		# Constrained Update
-		# kl, entropy, mu = self.distribution.con_wmle_mi(theta_old, d, self._eps(), self._kappa(), top_k_mi)
-		kl, entropy, mu = self.distribution.con_wmle_mi_full(theta_old, d, self._eps(), self._kappa(), top_k_mi)
-		# kl, entropy, mu = self.distribution.con_wmle_full(theta_old, d, self._eps(), self._kappa(), top_k_mi)
+		# kl, entropy, mu = self.distribution.con_wmle_mi(theta_prime, d, self._eps(), self._kappa(), top_k_mi)
+		kl, entropy, mu = self.distribution.con_wmle_mi_full(theta_prime, d, self._eps(), self._kappa(), top_k_mi)
+		# kl, entropy, mu = self.distribution.con_wmle_full(theta_prime, d, self._eps(), self._kappa(), top_k_mi)
 
-		importance = self.mi_avg #/ np.sum(self.mi_avg)
-		self.distribution.update_importance(importance)
+		# importance = self.mi_avg #/ np.sum(self.mi_avg)
+		# self.distribution.update_importance(importance)
 
 		self.mus += [mu]
 		self.kls += [kl]
