@@ -1,5 +1,4 @@
 import numpy as np
-from numpy.lib.arraysetops import setdiff1d
 from .distribution import Distribution
 from scipy.stats import multivariate_normal
 from scipy.optimize import minimize
@@ -351,6 +350,7 @@ class GaussianDistributionMI(Distribution):
         """
         self._mu = mu
         self._u, self._s, self._vh = np.linalg.svd(sigma)
+        self.sigma_new_sample = np.diag(self._s)
 
         self._gamma = 0
         self._sample_type = None
@@ -388,6 +388,9 @@ class GaussianDistributionMI(Distribution):
             std_tmp = std_tmp * self._importance
 
         sigma = np.diag(std_tmp)
+
+        u, s, v = np.linalg.svd(self.sigma_new_sample)
+        sigma = np.diag(s)
 
         theta = np.random.multivariate_normal(np.zeros_like(self._mu), sigma)[:, np.newaxis]
         return ( self._u @ theta + self._mu[:,np.newaxis] ).squeeze()
@@ -459,6 +462,13 @@ class GaussianDistributionMI(Distribution):
         mu_new_tmp = np.zeros_like(self._mu)
         mu_new_tmp[indices] = mu_new
         mu_new = mu_new_tmp
+        
+        self.sigma_new_sample = sigma_old * self._gamma
+        self.sigma_new_sample[indices,indices] = np.diag(sigma_new)
+        for i, idx_i in enumerate(indices):
+            for j, idx_j in enumerate(indices):
+                if i != j:
+                    self.sigma_new_sample[idx_i,idx_j] = sigma_new[i,j]
 
         sigma_new_tmp = sigma_old
         sigma_new_tmp[indices,indices] = np.diag(sigma_new)
@@ -472,7 +482,7 @@ class GaussianDistributionMI(Distribution):
         self._mu = self._mu + self._u @ mu_new
         sigma_new = self._u @ sigma_new @ self._vh
         self._u, self._s, self._vh = np.linalg.svd(sigma_new)
-
+        # self.sigma_new_sample = np.diag(self._s)
         np.linalg.cholesky(sigma_new)
 
     def con_wmle_mi(self, theta, weights, eps, kappa, indices):
@@ -637,9 +647,15 @@ class GaussianDistributionMI(Distribution):
         mu_new_tmp[indices] = mu_new
         mu_new = mu_new_tmp
 
+        self.sigma_new_sample = sigma_old * self._gamma
+        self.sigma_new_sample[indices,indices] = np.diag(sigma_new)
+        for i, idx_i in enumerate(indices):
+            for j, idx_j in enumerate(indices):
+                if i != j:
+                    self.sigma_new_sample[idx_i,idx_j] = sigma_new[i,j]
+                    
         sigma_new_tmp = np.copy(sigma_old)
         sigma_new_tmp[indices,indices] = np.diag(sigma_new)
-        
         for i, idx_i in enumerate(indices):
             for j, idx_j in enumerate(indices):
                 if i != j:
