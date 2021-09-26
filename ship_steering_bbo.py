@@ -6,6 +6,7 @@ from mushroom_rl.approximators.regressor import Regressor
 from mushroom_rl.core import Core, Logger
 from mushroom_rl.environments import ShipSteering
 from mushroom_rl.features.tiles import Tiles
+from mushroom_rl.features.basis import GaussianRBF
 from mushroom_rl.features.features import Features
 # from mushroom_rl.distributions import GaussianDiagonalDistribution
 from mushroom_rl.policy import DeterministicPolicy
@@ -51,8 +52,14 @@ def experiment(alg, params, distribution, n_epochs, fit_per_epoch, ep_per_fit):
 
     tilings = Tiles.generate(n_tilings=n_tilings, n_tiles=n_tiles, low=low,
                              high=high)
-
     phi = Features(tilings=tilings)
+
+    high = [150, 150, np.pi, np.pi / 12.]
+    low = [0, 0, -np.pi, -np.pi / 12.]
+    # rbf = GaussianRBF.generate(n_centers=np.array([10, 10, 10]), low=low, high=high,)
+    rbf = GaussianRBF.generate(n_centers=[5,5,5,5], low=low, high=high,)
+    phi = Features(basis_list=rbf)
+
     input_shape = (phi.size,)
 
     approximator = Regressor(LinearApproximator, input_shape=input_shape,
