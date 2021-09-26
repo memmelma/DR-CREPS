@@ -47,7 +47,6 @@ def experiment( lqr_dim, n_ineff, env_seed, \
         for p in eff_params:
             oracle += tmp[p*lqr_dim:(p+1)*lqr_dim].tolist()
         init_params['oracle'] = oracle
-
         for p in ineff_params:
             mdp.B[p][p] = 1e-20
             mdp.Q[p][p] = 1e-20
@@ -120,7 +119,15 @@ def experiment( lqr_dim, n_ineff, env_seed, \
     mus, kls, entropys, mi_avg = log_constraints(agent)
     best_reward = np.array(returns_mean).max()
 
+    if hasattr(agent, 'top_k_mis'):
+        top_k_mis = agent.top_k_mis
+    else:
+        top_k_mis = None
+    
     dump_dict = dict({
+        
+        'top_k_mis': top_k_mis,
+
         'returns_mean': returns_mean,
         'returns_std': returns_std,
         'agent': agent,
@@ -155,27 +162,38 @@ def default_params():
         env_seed = 0,
 
         # algorithm
-        alg = 'REPS_MI_ORACLE',
+        # alg = 'REPS',
+        # alg = 'REPS_MI_full',
+        alg = 'REPS_MI',
         eps = .5,
         kappa = .5,
         k = 20,
 
         # distribution
         sigma_init = 3e-1,
+        # distribution = 'cholesky',
         distribution = 'diag',
+        # distribution = 'mi',
 
         # MI related
-        method = 'MI', # Pearson
+        method = 'MI',
+        # method = 'Pearson',
         mi_type = 'regression',
         bins = 4,
-        sample_type = None,
-        gamma = 1.,
+        # sample_type = None,
+        sample_type = 'percentage',
+        # gamma = 1.,
+        gamma = .1,
         mi_avg = 0, # False
 
         # training
-        n_epochs = 100,
+        # n_epochs = 50,
+        # fit_per_epoch = 1, 
+        # ep_per_fit = 60,
+        n_epochs = 1,
+        # n_epochs = 10,
         fit_per_epoch = 1, 
-        ep_per_fit = 25,
+        ep_per_fit = 150,
 
         # misc
         seed = 0,

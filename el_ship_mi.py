@@ -26,7 +26,6 @@ def experiment( n_tilings, \
 
     quiet = bool(quiet)
     mi_avg = bool(mi_avg)
-    init_params = locals()
     np.random.seed(seed)
     os.makedirs(results_dir, exist_ok=True)
 
@@ -49,35 +48,81 @@ def experiment( n_tilings, \
     features = Features(tilings=tilings)
     input_shape = (features.size,)
 
-    # Oracle
     if 'Oracle' in alg or 'ORACLE' in alg:
-        try:
-            mdp_oracle = ShipSteering()
-            approximator_oracle = Regressor(LinearApproximator, input_shape=input_shape,
-                                    output_shape=mdp_oracle.info.action_space.shape)
-            policy_oracle = DeterministicPolicy(approximator_oracle)
-            distribution_oracle = joblib.load(f'logs/ship/all_best_25/alg_ConstrainedREPSMI/k_75/sample_type_percentage/gamma_0.9/eps_5.3/kappa_14.0/ConstrainedREPSMI_{seed}_state')['distribution']
-            alg_oracle, params_orcale = init_algorithm(algorithm_class='ConstrainedREPSMI', params=init_params)
-            agent_oracle = alg_oracle(mdp_oracle.info, distribution_oracle, policy_oracle, features=features, **params_orcale)
-            core_oracle = Core(agent_oracle, mdp_oracle)
 
-            eval_oracle = core_oracle.evaluate(n_episodes=1, quiet=quiet)
+        # # get ORACLE
+        # oracle_dict = dict()
+        # for seed in range(5):
+        #     mdp_oracle = ShipSteering()
+        #     approximator_oracle = Regressor(LinearApproximator, input_shape=input_shape,
+        #                             output_shape=mdp_oracle.info.action_space.shape)
+        #     policy_oracle = DeterministicPolicy(approximator_oracle)
             
-            oracle = np.arange(0, policy_oracle.weights_size, 1)[agent_oracle.states > 0].tolist()
-            del policy_oracle, distribution_oracle, alg_oracle, params_orcale, agent_oracle, core_oracle, eval_oracle, approximator_oracle, mdp_oracle
-            print('Successfully loaded Oracle!')
-        except:
-            print('Failed to load Oracle!')
-            if seed > 0 and seed < 25 and tilings == 1:
-                oracle = [75, 80, 81, 86, 87, 92, 93, 100]
-                print('Using hard coded Oracle!')
-            else:
-                print('Define Oracle or specify path! Exiting...')
-                exit()
-        print(oracle)
+        #     if tilings == 1:
+        #     # path = 'logs/ship/all_best/alg_REPS_MI/k_25/sample_type_percentage/gamma_0.6/eps_0.9'
+        #         path = f'logs/ship/all_best/alg_REPS/eps_0.9/'
+        #         algo = f'REPS_{seed}'
+        #     elif tilings == 3:
+        #         path = f'logs/ship/3_tiles/alg_ConstrainedREPSMI/k_55/sample_type_percentage/gamma_0.9/eps_9.5/kappa_12.0/'
+        #         algo = f'ConstrainedREPSMI_{seed}'
+            
+        #     init_params = joblib.load(os.path.join(path, algo))['init_params']
+        #     distribution_oracle = joblib.load(os.path.join(path, f'{algo}_state'))['distribution']
+        #     alg_oracle, params_orcale = init_algorithm(algorithm_class='ConstrainedREPSMI', params=init_params)
+        #     agent_oracle = alg_oracle(mdp_oracle.info, distribution_oracle, policy_oracle, features=features, **params_orcale)
+        #     core_oracle = Core(agent_oracle, mdp_oracle)
+
+        #     eval_oracle = core_oracle.evaluate(n_episodes=1, quiet=quiet)
+            
+        #     oracle = np.arange(0, policy_oracle.weights_size, 1)[agent_oracle.states > 0].tolist()
+        #     del policy_oracle, distribution_oracle, alg_oracle, params_orcale, agent_oracle, core_oracle, eval_oracle, approximator_oracle, mdp_oracle
+            
+        #     # count parameter occurences 
+        #     for orac in oracle:
+        #         if str(orac) in oracle_dict.keys():
+        #             oracle_dict[str(orac)] += 1
+        #         else:
+        #             oracle_dict[str(orac)] = 1
+        #     print('oracle',oracle)
+
+        #     # only select parameters that appear at least 50% of the time in 25 runs 
+        #     oracle_new = []
+        #     for key in oracle_dict.keys():
+        #         val = oracle_dict[key]
+        #         # if val > 12:
+        #         if val > 0:
+        #             oracle_new += [key]
+        # print('oracle_all', oracle_new)
+        # exit()
+        
+        if n_tilings == 1:
+            oracle = ['75', '80', '81', '86', '87', '92', '93', '100']
+            oracle = ['75', '80', '81', '86', '87', '92', '93', '100', '118', '105']
+        elif n_tilings == 3:
+            oracle = ['80', '81', '86', '87', '93', '100', '105', '112', '117', '118',
+                     '225', '230', '231', '236', '237', '242', '243', '250', '380', '386',
+                      '392', '393', '400', '405', '92', '106', '111']
+            oracle = ['80', '81', '86', '87', '93', '100', '105', '112', '117', '118',
+                    '225', '230', '231', '236', '237', '242', '243', '250', '380', '381',
+                     '386', '387', '392', '393', '400', '405', '92', '106', '111', '123',
+                      '248', '385', '391', '397']
+        else:
+            print('Define Oracle or specify path! Exiting...')
+            exit()
+        #     print('Using hard coded Oracle!')
+            # print('Failed to load Oracle!')
+            # if seed >= 0 and seed < 25 and tilings == 1:
+            #     oracle = [75, 80, 81, 86, 87, 92, 93, 100]
+            #     print('Using hard coded Oracle!')
+            # elif seed >= 0 and seed < 25 and tilings == 3:
+            # else:
+            #     print('Define Oracle or specify path! Exiting...')
+            #     exit()
+
     else:
         oracle=None
-    
+
+    init_params = locals()
     init_params['oracle'] = oracle
 
     # init approximator
@@ -162,21 +207,22 @@ def experiment( n_tilings, \
 def default_params():
     defaults = dict(
         # environment
-        n_tilings = 1,
+        n_tilings = 3,
 
         # algorithm
-        alg = 'REPS_MI_ORACLE',
+        # alg = 'REPS_MI_ORACLE',
         # alg = 'ConstrainedREPSMIOracle',
         # alg = 'ConstrainedREPSMI',
         # alg = 'REPS_MI',
-        # alg = 'REPS',
+        alg = 'REPS',
         eps = 0.9,
         kappa = 14.0,
         k = 8,
 
         # distribution
         sigma_init = 7e-2,
-        distribution = 'diag',
+        # distribution = 'diag',
+        distribution = 'cholesky',
 
         # MI related
         method = 'MI', # Pearson
@@ -189,10 +235,10 @@ def default_params():
         # training
         n_epochs = 10,
         fit_per_epoch = 1, 
-        ep_per_fit = 25,
+        ep_per_fit = 500,
 
         # misc
-        seed = 2,
+        seed = 0,
         results_dir = 'results',
         quiet = 1 # True
     )
