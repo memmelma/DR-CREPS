@@ -109,7 +109,7 @@ class REPS_MI_full(BlackBoxOptimization):
 		self.distribution._gamma = 1 - self.beta()
 		
 		theta_old = np.copy(theta)
-		theta = ( np.linalg.inv(self.distribution._u) @ ( theta.T - self.distribution._mu[:,None] ) ).T
+		theta_prime = ( self.distribution._u.T @ ( theta.T - self.distribution._mu[:,None] ) ).T
 
 		# REPS
 		eta_start = np.ones(1)
@@ -117,7 +117,7 @@ class REPS_MI_full(BlackBoxOptimization):
 		res = minimize(REPS_MI_full._dual_function, eta_start,
 					   jac=REPS_MI_full._dual_function_diff,
 					   bounds=((np.finfo(np.float32).eps, np.inf),),
-					   args=(self._eps(), Jep, theta_old))
+					   args=(self._eps(), Jep, theta_prime)) # theta_old ??
 
 		eta_opt = res.x.item()
 
@@ -126,9 +126,9 @@ class REPS_MI_full(BlackBoxOptimization):
 		d = np.exp(Jep / eta_opt)
 
 		if self.method == 'MI':
-			mi = self.compute_mi(theta, Jep, type=self._mi_type)
+			mi = self.compute_mi(theta_prime, Jep, type=self._mi_type)
 		elif self.method == 'Pearson':
-			mi = self.compute_pearson(theta, Jep)
+			mi = self.compute_pearson(theta_prime, Jep)
 				
 		if not self._mi_avg:
 			self.mi_avg = mi / np.max(mi)
@@ -150,9 +150,9 @@ class REPS_MI_full(BlackBoxOptimization):
 		if self.oracle != None:
 			top_k_mi = self.oracle
 
-		self.distribution._top_k = top_k_mi
-		# self.distribution.mle_mi_diag(theta_old, d)
-		self.distribution.mle_mi_full(theta_old, top_k_mi, d)
+		# self.distribution._top_k = top_k_mi
+		# self.distribution.mle_mi_full(theta_old, top_k_mi, d)
+		self.distribution.mle_mi_full(theta_prime, top_k_mi, d)
 
 		importance = self.mi_avg # / np.sum(self.mi_avg)
 		self.distribution.update_importance(importance)

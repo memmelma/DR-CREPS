@@ -19,19 +19,33 @@ from utils_el import init_distribution, init_algorithm, log_constraints
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+
+from mushroom_rl.utils.torch import get_weights
+
 
 class Network(nn.Module):
-    def __init__(self, in_features, out_features, *args, **kwargs) -> None:
+    def __init__(self, input_shape, output_shape, *args, **kwargs) -> None:
         super(Network, self).__init__()
-        hidden_features = 32 # in_features[0] // 2
-        layers = [nn.Linear(in_features[0], hidden_features)]
-        layers += [nn.ReLU()]
-        layers += [nn.Linear(hidden_features, out_features=out_features[0])]
-        layers += [nn.Tanh()]
-        self.layers = nn.Sequential(*layers)
+        n_input = input_shape[-1]
+        n_output = output_shape[0]
+        n_features = 32
 
-    def forward(self,x) -> torch.Tensor:
-        return self.layers(x)
+        self._h1 = nn.Linear(n_input, n_features)
+        self._h2 = nn.Linear(n_features, n_output)
+
+        nn.init.xavier_uniform_(self._h1.weight,
+                                gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform_(self._h2.weight,
+                                gain=nn.init.calculate_gain('linear'))
+
+
+    def forward(self, state) -> torch.Tensor:
+        features1 = F.relu(self._h1(torch.squeeze(state, 1).float()))
+        a = self._h2(features1)
+        a = F.tanh(a)
+        return a
+        # TODO check action space
 
 def experiment( env_name, horizon, env_gamma, \
                 alg, eps, kappa, k, \
@@ -53,11 +67,15 @@ def experiment( env_name, horizon, env_gamma, \
                              network = Network,
                              input_shape=mdp.info.observation_space.shape,
                              output_shape=mdp.info.action_space.shape)
-                             
+    
     policy = DeterministicPolicy(mu=approximator)
 
     # init distribution
     distribution = init_distribution(mu_init=0, sigma_init=sigma_init, size=policy.weights_size, sample_type=sample_type, gamma=gamma, distribution_class=distribution)
+    # use network init as init mu
+    distribution._mu = get_weights(approximator.model.network.parameters())
+    print(distribution._mu)
+    
     print(f'{policy.weights_size} parameters')
 
     # init agent
@@ -161,7 +179,8 @@ def experiment( env_name, horizon, env_gamma, \
 def default_params():
     defaults = dict(
         # environment
-        env_name = 'HopperBulletEnv-v0',
+        # env_name = 'HopperBulletEnv-v0',
+        env_name = 'HalfCheetahBulletEnv-v0',
         horizon = 0, # None
         env_gamma = 0.99,
 

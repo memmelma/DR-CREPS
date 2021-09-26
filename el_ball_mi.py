@@ -31,6 +31,8 @@ def experiment( n_basis, horizon, \
 
     policy = ProMPPolicy(n_basis=n_basis, basis_width=1e-3, maxSteps=horizon, output=mdp.info.action_space.shape)
 
+    print('parameters', policy.weights_size)
+    
     # init distribution
     distribution = init_distribution(mu_init=0, sigma_init=sigma_init, size=policy.weights_size, sample_type=sample_type, gamma=gamma, distribution_class=distribution)
     
