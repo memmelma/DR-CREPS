@@ -47,8 +47,12 @@ def init_distribution(mu_init=0, sigma_init=1e-3, size=1, sample_type=None, gamm
         sigma = sigma_init**2 * np.eye(size)
         distribution = GaussianDistribution(mu, sigma)
     elif distribution_class == 'mi':
-        sigma = sigma_init**2 * np.eye(size)
-        distribution = GaussianDistributionMI(mu, sigma)
+        if type(sigma_init) != float:
+            distribution = sigma_init
+            print('Successfully loaded distribution!')
+        else:
+            sigma = sigma_init**2 * np.eye(size)
+            distribution = GaussianDistributionMI(mu, sigma)
 
         if sample_type == 'fixed':
             distribution.set_fixed_sample(gamma=gamma)
