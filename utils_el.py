@@ -38,9 +38,12 @@ def init_distribution(mu_init=0, sigma_init=1e-3, size=1, sample_type=None, gamm
     elif distribution_class == 'cholesky':
         print('sample_type only supported for diagonal covariance')
         print('sigma_init passed is std -> cov = sigma_init**2')
-        sigma = sigma_init**2 * np.eye(size)
-        print(sigma)
-        distribution = GaussianCholeskyDistribution(mu, sigma)
+        if type(sigma_init) != float:
+            distribution = sigma_init
+            print('Successfully loaded distribution!')
+        else:
+            sigma = sigma_init**2 * np.eye(size)
+            distribution = GaussianCholeskyDistribution(mu, sigma)
     elif distribution_class == 'fixed':
         print('sample_type only supported for diagonal covariance')
         print('sigma_init passed is std -> cov = sigma_init**2')
