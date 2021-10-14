@@ -93,74 +93,6 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
         if len(data_dict[exp]['returns_mean']) < max_runs:
             continue
 
-        # if data_dict[exp]['init_params'][0]['sample_type'] != None and data_dict[exp]['init_params'][0]['gamma'] != 0.5:
-        #     continue
-
-        # if data_dict[exp]['init_params'][0]['alg'] != 'REPS' and data_dict[exp]['init_params'][0]['alg'] != 'ConstrainedREPS':
-        #     continue
-
-        ####
-        # if data_dict[exp]['init_params'][0]['alg'] != 'ConstrainedREPS' and data_dict[exp]['init_params'][0]['alg'] != 'ConstrainedREPSMIFull':
-        #     continue
-        # if data_dict[exp]['init_params'][0]['alg'] != 'ConstrainedREPS' and data_dict[exp]['init_params'][0]['gamma'] != 0.1:
-        #     continue
-
-        # if data_dict[exp]['init_params'][0]['alg'] != 'ConstrainedREPS' and data_dict[exp]['init_params'][0]['k'] != 50:
-        #     continue
-        
-        # if data_dict[exp]['init_params'][0]['ep_per_fit'] != 15 and data_dict[exp]['init_params'][0]['alg'] != 'ConstrainedREPS':
-        #     continue
-            
-        # if data_dict[exp]['init_params'][0]['ep_per_fit'] != 50 and data_dict[exp]['init_params'][0]['alg'] != 'ConstrainedREPSMIFull':
-        #     continue
-
-
-        # if data_dict[exp]['init_params'][0]['sample_type'] != 'percentage':
-        #     continue
-        
-        # if data_dict[exp]['init_params'][0]['gamma'] != 0.1:
-        #     continue
-        
-        # if data_dict[exp]['init_params'][0]['k'] != 30:
-        #     continue
-        
-        if data_dict[exp]['init_params'][0]['gamma'] != 0.1:
-            continue
-
-        # if data_dict[exp]['init_params'][0]['k'] != 200:
-        #     continue
-
-
-        # if data_dict[exp]['init_params'][0]['alg'] != 'ConstrainedREPSMIFull' and data_dict[exp]['init_params'][0]['ep_per_fit'] > 150:
-        #     continue
-
-        ####
-
-        # if data_dict[exp]['init_params'][0]['alg'] != 'ConstrainedREPS' and data_dict[exp]['init_params'][0]['sample_type'] != 'None':
-        #     continue
-        # if data_dict[exp]['init_params'][0]['alg'] != 'REPS' and data_dict[exp]['init_params'][0]['ep_per_fit'] != 150:
-        #     continue
-        # if data_dict[exp]['init_params'][0]['alg'] != 'REPS' and data_dict[exp]['init_params'][0]['gamma'] != 0.5:
-        #     continue
-        # if data_dict[exp]['init_params'][0]['alg'] != 'REPS' and data_dict[exp]['init_params'][0]['k'] != 50:
-        #     continue
-        # if data_dict[exp]['init_params'][0]['eps'] != 0.7:
-        #     continue
-
-        # if data_dict[exp]['init_params'][0]['distribution'] != 'cholesky' and data_dict[exp]['init_params'][0]['distribution'] != 'mi':
-        #     continue
-
-        # if data_dict[exp]['init_params'][0]['method'] != 'MI':
-        #     continue
-
-        # if data_dict[exp]['init_params'][0]['ep_per_fit'] != 125 and data_dict[exp]['init_params'][0]['ep_per_fit'] != 250:
-        #     continue
-        
-        # if data_dict[exp]['init_params'][0]['alg'] == 'ConstrainedREPSMIFull':
-        #     if data_dict[exp]['init_params'][0]['sample_type'] == 'percentage':
-        #         if data_dict[exp]['init_params'][0]['gamma'] != 0.1:
-        #             continue
-
         # for broken bullet runs
         if 'bullet' in exp:
             min_length = np.min([len(x) for x in data_dict[exp]['returns_mean']])
@@ -178,7 +110,7 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
             continue
         
         # determine x axis
-        if x_axis == 'samples':
+        if x_axis == 'episodes':
             if samples > 0:
                 cut = samples // data_dict[exp]['init_params'][0]['ep_per_fit']
                 x = np.arange(0, cut, 1) * ( data_dict[exp]['init_params'][0]['ep_per_fit'] // n_samples )
@@ -203,19 +135,21 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
 
         if clean:
             if exp_name == 'lqr_diag/alg_plot':
-                labels = ['RWR', 'PRO', 'RWR w/ PE', 'REPS', 'REPS w/ PE', 'CREPS', 'CREPS w/ PE']
+                labels = ['RWR', 'PRO', 'REPS', 'REPS w/ PE $\gamma=0.9$', 'REPS w/ PE $\gamma=0.1$', 'CREPS', 'CREPS w/ PE $\gamma=0.1$']
                 # labels = ['RWR', r'PRO $\beta=0.2$', 'RWR w/ PE', 'REPS $\epsilon=0.4$', 'REPS w/ PE $\epsilon=0.4$', 'CREPS $\epsilon=2.5, \kappa=6.0$', 'CREPS w/ PE $\epsilon=2.5, \kappa=6.0$']
-                colors = ['m', 'tab:olive', 'tab:purple', 'tab:blue', 'tab:blue', 'tab:orange', 'tab:orange']
-                line_styles = ['solid', 'solid', 'dashed', 'dashed', 'solid', 'dashed', 'solid']
+                colors = ['m', 'tab:olive', 'tab:blue', 'tab:blue', 'tab:blue', 'tab:orange', 'tab:orange']
+                line_styles = ['solid', 'solid', 'solid', 'dashed', 'dashdot', 'solid',  'dashed', 'solid']
                 
             elif exp_name == 'lqr_full/alg_plot':
                 labels = ['RWR', 'REPS', 'REPS w/ PE (ours)', 'CREPS', 'constrained REPS-PE (ours)']
                 
             elif exp_name == 'lqr_full/alg_ablation_mi_pearson':
-                labels = ['MORE', 'CREPS w/ diag. cov.', 'CREPS w/ full cov.', 'DR-CREPS (PCC)', 'DR-CREPS w/o PE (PCC)', 'DR-CREPS (MI)', 'DR-CREPS w/o PE (MI)']
-                colors = ['tab:green', 'tab:orange', 'tab:orange', 'tab:pink', 'tab:pink', 'tab:purple', 'tab:purple']
-                line_styles = ['solid', 'dashed', 'solid', 'solid', 'dashed', 'solid', 'dashed']
-                
+                # labels = ['MORE', 'CREPS w/ diag. cov.', 'CREPS', 'DR-CREPS (PCC)', 'DR-CREPS w/o PE (PCC)', 'DR-CREPS (MI)', 'DR-CREPS w/o PE (MI)']
+                # colors = ['tab:green', 'tab:orange', 'tab:orange', 'tab:pink', 'tab:pink', 'tab:purple', 'tab:purple']
+                # line_styles = ['solid', 'dashed', 'solid', 'solid', 'dashed', 'solid', 'dashed']
+                labels = ['MORE', 'CREPS', 'DR-CREPS (Random)', 'DR-CREPS w/o PE (Random)', 'DR-CREPS (PCC)', 'DR-CREPS w/o PE (PCC)', 'DR-CREPS (MI)', 'DR-CREPS w/o PE (MI)']
+                colors = ['tab:green', 'tab:orange', 'tab:brown', 'tab:brown', 'tab:pink', 'tab:pink', 'tab:purple', 'tab:purple']
+                line_styles = ['solid', 'solid', 'solid', 'dashed', 'solid', 'dashed', 'solid', 'dashed']
 
             elif exp_name == 'ship_fix/alg_plot_02':
                 labels = ['DR-REPS (PCC)', 'DR-REPS (MI)', 'MORE', 'CREPS', 'DR-CREPS (PCC)', 'DR-CREPS (MI)']
@@ -246,8 +180,12 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
                 continue
             color = colors[i_exp]
             ls = line_styles[i_exp]
-
-            ax.plot(x*n_samples,y, label=label, color=color, ls=ls, linewidth=3 if 'pink' in color else 2)
+            
+            if 'lqr' in exp_name:
+                ax.plot(x*n_samples,y, label=label, color=color, ls=ls, linewidth=3 if 'pink' in color else 2)
+            else:
+                ax.plot(x*n_samples,y, label=label, color=color, ls=ls, linewidth=2)
+                
             ax.fill_between(x*n_samples, (y-ci), (y+ci), color=color, alpha=.3)
 
         else:
@@ -325,16 +263,23 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
         plt.ylim(y_0, y_1)
         plt.xlim(x_0, x_1)
 
-    if 'bullet' in exp:
-        plt.ylim(0, 250)
-        plt.ylim(-200, 250)
+    # plt.xlim(0, 2500)
+
+    # if 'bullet' in exp:
+    #     plt.ylim(0, 250)
+    #     plt.ylim(-200, 250)
     
-    # plt.xlim(0, 5000)
+    if 'bullet' in exp_name:
+        plt.ylim(0, 250)
 
     if not clean:
         plt.title(exp_name)
     plt.tight_layout()
     plt.grid()
+    # ratio = 10/16
+    # x_left, x_right = ax.get_xlim()
+    # y_low, y_high = ax.get_ylim()
+    # ax.set_aspect(abs((x_right-x_left)/(y_low-y_high))*ratio)
     plt.savefig(f"imgs/{exp_name}/returns.{'pdf' if pdf else 'png'}", bbox_inches='tight', pad_inches=0)
     plt.close()
 
@@ -379,6 +324,7 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
         ax.legend(loc='upper left', bbox_to_anchor=(-0.1,-0.2), prop={'size': 6}, ncol=1)
         plt.title(exp_name)
         plt.ylim(-2000, 2500)
+        plt.ylim(0, 3000)
         plt.tight_layout()
         plt.savefig(f"imgs/{exp_name}/reward.{'pdf' if pdf else 'png'}")
         plt.close()
@@ -523,149 +469,133 @@ def plot_entropy(data_dir, exp_name, pdf=False):
 
 def plot_parameter(data_dir, exp_name, pdf=False):
 
-    fig, ax = plt.subplots()
+    for measure in ['recall', 'precision']:
+        fig, ax = plt.subplots()
+        vio_ctr = 0
+        tick_legend = []
+        x_width = 0.75
+        mean_width = 3.
 
-    vio_ctr = 0
-    tick_legend = []
+        y_min = 1.
+        y_max = 0.
 
-    x_width = 0.5
-    mean_width = 3.
+        for exp in np.flip(sorted(data_dict.keys(), reverse=True)):
 
-    for i_exp, exp in enumerate(sorted(data_dict.keys(), reverse=True)):
+            init_params = data_dict[exp]['init_params'][0]
+            a = init_params['oracle']
+            b = data_dict[exp]['top_k_mis']
 
-        init_params = data_dict[exp]['init_params'][0]
-        a = init_params['oracle']
-        b = data_dict[exp]['top_k_mis']
+            tag = 'None'
+            tag = 'percentage'
+            if init_params['sample_type'] != tag:
+                continue
+            if 'Oracle' in init_params['alg']:
+                continue
+            
+            # true positives
+            tp = []
+            for b_i in b:
+                tmp = []
+                for b_j in b_i:
+                    tmp += [len(np.intersect1d(a,b_j).tolist())]
+                tp += [tmp]
+            
+            if measure == 'recall':
+                # tp / (tp + fn)
+                arr = np.array(tp) / len(init_params['oracle'])
+            elif measure == 'precision':
+                # tp / (tp + fp)
+                arr = np.array(tp) / init_params['k']
+            else:
+                continue
 
-        tag = 'None' # 'percentage'
-        if init_params['sample_type'] != tag:
-            continue
-        if 'Oracle' in init_params['alg']:
-            continue
+            y = np.mean(arr, axis=0)
 
-        b_new = []
-        for b_i in b:
-            b_tmp = []
-            for b_j in b_i:
-                b_tmp += [len(np.intersect1d(a,b_j).tolist())]
-            b_new += [b_tmp]
-        
-        b_new = np.array(b_new) / len(init_params['oracle'])
+            if y_min > y.min():
+                y_min = y.min()
+            if y_max < y.max():
+                y_max = y.max()
 
-        y = np.mean(b_new, axis=1)
-        violin = ax.violinplot(y, [x_width*vio_ctr], 
-                                showmeans=False, showmedians=False, showextrema=True)#, quantiles=[0.25, 0.75])
+            violin = ax.violinplot(y, [x_width*vio_ctr], 
+                                    showmeans=False, showmedians=False, showextrema=True)
 
-        color = 'tab:red' if 'Oracle' in init_params['alg'] \
-                    else 'tab:blue' if init_params['method'] == 'MI' \
-                    else 'tab:orange' if init_params['method'] == 'Pearson' \
+            color = 'tab:purple' if init_params['method'] == 'MI' \
+                    else 'tab:purple' if init_params['method'] == 'MI_ALL' \
+                    else 'tab:pink' if init_params['method'] == 'Pearson' \
+                    else 'tab:pink' if init_params['method'] == 'PPC_ALL' \
+                    else 'tab:orange' if init_params['method'] == 'Random' \
                     else 'green'
-                    
-        # ax.scatter([x_width*vio_ctr], np.median(y), marker='o',color='black', s=30, zorder=3)
-        # ax.scatter([x_width*vio_ctr], np.median(y), marker='o',color='white', s=10, zorder=3)
-        ax.scatter([x_width*vio_ctr], np.median(y), marker='o', color='white', s=5, zorder=3)
 
-        quant = np.percentile(y, [25,50,75])
+            ax.scatter([x_width*vio_ctr], np.median(y), marker='o', color='white', s=20, zorder=3)
 
-        violin['bodies'][-1].set_color(color)
-        violin['bodies'][-1].set_alpha(1.)
+            quant = np.percentile(y, [25,50,75])
 
-        color = 'black'
-        violin['cbars'].set_color(color)
-        violin['cmaxes'].set_color(color)
-        violin['cmins'].set_color(color)
-        # violin['cmeans'].set_color(color)
-        # violin['cmeans'].set_linewidths(mean_width)
+            violin['bodies'][-1].set_color(color)
+            violin['bodies'][-1].set_alpha(1.)
 
-        ax.vlines([x_width*vio_ctr], quant[0], quant[2], color='black',linestyle='-',lw=4)
+            color = 'black'
+            violin['cbars'].set_color(color)
+            violin['cmaxes'].set_color(color)
+            violin['cmins'].set_color(color)
+            # violin['cmeans'].set_color(color)
+            # violin['cmeans'].set_linewidths(mean_width)
 
-        vio_ctr = vio_ctr + 1
-        tick_legend += ['ORACLE' if 'Oracle' in init_params['alg'] else f"{init_params['k']}"]
+            ax.vlines([x_width*vio_ctr], quant[0], quant[2], color='black',linestyle='-',lw=4)
 
-    plt.ylabel('percentage of correct parameters')
-    plt.xlabel('top $m$ selected parameters')
+            vio_ctr = vio_ctr + 1
+            if f"{init_params['k']}" not in tick_legend:
+                tick_legend += [f"{init_params['k']}"]
+        
+        plt.xlabel('number of selected paramerers', fontsize=20)
+        plt.ylabel(measure, fontsize=20)
+        
+        plt.xticks([x_width, 4*x_width, 7*x_width, 11*x_width], tick_legend, fontsize=15)
+        tick_size = .1 if measure == 'recall' else .05
+        plt.yticks(np.arange(np.round(y_min,1), np.round(y_max,1), tick_size), fontsize=20)
 
-    plt.xticks(np.arange(0, len(tick_legend), 1.)*x_width, tick_legend)
-    
-    plt.ylim(0.2,0.9)
+        custom_lines = [Line2D([0], [0], color='tab:purple', lw=mean_width), 
+                        Line2D([0], [0], color='tab:pink', lw=mean_width), 
+                        Line2D([0], [0], color='tab:orange', lw=mean_width)]
+                        
+        ax.legend(custom_lines, ['MI', 'PCC', 'Random'], loc='upper left', fontsize=15)
 
-    custom_lines = [Line2D([0], [0], color='tab:orange', lw=mean_width),
-                    Line2D([0], [0], color='tab:blue', lw=mean_width)]
-    ax.legend(custom_lines, ['PCC', 'MI'], loc='lower left')
-
-    plt.tight_layout()
-    plt.savefig(f"imgs/{exp_name}/parameters_sample_type_{tag}.{'pdf' if pdf else 'png'}")
-    plt.close()
+        plt.tight_layout()
+        plt.savefig(f"imgs/{exp_name}/parameters_{measure}.{'pdf' if pdf else 'png'}")
+        plt.figure(figsize=(10, 8))
+        plt.close()
 
 if __name__ == '__main__':
 
     pdf = False
 
-    exp_name = 'ship_3_tiles_full_mi_vs_random_FULL'
-    exp_name = 'hockey_mix_eps'
-    exp_name = 'lqr_mi_store'
-    exp_name = 'hockey_eps_kappa/alg_RWR'
-    exp_name = 'lqr_diag/alg_Best'#REPS_MI'
-    exp_name = 'hockey_bound_eps_kappa/alg_ConstrainedREPS'
-    exp_name = 'lqr_full/alg_ConstrainedREPSMIFull'
-    # exp_name = 'lqr_full/alg_ConstrainedREPS'
-    # exp_name = 'lqr_full/alg_best'
-    # exp_name = 'ship/3_tiles_best'
-    # exp_name = 'ship_diag/alg_ConstrainedREPSMI'
-    # exp_name = 'lqr_diag/alg_RWR_MI'#REPS_MI'
-    # exp_name = 'ship_3_tiles_full_besty_10/alg_REPS_MI_full/'
-    exp_name = 'lqr_diag/alg_plot'
-    exp_name = 'lqr_full/alg_plot'
-    # exp_name = 'lqr_full/alg_REPS_MI_full'
-    max_runs = 25
-    exp_name = 'hockey_bound_eps_kappa/alg_REPS'
-    exp_name = 'hockey_bound_gamma_k/alg_ConstrainedREPSMIFull'
-    # exp_name = 'hockey_bound_eps_kappa/alg_ConstrainedREPS'
-    # exp_name = 'hockey_sanity'
-    exp_name = 'hockey_bound_gamma_k/alg_REPS_MI_full'
-    # exp_name = 'hockey_bound_gamma_k/alg_MORE'
-    # exp_name = 'hockey_bound_eps_kappa/alg_ConstrainedREPS'
-    exp_name = 'lqr_fix'
-    exp_name = 'ship_fix'
-    exp_name = 'lqr_full/alg_MI_vs_Pearson'
-    exp_name = 'lqr_diag/alg_plot'
-    # exp_name = 'lqr_full/alg_ConstrainedREPSMIFull/distribution_mi/eps_4.7/kappa_17.0/k_50'
-    # exp_name = 'lqr_full/ablation_full'
-    exp_name = 'lqr_diag/alg_plot'
-    exp_name = 'ship/alg_plot'
-    # exp_name = 'ship_3_tiles_full_mi_vs_random_FULL'
-    max_runs = 8
+    # exp_name = 'lqr_diag/alg_plot'
     # exp_name = 'lqr_full/alg_ablation_mi_pearson'
-    # max_runs = 10
-
-    exp_name = 'ship_fix/alg_plot_02'
-    exp_name = 'lqr_full/alg_ablation_mi_pearson'
-    exp_name = 'lqr_diag/alg_plot'
+    # exp_name = 'ship_fix/alg_plot_02'
     # exp_name = 'hockey_full'
-    # exp_name = 'lqr_full/alg_ablation_mi_pearson'
-    exp_name = 'ball_full_fix'
-    max_runs = 25
-    # exp_name = 'hockey_full'
-    # exp_name = 'hockey_bound_fix/alg_REPS_MI_full'
-    # exp_name = 'hockey_mix_eps_fix/alg_ConstrainedREPSMIFull/eps_2.2/kappa_15.0/k_30/sample_type_percentage'
-    # max_runs = 5
-
-    exp_name = 'lqr_compare_params_oracle/alg_REPS_MI/distribution_diag/eps_0.7/k_50'
-    exp_name = 'lqr_ablation'
-    max_runs = 1
-    # exp_name = 'lqr_ablation_k_gamma'
-    # exp_name = 'lqr_ablation_k_gamma_full'
+    # exp_name = 'ball_full_fix'
     # max_runs = 25
+  
+    exp_name = 'bullet_ant_fix_again'
+    # exp_name = 'hockey_bound_nn_fix_again'
+    max_runs = 1
+
+    # exp_name = 'lqr_ablation_mod_AR'
+    exp_name = 'lqr_ablation_fix'
+    max_runs = 10
 
     data_dir = os.path.join('logs', exp_name)
     data_dict = load_data_from_dir(data_dir)
 
-    plot_data(data_dict, exp_name, episodes=1000, samples=-1, x_axis='samples', pdf=pdf, max_runs=max_runs, clean=False)
+    # normal unclean plots
+    plot_data(data_dict, exp_name, episodes=1000, samples=-1, x_axis='episodes', pdf=pdf, max_runs=max_runs, clean=False)
 
-    # plot_data(data_dict, exp_name, episodes=1000, samples=-1, x_axis='samples', pdf=True, max_runs=max_runs, clean=True)
-    # plot_data(data_dict, exp_name, episodes=1000, samples=-1, x_axis='samples', pdf=False, max_runs=max_runs, clean=True)
+    # for paper plots
+    # plot_data(data_dict, exp_name, episodes=1000, samples=-1, x_axis='episodes', pdf=True, max_runs=max_runs, clean=True)
+    # plot_data(data_dict, exp_name, episodes=1000, samples=-1, x_axis='episodes', pdf=False, max_runs=max_runs, clean=True)
 
+    # MI vs Pearson vs Random
     plot_parameter(data_dict, exp_name)
+    plot_parameter(data_dict, exp_name, pdf=True)
 
     # # plot_mi(data_dict, exp_name, pdf=pdf)
     # plot_kl(data_dict, exp_name, pdf=pdf)
