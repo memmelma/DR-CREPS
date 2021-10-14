@@ -4,6 +4,7 @@ import joblib
 import numpy as np
 from numpy.random import default_rng
 
+from mushroom_rl.approximators.parametric import TorchApproximator
 from mushroom_rl.approximators.parametric import LinearApproximator
 from mushroom_rl.approximators.regressor import Regressor
 from mushroom_rl.core import Core
@@ -14,8 +15,34 @@ from mushroom_rl.solvers.lqr import compute_lqr_feedback_gain
 
 from utils_el import init_distribution, init_algorithm, log_constraints
 
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
-def experiment( lqr_dim, n_ineff, env_seed, \
+class Network(nn.Module):
+    def __init__(self, input_shape, output_shape, *args, **kwargs) -> None:
+        super(Network, self).__init__()
+        n_input = input_shape[-1]
+        n_output = output_shape[0]
+        n_features = 16
+
+        self._h1 = nn.Linear(n_input, n_features)
+        self._h2 = nn.Linear(n_features, n_output)
+
+        # nn.init.xavier_uniform_(self._h1.weight,
+        #                         gain=nn.init.calculate_gain('relu'))
+        # nn.init.xavier_uniform_(self._h2.weight,
+        #                         gain=nn.init.calculate_gain('linear'))
+        nn.init.kaiming_uniform_(self._h1.weight,
+                                nonlinearity='relu')
+
+    def forward(self, state) -> torch.Tensor:
+        features1 = torch.relu(self._h1(torch.squeeze(state, 1).float()))
+        a = self._h2(features1)
+        a = torch.tanh(a)
+        return a
+
+def experiment( lqr_dim, n_ineff, env_seed, nn_policy, \
                 alg, eps, kappa, k, \
                 sigma_init, distribution, \
                 method, mi_type, bins, sample_type, gamma, mi_avg, \
@@ -77,11 +104,25 @@ def experiment( lqr_dim, n_ineff, env_seed, \
         optimal_reward += reward
     
     # init lower level policy
-    approximator = Regressor(LinearApproximator,
+    if nn_policy:
+        approximator = Regressor(TorchApproximator,
+                                network = Network,
+                                input_shape=mdp.info.observation_space.shape,
+                                output_shape=mdp.info.action_space.shape)
+        
+        policy = DeterministicPolicy(mu=approximator)
+    
+    else:
+        approximator = Regressor(LinearApproximator,
                              input_shape=mdp.info.observation_space.shape,
                              output_shape=mdp.info.action_space.shape)
-    policy = DeterministicPolicy(mu=approximator)
+        policy = DeterministicPolicy(mu=approximator)
+    
+    
+
     print('action space', mdp.info.action_space.shape)
+    print('action lo/hi', mdp.info.action_space.low, mdp.info.action_space.high)
+    print('observation space', mdp.info.observation_space.shape)
     print('parameters', policy.weights_size)
 
     # init distribution
@@ -111,6 +152,9 @@ def experiment( lqr_dim, n_ineff, env_seed, \
         J = compute_J(dataset_eval, gamma=mdp.info.gamma)
         print('J at iteration ' + str(i) + ': ' + str(round(np.mean(J),4)))
         
+        if hasattr(agent, 'top_k_mis'):
+            print('oracle intersect', len(np.intersect1d(oracle,agent.top_k_mis[-1]).tolist()))
+
         returns_mean += [np.mean(J)]
         returns_std += [np.std(J)]
 
@@ -157,31 +201,42 @@ def default_params():
     defaults = dict(
         
         # environment
-        lqr_dim = 10,
-        n_ineff = 7,
+        # lqr_dim = 10,
+        # n_ineff = 7,
+        # env_seed = 0,
+        lqr_dim = 15,
+        n_ineff = 0,
         env_seed = 0,
 
         # algorithm
         # alg = 'REPS',
         # alg = 'REPS_MI_full',
-        alg = 'REPS_MI',
-        eps = .5,
-        kappa = .5,
-        k = 20,
+        # alg = 'REPS_MI',
+        alg = 'ConstrainedREPSMIFull',
+        # alg = 'ConstrainedREPS',
+        # alg = 'ConstrainedREPSMI',
+        # alg = 'RWR_MI',
+        # alg = 'ConstrainedREPSMIOracle',
+        eps = 5.,
+        kappa = 25.0,
+        k = 3,
 
         # distribution
         sigma_init = 3e-1,
         # distribution = 'cholesky',
-        distribution = 'diag',
-        # distribution = 'mi',
+        # distribution = 'diag',
+        distribution = 'mi',
 
         # MI related
         method = 'MI',
+        # method = 'Random',
+        # method = 'MI_ALL',
         # method = 'Pearson',
         mi_type = 'regression',
-        bins = 4,
-        # sample_type = None,
+        bins = 10, # 4 10 best
+        # sample_type = 'importance',
         sample_type = 'percentage',
+        # sample_type = 'PRO',
         # gamma = 1.,
         gamma = .1,
         mi_avg = 0, # False
@@ -190,15 +245,17 @@ def default_params():
         # n_epochs = 50,
         # fit_per_epoch = 1, 
         # ep_per_fit = 60,
-        n_epochs = 1,
+        n_epochs = 10,
         # n_epochs = 10,
         fit_per_epoch = 1, 
-        ep_per_fit = 150,
+        # ep_per_fit = 100,
+        ep_per_fit = 25,
 
         # misc
         seed = 0,
         results_dir = 'results',
-        quiet = 1 # True
+        quiet = 1, # True
+        nn_policy = 0 # False
     )
 
     return defaults
@@ -233,6 +290,7 @@ def parse_args():
     parser.add_argument('--seed', type=int)
     parser.add_argument('--results-dir', type=str)
     parser.add_argument('--quiet', type=int)
+    parser.add_argument('--nn-policy', type=int)
 
     parser.set_defaults(**default_params())
     args = parser.parse_args()
