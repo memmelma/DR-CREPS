@@ -7,6 +7,7 @@ from matplotlib.lines import Line2D
 import torch
 import torch.nn as nn
 
+import scipy.stats as st
 
 class Network(nn.Module):
     def __init__(self, input_shape, output_shape, *args, **kwargs) -> None:
@@ -84,6 +85,7 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
     max_y_discount = -np.inf
     max_y_discount_exp = None
 
+    clean_ctr = 0
     for i_exp, exp in enumerate(sorted(data_dict.keys(), reverse=True)):
         # CATCHES missing keys, etc.
         # catch failed experiments
@@ -93,22 +95,53 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
         if len(data_dict[exp]['returns_mean']) < max_runs:
             continue
 
+        if 'ship_3_tiles_full_mi_vs_random_FULL' in exp_name:
+            if data_dict[exp]['init_params'][0]['eps'] != 3.4:
+                continue
+            if data_dict[exp]['init_params'][0]['k'] != 200:
+                continue
+            # if data_dict[exp]['init_params'][0]['sample_type'] != 'percentage':
+            #     continue
+            if data_dict[exp]['init_params'][0]['ep_per_fit'] != 50:
+                continue
+        
+        # if (data_dict[exp]['init_params'][0]['gamma'] != 0.1 and data_dict[exp]['init_params'][0]['sample_type'] != 'None') and data_dict[exp]['init_params'][0]['alg'] != 'ConstrainedREPS':
+        #         continue
+        # if data_dict[exp]['init_params'][0]['ep_per_fit'] != 100 and data_dict[exp]['init_params'][0]['alg'] != 'ConstrainedREPS':
+        #     continue
+
+        if 'ship_fix/alg_plot_02' in exp_name:
+            if 'Constrained' not in exp:
+                continue
+
         # for broken bullet runs
         if 'bullet' in exp:
             min_length = np.min([len(x) for x in data_dict[exp]['returns_mean']])
             data_dict[exp]['returns_mean'] = [x[:min_length] for x in data_dict[exp]['returns_mean']]
-    
-        try:
-            y = np.array(data_dict[exp]['returns_mean']).mean(axis=0)[:episodes]
+
+        # try:
+        #     returns_mean = np.array(data_dict[exp]['returns_mean'])
+        #     y = returns_mean.mean(axis=0)[:episodes]
             
-            # FILTERS on mean
-            # if np.max(y) < 130:
-            #     continue
+        #     # FILTERS on mean
+        #     # if np.max(y) < 130:
+        #     #     continue
         
-        except:
-            print(f'{exp} failed')
-            continue
+        # except:
+        #     print(f'{exp} failed')
+        #     continue
+
+        y, ci  = get_mean_and_confidence(np.array(data_dict[exp]['returns_mean']))
+        ci = ci[1]
         
+        # tmp = []
+        # for i in np.array(data_dict[exp]['returns_mean']):
+        #     if i.max() < -60:
+        #         continue
+        #     tmp += [i]
+        # y, ci  = get_mean_and_confidence(np.array(tmp))
+        # ci = ci[1]
+
         # determine x axis
         if x_axis == 'episodes':
             if samples > 0:
@@ -130,18 +163,13 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
         init_params = data_dict[exp]['init_params'][0]
         params = exp.split('|')[2:]
         params.remove('alg_'+data_dict[exp]['init_params'][0]['alg'])
-
-        ci = (np.array(data_dict[exp]['returns_mean']).std(axis=0)*2)[:cut]
-
+        
         if clean:
             if exp_name == 'lqr_diag/alg_plot':
-                labels = ['RWR', 'PRO', 'REPS', 'REPS w/ PE $\gamma=0.9$', 'REPS w/ PE $\gamma=0.1$', 'CREPS', 'CREPS w/ PE $\gamma=0.1$']
+                labels = ['RWR', 'PRO', 'REPS', 'REPS w/ PE $\lambda=0.9$', 'REPS w/ PE $\lambda=0.1$', 'CREPS', 'CREPS w/ PE $\lambda=0.1$', 'xxx']
                 # labels = ['RWR', r'PRO $\beta=0.2$', 'RWR w/ PE', 'REPS $\epsilon=0.4$', 'REPS w/ PE $\epsilon=0.4$', 'CREPS $\epsilon=2.5, \kappa=6.0$', 'CREPS w/ PE $\epsilon=2.5, \kappa=6.0$']
-                colors = ['m', 'tab:olive', 'tab:blue', 'tab:blue', 'tab:blue', 'tab:orange', 'tab:orange']
-                line_styles = ['solid', 'solid', 'solid', 'dashed', 'dashdot', 'solid',  'dashed', 'solid']
-                
-            elif exp_name == 'lqr_full/alg_plot':
-                labels = ['RWR', 'REPS', 'REPS w/ PE (ours)', 'CREPS', 'constrained REPS-PE (ours)']
+                colors = ['m', 'tab:olive', 'tab:blue', 'tab:blue', 'tab:blue', 'tab:orange', 'tab:orange', 'red']
+                line_styles = ['solid', 'solid', 'solid', 'dashed', 'dashdot', 'solid',  'dashed', 'solid', 'solid']
                 
             elif exp_name == 'lqr_full/alg_ablation_mi_pearson':
                 # labels = ['MORE', 'CREPS w/ diag. cov.', 'CREPS', 'DR-CREPS (PCC)', 'DR-CREPS w/o PE (PCC)', 'DR-CREPS (MI)', 'DR-CREPS w/o PE (MI)']
@@ -151,11 +179,21 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
                 colors = ['tab:green', 'tab:orange', 'tab:brown', 'tab:brown', 'tab:pink', 'tab:pink', 'tab:purple', 'tab:purple']
                 line_styles = ['solid', 'solid', 'solid', 'dashed', 'solid', 'dashed', 'solid', 'dashed']
 
-            elif exp_name == 'ship_fix/alg_plot_02':
+            elif exp_name == 'lqr_full/alg_plot_paper':
+                labels = ['MORE', 'CREPS', 'DR-CREPS (PCC)', 'DR-CREPS w/o PE (PCC)', 'DR-CREPS (MI)', 'DR-CREPS w/o PE (MI)']
+                colors = ['tab:green', 'tab:orange', 'tab:pink', 'tab:pink', 'tab:purple', 'tab:purple']
+                line_styles = ['solid', 'solid', 'solid', 'dashed', 'solid', 'dashed']
+
+            # elif exp_name == 'ship_fix/alg_plot_02':
+            #     labels = ['DR-REPS (PCC)', 'DR-REPS (MI)', 'MORE', 'CREPS', 'DR-CREPS (Random)', 'DR-CREPS (PCC)', 'DR-CREPS (MI)']
+            #     colors = ['tab:cyan', 'tab:blue', 'tab:green', 'tab:orange', 'tab:brown', 'tab:pink', 'tab:purple',]
+            #     line_styles = ['solid', 'solid', 'solid', 'solid', 'solid', 'solid', 'solid']
+            
+            elif exp_name == 'ship_fix/alg_plot_paper':
                 labels = ['DR-REPS (PCC)', 'DR-REPS (MI)', 'MORE', 'CREPS', 'DR-CREPS (PCC)', 'DR-CREPS (MI)']
                 colors = ['tab:cyan', 'tab:blue', 'tab:green', 'tab:orange', 'tab:pink', 'tab:purple',]
                 line_styles = ['solid', 'solid', 'solid', 'solid', 'solid', 'solid']
-            
+
             elif exp_name == 'hockey_full':
                 labels = ['MORE', 'CREPS', 'DR-CREPS (PCC)', 'DR-CREPS (MI)']
                 colors = ['tab:green', 'tab:orange', 'tab:pink', 'tab:purple']
@@ -165,10 +203,55 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
                 labels = ['MORE', 'CREPS', 'DR-CREPS (PCC)', 'DR-CREPS (MI)']
                 colors = ['tab:green', 'tab:orange', 'tab:pink', 'tab:purple']
                 line_styles = ['solid', 'solid', 'solid', 'solid', 'solid', 'solid']
+            
+            elif exp_name == 'hockey_ablation_random':
+                labels = ['CREPS', 'DR-CREPS (Random)', 'DR-CREPS (Pearson)', 'DR-CREPS (MI)', 'DR-CREPS w/o PE (Random)', 'DR-CREPS w/o PE (Pearson)', 'DR-CREPS w/o PE (MI)']
+                colors = ['tab:blue', 'tab:brown', 'tab:pink', 'tab:purple', 'tab:brown', 'tab:pink', 'tab:purple']
+                line_styles = ['solid', 'solid', 'solid', 'solid', 'dashed', 'dashed', 'dashed']
+
+            elif exp_name == 'ball_full_fix_random':
+                labels = ['CREPS', 'DR-CREPS (Random)', 'DR-CREPS (Pearson)', 'DR-CREPS (MI)', 'DR-CREPS w/o PE (Random)', 'DR-CREPS w/o PE (Pearson)', 'DR-CREPS w/o PE (MI)']
+                colors = ['tab:blue', 'tab:brown', 'tab:pink', 'tab:purple', 'tab:brown', 'tab:pink', 'tab:purple']
+                line_styles = ['solid', 'solid', 'solid', 'solid', 'dashed', 'dashed', 'dashed']
+
+            elif 'lqr_ablation_paper/alg_ConstrainedREPSMIFull/distribution_mi/eps_4.7/kappa_17.0' in exp_name:
+                labels = ['DR-CREPS $\lambda=0.9$', 'DR-CREPS $\lambda=0.7$', 'DR-CREPS $\lambda=0.5$', 'DR-CREPS $\lambda=0.3$', 'DR-CREPS $\lambda=0.1$']
+                colors = ['tab:orange', 'tab:blue', 'tab:green', 'tab:purple', 'tab:pink']
+                line_styles = ['solid', 'solid', 'solid', 'solid', 'solid']
+
+            elif 'lqr_ablation_paper/alg_ConstrainedREPSMI/distribution_diag/eps_2.5/kappa_6.0' in exp_name:
+                labels = ['CREPS w/ PE $\lambda=0.9$', 'CREPS w/ PE $\lambda=0.7$', 'CREPS w/ PE $\lambda=0.5$', 'CREPS w/ PE $\lambda=0.3$', 'CREPS w/ PE $\lambda=0.1$']
+                colors = ['tab:orange', 'tab:blue', 'tab:green', 'tab:purple', 'tab:pink']
+                line_styles = ['solid', 'solid', 'solid', 'solid', 'solid']
                 
+            elif 'lqr_ablation_paper/alg_REPS_MI_full/distribution_mi/eps_0.5/' in exp_name:
+                labels = ['DR-REPS $\lambda=0.9$', 'DR-REPS $\lambda=0.7$', 'DR-REPS $\lambda=0.5$', 'DR-REPS $\lambda=0.3$', 'DR-REPS $\lambda=0.1$']
+                colors = ['tab:orange', 'tab:blue', 'tab:green', 'tab:purple', 'tab:pink']
+                line_styles = ['solid', 'solid', 'solid', 'solid', 'solid']
+
+            elif 'lqr_ablation_paper/alg_REPS_MI/distribution_diag/eps_0.4/' in exp_name:
+                labels = ['REPS w/ PE $\lambda=0.9$', 'REPS w/ PE $\lambda=0.7$', 'REPS w/ PE $\lambda=0.5$', 'REPS w/ PE $\lambda=0.3$', 'REPS w/ PE $\lambda=0.1$']
+                colors = ['tab:orange', 'tab:blue', 'tab:green', 'tab:purple', 'tab:pink']
+                line_styles = ['solid', 'solid', 'solid', 'solid', 'solid']
+
+            elif 'lqr_ablation_paper_random' in exp_name:
+                labels = ['CREPS', 'CREPS (Random)', 'CREPS w/o PE (Random)', 'CREPS (PCC)', 'CREPS w/o PE (PCC)', 'CREPS (MI)', 'CREPS w/o PE (MI)']
+                colors = ['tab:blue', 'tab:brown', 'tab:brown', 'tab:pink', 'tab:pink', 'tab:purple', 'tab:purple']
+                line_styles = ['solid', 'solid', 'dashed', 'solid', 'dashed', 'solid', 'dashed']
+
+            elif 'ship_fix/alg_plot_02' in exp_name:
+                labels = ['CREPS', 'DR-CREPS (Random)', 'DR-CREPS (PCC)', 'DR-CREPS (MI)', 'DR-CREPS w/o PE (Random)', 'DR-CREPS w/o PE (PCC)', 'DR-CREPS w/o PE (MI)']
+                colors = ['tab:blue', 'tab:brown', 'tab:pink', 'tab:purple', 'tab:brown', 'tab:pink', 'tab:purple']
+                line_styles = ['solid', 'solid', 'solid', 'solid', 'dashed', 'dashed', 'dashed']
+
+            elif 'hockey_ablation_random_fix_06' in exp_name:
+                labels = ['CREPS', 'DR-CREPS (Random)', 'DR-CREPS (PCC)', 'DR-CREPS (MI)', 'DR-CREPS w/o PE (Random)', 'DR-CREPS w/o PE (PCC)', 'DR-CREPS w/o PE (MI)']
+                colors = ['tab:blue', 'tab:brown', 'tab:pink', 'tab:purple', 'tab:brown', 'tab:pink', 'tab:purple']
+                line_styles = ['solid', 'solid', 'solid', 'solid', 'dashed', 'dashed', 'dashed']
+
             else:
                 labels = []
-            label = labels[i_exp]
+            label = labels[clean_ctr]
 
             handles, lbls = ax.get_legend_handles_labels()
             if 'lqr' in exp_name and 'optimal control' not in lbls:
@@ -178,8 +261,9 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
 
             if 'RWR w/ PE' in label:
                 continue
-            color = colors[i_exp]
-            ls = line_styles[i_exp]
+            color = colors[clean_ctr]
+            ls = line_styles[clean_ctr]
+            clean_ctr += 1
             
             if 'lqr' in exp_name:
                 ax.plot(x*n_samples,y, label=label, color=color, ls=ls, linewidth=3 if 'pink' in color else 2)
@@ -193,6 +277,10 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
 
             ax.plot(x*n_samples,y, label=label, linewidth=2)
             ax.fill_between(x*n_samples, (y-ci), (y+ci), alpha=.3)
+            
+            
+            # for i in np.array(data_dict[exp]['returns_mean']):
+            #     ax.plot(x*n_samples,i, linewidth=1)
 
         # maximum reward
         if np.max(y) > max_reward:
@@ -200,6 +288,7 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
             max_reward_exp = exp
   
         print(data_dict[exp]['init_params'][0]['alg'], np.round(np.max(y), 4), sorted(params))
+        print('completed runs',len(data_dict[exp]['returns_mean']))
 
         # maximum discounted reward
         discount_factor = 0.5
@@ -234,7 +323,7 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
             x_ticks = 500
             y_ticks = 10
 
-        elif 'lqr_full' in exp:
+        elif 'lqr_full' in exp or 'lqr_ablation' in exp:
             y_0, y_1 = -50, 0
             x_0, x_1 = 0, 5000
             x_ticks = 1000
@@ -247,13 +336,13 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
             y_ticks = 10
         
         elif 'hockey' in exp:
-            y_0, y_1 = 0, 180
+            y_0, y_1 = 0, 150
             x_0, x_1 = 0, 10000
             x_ticks = 2500
             y_ticks = 50
         
         elif 'ball' in exp:
-            y_0, y_1 = -30, 20
+            y_0, y_1 = -30, 10
             x_0, x_1 = 0, 7000
             x_ticks = 2000
             y_ticks = 10
@@ -263,7 +352,7 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
         plt.ylim(y_0, y_1)
         plt.xlim(x_0, x_1)
 
-    # plt.xlim(0, 2500)
+    # plt.xlim(0, 1000)
 
     # if 'bullet' in exp:
     #     plt.ylim(0, 250)
@@ -274,12 +363,14 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
 
     if not clean:
         plt.title(exp_name)
+
     plt.tight_layout()
     plt.grid()
-    # ratio = 10/16
-    # x_left, x_right = ax.get_xlim()
-    # y_low, y_high = ax.get_ylim()
-    # ax.set_aspect(abs((x_right-x_left)/(y_low-y_high))*ratio)
+    if 'lqr_diag' in exp:
+        ratio = 10/16
+        x_left, x_right = ax.get_xlim()
+        y_low, y_high = ax.get_ylim()
+        ax.set_aspect(abs((x_right-x_left)/(y_low-y_high))*ratio)
     plt.savefig(f"imgs/{exp_name}/returns.{'pdf' if pdf else 'png'}", bbox_inches='tight', pad_inches=0)
     plt.close()
 
@@ -329,6 +420,20 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
         plt.savefig(f"imgs/{exp_name}/reward.{'pdf' if pdf else 'png'}")
         plt.close()
 
+
+def get_mean_and_confidence(data):
+    """
+    Compute the mean and 95% confidence interval
+    Args:
+        data (np.ndarray): Array of experiment data of shape (n_runs, nepochs).
+    Returns:
+        The mean of the dataset at each epoch along with the confidence interval.
+    """
+    mean = np.mean(data, axis=0)
+    se = st.sem(data, axis=0)
+    n = len(data)
+    interval  = st.t.interval(0.95, n - 1, scale=se)
+    return mean, interval
 
 def plot_mi(data_dict, exp_name, pdf=False):
     
@@ -482,7 +587,8 @@ def plot_parameter(data_dir, exp_name, pdf=False):
         for exp in np.flip(sorted(data_dict.keys(), reverse=True)):
 
             init_params = data_dict[exp]['init_params'][0]
-            a = init_params['oracle']
+            a = init_params['oracle'][0]
+            print(a)
             b = data_dict[exp]['top_k_mis']
 
             tag = 'None'
@@ -499,10 +605,10 @@ def plot_parameter(data_dir, exp_name, pdf=False):
                 for b_j in b_i:
                     tmp += [len(np.intersect1d(a,b_j).tolist())]
                 tp += [tmp]
-            
+
             if measure == 'recall':
                 # tp / (tp + fn)
-                arr = np.array(tp) / len(init_params['oracle'])
+                arr = np.array(tp) / len(a)
             elif measure == 'precision':
                 # tp / (tp + fp)
                 arr = np.array(tp) / init_params['k']
@@ -549,15 +655,25 @@ def plot_parameter(data_dir, exp_name, pdf=False):
         plt.xlabel('number of selected paramerers', fontsize=20)
         plt.ylabel(measure, fontsize=20)
         
-        plt.xticks([x_width, 4*x_width, 7*x_width, 11*x_width], tick_legend, fontsize=15)
+        # plt.xticks([x_width, 4*x_width, 7*x_width, 10*x_width], tick_legend, fontsize=15)
+        plt.xticks([x_width/2, x_width/2 + 2*x_width, x_width/2 + 4*x_width], tick_legend, fontsize=15)
+
         tick_size = .1 if measure == 'recall' else .05
-        plt.yticks(np.arange(np.round(y_min,1), np.round(y_max,1), tick_size), fontsize=20)
+        plt.yticks(np.arange(np.round(y_min,1), np.round(y_max,1)+tick_size, tick_size), fontsize=20)
 
         custom_lines = [Line2D([0], [0], color='tab:purple', lw=mean_width), 
                         Line2D([0], [0], color='tab:pink', lw=mean_width), 
                         Line2D([0], [0], color='tab:orange', lw=mean_width)]
                         
-        ax.legend(custom_lines, ['MI', 'PCC', 'Random'], loc='upper left', fontsize=15)
+        # if measure == 'recall':
+        #     ax.legend(custom_lines, ['MI', 'PCC', 'Random'], loc='upper left', fontsize=15)
+        # else:
+        #     ax.legend(custom_lines, ['MI', 'PCC', 'Random'], loc='upper right', fontsize=15)
+
+        if measure == 'recall':
+            ax.legend(custom_lines, ['MI', 'PCC'], loc='upper left', fontsize=15)
+        else:
+            ax.legend(custom_lines, ['MI', 'PCC'], loc='upper right', fontsize=15)
 
         plt.tight_layout()
         plt.savefig(f"imgs/{exp_name}/parameters_{measure}.{'pdf' if pdf else 'png'}")
@@ -568,20 +684,45 @@ if __name__ == '__main__':
 
     pdf = False
 
-    # exp_name = 'lqr_diag/alg_plot'
+    exp_name = 'lqr_diag/alg_plot'
     # exp_name = 'lqr_full/alg_ablation_mi_pearson'
-    # exp_name = 'ship_fix/alg_plot_02'
+    # exp_name = 'lqr_full/alg_plot_paper'
+    # exp_name = 'ship_fix/alg_plot_paper'
     # exp_name = 'hockey_full'
     # exp_name = 'ball_full_fix'
-    # max_runs = 25
-  
-    exp_name = 'bullet_ant_fix_again'
-    # exp_name = 'hockey_bound_nn_fix_again'
-    max_runs = 1
-
-    # exp_name = 'lqr_ablation_mod_AR'
-    exp_name = 'lqr_ablation_fix'
+    # exp_name = 'lqr_ablation_oracle_paper'
+    # exp_name = 'lqr_ablation_oracle_puze'
+    # exp_name = 'ball_full_fix_random'
+    # exp_name = 'hockey_full_random'
+    # exp_name = 'lqr_ablation_paper_random'
+    exp_name = 'lqr_ablation_paper/alg_REPS_MI'
+    exp_name = 'lqr_ablation_paper/alg_REPS_MI_full'
+    exp_name = 'lqr_ablation_paper/alg_ConstrainedREPSMIFull/distribution_mi/eps_4.7/kappa_17.0/k_50' # 10, 30, 50
+    exp_name = 'lqr_ablation_paper/alg_REPS_MI_full/distribution_mi/eps_0.5/k_50' # 10, 30, 50
+    # exp_name = 'lqr_ablation_paper/alg_ConstrainedREPSMI/distribution_diag/eps_2.5/kappa_6.0/k_30'
+    exp_name = 'lqr_ablation_paper/alg_REPS_MI/distribution_diag/eps_0.4/k_30'
+    # exp_name = 'lqr_ablation_paper/alg_ConstrainedREPSMI'
+    # exp_name = 'ship_3_tiles_full_mi_vs_random_FULL/alg_ConstrainedREPSMIFull'
+    # CHECK -> ship random
+    exp_name = 'ship_fix/alg_plot_02' # max_runs =22
+    # exp_name = 'lqr_ablation_paper_random'
+    # exp_name = 'hockey_ablation_random_fix'
+    exp_name = 'hockey_ablation_random_fix_05'
+    exp_name = 'hockey_ablation_random_fix_02'
+    exp_name = 'hockey_ablation_random_fix_06'
+    exp_name = 'lqr_difficult_paper_08'
+    # exp_name = 'lqr_difficult_paper_06'
     max_runs = 10
+
+    # exp_name = 'bullet_ant_fix_again'
+    # # exp_name = 'hockey_bound_nn_fix_again'
+    # max_runs = 1
+
+    # # exp_name = 'lqr_ablation_mod_AR'
+    # exp_name = 'lqr_ablation_fix_04'
+    # exp_name = 'lqr_ablation_oracle_fix'
+    # max_runs = 1
+
 
     data_dir = os.path.join('logs', exp_name)
     data_dict = load_data_from_dir(data_dir)
