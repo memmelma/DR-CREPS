@@ -18,7 +18,7 @@ class ConstrainedREPSMI(BlackBoxOptimization):
 	Peters J.. 2013.
 
 	"""
-	def __init__(self, mdp_info, distribution, policy, eps, kappa, gamma, k, bins, mi_type='regression', method='MI', mi_avg=True, oracle=None, features=None):
+	def __init__(self, mdp_info, distribution, policy, eps, kappa, gamma, k, bins, mi_type='regression', method='MI', mi_avg=False, oracle=None, features=None):
 		"""
 		Constructor.
 
@@ -52,6 +52,8 @@ class ConstrainedREPSMI(BlackBoxOptimization):
 		self.kls = []
 		self.entropys = []
 		
+		self.top_k_mis = []
+
 		self.oracle = oracle
 
 		if gamma == -1:
@@ -64,10 +66,13 @@ class ConstrainedREPSMI(BlackBoxOptimization):
 		else:
 			self.beta = Parameter(1-gamma)
 
+		self.samples_theta = []
+		self.samples_Jep = []
+		
 		super().__init__(mdp_info, distribution, policy, features)
 
 	def compute_mi(self, theta, Jep, type='regression'):
-		
+		print('computing MI w/', theta.shape, Jep.shape)
 		if type == 'score':
 			from sklearn.metrics import mutual_info_score
 			mi = []
@@ -76,13 +81,13 @@ class ConstrainedREPSMI(BlackBoxOptimization):
 				mi += [mutual_info_score(None, None, contingency=c_xy)]
 			mi = np.array(mi)
 		elif type == 'regression':
-			mi = mutual_info_regression(theta, Jep, discrete_features=False, n_neighbors=3, random_state=42)
+			mi = mutual_info_regression(theta, Jep, discrete_features=False, n_neighbors=self._bins(), random_state=42)
+			print(mi.shape)
 		elif type == 'sample':
 			mi = []
 			for theta_i in theta.T:
 				mi += [self.MI_from_samples(theta_i, Jep, self._bins())]
 			mi = np.array(mi)
-
 		return mi
 
 	def compute_pearson(self, theta, Jep):
@@ -111,6 +116,15 @@ class ConstrainedREPSMI(BlackBoxOptimization):
 		return H
 	
 	def _update(self, Jep, theta):
+		
+		if len(self.samples_theta) == 0:
+			self.samples_theta = theta
+			self.samples_Jep = Jep
+		else:
+			self.samples_theta = np.concatenate((self.samples_theta, np.copy(theta)))
+			self.samples_Jep = np.concatenate((self.samples_Jep, np.copy(Jep)))
+			print(theta.shape, self.samples_theta.shape)
+			print(Jep.shape, self.samples_Jep.shape)
 
 		self.distribution._gamma = 1 - self.beta()
 		# self.distribution._gamma = np.cbrt(self.beta())
@@ -133,7 +147,13 @@ class ConstrainedREPSMI(BlackBoxOptimization):
 			mi = self.compute_mi(theta, Jep, type=self._mi_type)
 		elif self.method == 'Pearson':
 			mi = self.compute_pearson(theta, Jep)
-
+		elif self.method == 'MI_ALL':
+			mi = self.compute_mi(self.samples_theta, self.samples_Jep, type=self._mi_type)
+		elif self.method == 'PPC_ALL':
+			mi = self.compute_pearson(self.samples_theta, self.samples_Jep)
+		else:
+			mi = self.compute_pearson(theta, Jep)
+			
 		if not self._mi_avg:
 			self.mi_avg = mi / np.max((1e-18,np.max(mi)))
 		else:
@@ -151,9 +171,16 @@ class ConstrainedREPSMI(BlackBoxOptimization):
 			top_k_mi = top_mi
 		else:
 			top_k_mi = self.mi_avg.argsort()[-int(self._k()):][::-1]
-		
+			
 		if self.oracle != None:
 			top_k_mi = self.oracle
+
+		if self.method == 'Random':
+			from numpy.random import default_rng
+			rng = default_rng()
+			top_k_mi = rng.choice(list(range(0, theta.shape[1], 1)), size=self._k(), replace=False)
+
+		self.top_k_mis += [top_k_mi]
 
 		# Constrained Update
 		# kl, entropy, mu = self.distribution.con_wmle_mi(theta, d, self._eps(), self._kappa(), top_k_mi)
