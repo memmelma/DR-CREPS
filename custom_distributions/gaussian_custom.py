@@ -1,5 +1,6 @@
 import numpy as np
 from .distribution import Distribution
+import scipy
 from scipy.stats import multivariate_normal
 from scipy.optimize import minimize
 
@@ -121,9 +122,9 @@ class GaussianDiagonalDistribution(Distribution):
             std_tmp = std_tmp * (self._importance+1e-18)
         elif self._sample_type == 'PRO' and self._importance is not None:
             std_tmp = std_tmp * self._importance
-            # std_tmp = std_tmp
 
         sigma = np.diag(std_tmp)
+
         try:
             return np.random.multivariate_normal(self._mu, sigma)
         except ValueError:
@@ -151,8 +152,10 @@ class GaussianDiagonalDistribution(Distribution):
     def entropy(self):
         return 0.5 * np.log(np.product(2*np.pi*np.e*self._std**2))
 
-    def mle(self, theta, weights=None):
+    def mle(self, theta, weights=None, indices=[]):
         
+        self._top_k = indices
+
         self.previous_std = np.copy(self._std)
 
         if weights is None:
@@ -349,7 +352,8 @@ class GaussianDistributionMI(Distribution):
 
         """
         self._mu = mu
-        self._u, self._s, self._vh = np.linalg.svd(sigma)
+        # self._u, self._s, self._vh = np.linalg.svd(sigma)
+        self._u, self._s, self._vh = scipy.linalg.svd(sigma, lapack_driver='gesvd')
         self.sigma_new_sample = np.diag(self._s)
 
         self._gamma = 0
@@ -375,22 +379,27 @@ class GaussianDistributionMI(Distribution):
         self._sample_type = 'importance'
     
     def sample(self):
-        from copy import copy
-        std_tmp = copy(self._s)
+        # from copy import copy
+        # std_tmp = copy(self._s)
 
-        selection = np.in1d(range(std_tmp.shape[0]), self._top_k)
+        # selection = np.in1d(range(std_tmp.shape[0]), self._top_k)
 
-        if self._sample_type == 'fixed' and len(self._top_k):
-            std_tmp[~selection] = self._gamma
-        elif self._sample_type == 'percentage' and len(self._top_k):
-            std_tmp[~selection] = std_tmp[~selection] * self._gamma
-        elif self._sample_type == 'importance' and self._importance is not None:
-            std_tmp = std_tmp * self._importance
+        # if self._sample_type == 'fixed' and len(self._top_k):
+        #     std_tmp[~selection] = self._gamma
+        # elif self._sample_type == 'percentage' and len(self._top_k):
+        #     std_tmp[~selection] = std_tmp[~selection] * self._gamma
+        # elif self._sample_type == 'importance' and self._importance is not None:
+        #     std_tmp = std_tmp * self._importance
 
-        sigma = np.diag(std_tmp)
+        # sigma = np.diag(std_tmp)
 
-        u, s, v = np.linalg.svd(self.sigma_new_sample)
+        # u, s, v = np.linalg.svd(self.sigma_new_sample)
+        u, s, v = scipy.linalg.svd(self.sigma_new_sample, lapack_driver='gesvd')
         sigma = np.diag(s)
+
+        sigma = self.sigma_new_sample
+        theta = np.random.multivariate_normal(self._mu, sigma)
+        return theta
 
         theta = np.random.multivariate_normal(np.zeros_like(self._mu), sigma)[:, np.newaxis]
         return ( self._u @ theta + self._mu[:,np.newaxis] ).squeeze()
@@ -408,7 +417,8 @@ class GaussianDistributionMI(Distribution):
         n_dims = len(self._mu)
         self._mu = rho[:n_dims]
         sigma = rho[n_dims:].reshape(n_dims, n_dims)
-        self._u, self._s, self._vh = np.linalg.svd(sigma)
+        # self._u, self._s, self._vh = np.linalg.svd(sigma)
+        self._u, self._s, self._vh = scipy.linalg.svd(sigma, lapack_driver='gesvd')
     
     def mle_mi_diag(self, theta, weights=None):
         if weights is None:
@@ -425,10 +435,10 @@ class GaussianDistributionMI(Distribution):
 
             sigma = delta.T.dot(np.diag(weights)).dot(delta) / Z
 
-        self._u, self._s, self._vh = np.linalg.svd(sigma)
+        # self._u, self._s, self._vh = np.linalg.svd(sigma)
+        self._u, self._s, self._vh = scipy.linalg.svd(sigma, lapack_driver='gesvd')
 
     def mle_mi_full(self, theta, indices, weights=None):
-        
         self._top_k = indices
 
         mu = np.zeros_like(self._mu)
@@ -463,12 +473,16 @@ class GaussianDistributionMI(Distribution):
         mu_new_tmp[indices] = mu_new
         mu_new = mu_new_tmp
         
-        self.sigma_new_sample = sigma_old * self._gamma
-        self.sigma_new_sample[indices,indices] = np.diag(sigma_new)
+        if self._sample_type == 'percentage':
+            sigma_new_sample_tmp = sigma_old * self._gamma
+        else:
+            sigma_new_sample_tmp = sigma_old
+        sigma_new_sample_tmp[indices,indices] = np.diag(sigma_new)
         for i, idx_i in enumerate(indices):
             for j, idx_j in enumerate(indices):
                 if i != j:
-                    self.sigma_new_sample[idx_i,idx_j] = sigma_new[i,j]
+                    sigma_new_sample_tmp[idx_i,idx_j] = sigma_new[i,j]
+        self.sigma_new_sample = self._u @ sigma_new_sample_tmp @ self._vh
 
         sigma_new_tmp = sigma_old
         sigma_new_tmp[indices,indices] = np.diag(sigma_new)
@@ -477,12 +491,13 @@ class GaussianDistributionMI(Distribution):
                 if i != j:
                     sigma_new_tmp[idx_i,idx_j] = sigma_new[i,j]
         sigma_new = sigma_new_tmp
+        sigma_new = self._u @ sigma_new @ self._vh
 
         # set new parameters
         self._mu = self._mu + self._u @ mu_new
-        sigma_new = self._u @ sigma_new @ self._vh
-        self._u, self._s, self._vh = np.linalg.svd(sigma_new)
-        # self.sigma_new_sample = np.diag(self._s)
+        # self._u, self._s, self._vh = np.linalg.svd(sigma_new)
+        self._u, self._s, self._vh = scipy.linalg.svd(sigma_new, lapack_driver='gesvd')
+        
         np.linalg.cholesky(sigma_new)
 
     def con_wmle_mi(self, theta, weights, eps, kappa, indices):
@@ -502,7 +517,8 @@ class GaussianDistributionMI(Distribution):
 
         mu_new, sigma_new = GaussianCholeskyDistribution.closed_form_mu1_sigma_new(weights, theta, mu, sigma, n_dims, eps, eta_opt, omg_opt, kappa)
 
-        self._u, self._s, self._vh = np.linalg.svd(sigma_new)
+        # self._u, self._s, self._vh = np.linalg.svd(sigma_new)
+        self._u, self._s, self._vh = scipy.linalg.svd(sigma_new, lapack_driver='gesvd')
         self._mu = mu_new
 
         (sign_sigma, logdet_sigma) = np.linalg.slogdet(sigma)
@@ -545,7 +561,8 @@ class GaussianDistributionMI(Distribution):
         sigma = np.copy(self._u @ np.diag(s_old) @ self._vh)
 
         # set new parameters
-        self._u, self._s, self._vh = np.linalg.svd(sigma_new)
+        # self._u, self._s, self._vh = np.linalg.svd(sigma_new)
+        self._u, self._s, self._vh = scipy.linalg.svd(sigma_new, lapack_driver='gesvd')
         self._mu = mu_new
         
         # compute kl and entropy in original space
@@ -601,7 +618,8 @@ class GaussianDistributionMI(Distribution):
         sigma = np.copy(self._u @ np.diag(s_old_true) @ self._vh)
 
         # set new parameters
-        self._u, self._s, self._vh = np.linalg.svd(sigma_new)
+        # self._u, self._s, self._vh = np.linalg.svd(sigma_new)
+        self._u, self._s, self._vh = scipy.linalg.svd(sigma_new, lapack_driver='gesvd')
         self._mu = mu_new
         
         # logdet_sigma, n_dims
@@ -647,13 +665,18 @@ class GaussianDistributionMI(Distribution):
         mu_new_tmp[indices] = mu_new
         mu_new = mu_new_tmp
 
-        self.sigma_new_sample = sigma_old * self._gamma
-        self.sigma_new_sample[indices,indices] = np.diag(sigma_new)
+        if self._sample_type == 'percentage':
+            sigma_new_sample_tmp = sigma_old * self._gamma
+        else:
+            sigma_new_sample_tmp = sigma_old
+
+        sigma_new_sample_tmp[indices,indices] = np.diag(sigma_new)
         for i, idx_i in enumerate(indices):
             for j, idx_j in enumerate(indices):
                 if i != j:
-                    self.sigma_new_sample[idx_i,idx_j] = sigma_new[i,j]
-                    
+                    sigma_new_sample_tmp[idx_i,idx_j] = sigma_new[i,j]
+        self.sigma_new_sample = self._u @ sigma_new_sample_tmp @ self._vh
+        
         sigma_new_tmp = np.copy(sigma_old)
         sigma_new_tmp[indices,indices] = np.diag(sigma_new)
         for i, idx_i in enumerate(indices):
@@ -669,7 +692,8 @@ class GaussianDistributionMI(Distribution):
         self._mu = self._mu + self._u @ mu_new
         mu_new = self._mu
         sigma_new = self._u @ sigma_new @ self._vh
-        self._u, self._s, self._vh = np.linalg.svd(sigma_new)
+        # self._u, self._s, self._vh = np.linalg.svd(sigma_new)
+        self._u, self._s, self._vh = scipy.linalg.svd(sigma_new, lapack_driver='gesvd')
         
         # make sure it's positive definite
         np.linalg.cholesky(sigma_new)
