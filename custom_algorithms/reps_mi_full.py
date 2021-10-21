@@ -117,7 +117,7 @@ class REPS_MI_full(BlackBoxOptimization):
 		res = minimize(REPS_MI_full._dual_function, eta_start,
 					   jac=REPS_MI_full._dual_function_diff,
 					   bounds=((np.finfo(np.float32).eps, np.inf),),
-					   args=(self._eps(), Jep, theta_prime)) # theta_old ??
+					   args=(self._eps(), Jep, theta_prime))
 
 		eta_opt = res.x.item()
 

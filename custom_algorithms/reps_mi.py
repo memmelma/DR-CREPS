@@ -136,7 +136,10 @@ class REPS_MI(BlackBoxOptimization):
 			mi = self.compute_mi(theta, Jep, type=self._mi_type)
 		elif self.method == 'Pearson':
 			mi = self.compute_pearson(theta, Jep)
-			print(mi)
+		# TODO find better implt
+		else:
+			mi = self.compute_pearson(theta, Jep)
+
 		if not self._mi_avg:
 			self.mi_avg = mi / np.max((1e-18,np.max(mi)))
 		else:
@@ -160,8 +163,11 @@ class REPS_MI(BlackBoxOptimization):
 		print('top_k_mi',top_k_mi)
 		self.top_k_mis += [top_k_mi]
 
-		self.distribution._top_k = top_k_mi
-		self.distribution.mle(theta, d)
+		if self.method == 'Random':
+			top_k_mi = np.random.randint(0, theta.shape[1], self._k())
+
+		# self.distribution._top_k = top_k_mi
+		self.distribution.mle(theta, d, indices=top_k_mi)
 
 		importance = self.mi_avg #/ np.sum(self.mi_avg)
 		self.distribution.update_importance(importance)
