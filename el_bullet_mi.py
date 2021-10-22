@@ -11,41 +11,52 @@ from mushroom_rl.core import Core, Logger
 from mushroom_rl.policy import DeterministicPolicy
 from mushroom_rl.utils.dataset import compute_J
 
-from custom_env.ball_rolling_gym_env import BallRollingGym
-from custom_policy.promp_policy import ProMPPolicy
+from mushroom_rl.utils.preprocessors import StandardizationPreprocessor
 from mushroom_rl.environments import Gym
 
 from utils_el import init_distribution, init_algorithm, log_constraints
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from mushroom_rl.utils.torch import get_weights
 
 
 class Network(nn.Module):
-    def __init__(self, input_shape, output_shape, *args, **kwargs) -> None:
+    def __init__(self, input_shape, output_shape, second_hidden=False, *args, **kwargs) -> None:
         super(Network, self).__init__()
         n_input = input_shape[-1]
         n_output = output_shape[0]
         n_features = 32
 
-        self._h1 = nn.Linear(n_input, n_features)
-        self._h2 = nn.Linear(n_features, n_output)
+        self.second_hidden = second_hidden
 
-        nn.init.xavier_uniform_(self._h1.weight,
-                                gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform_(self._h2.weight,
-                                gain=nn.init.calculate_gain('linear'))
+        self._h1 = nn.Linear(n_input, n_features)
+        if self.second_hidden:
+            self._h2 = nn.Linear(n_features, n_features)
+        self._h3 = nn.Linear(n_features, n_output)
+
+        # nn.init.xavier_uniform_(self._h1.weight,
+        #                         gain=nn.init.calculate_gain('relu'))
+        # if self.second_hidden:
+        #     nn.init.xavier_uniform_(self._h2.weight,
+        #                             gain=nn.init.calculate_gain('relu'))
+        # nn.init.xavier_uniform_(self._h3.weight,
+        #                         gain=nn.init.calculate_gain('linear'))
 
 
     def forward(self, state) -> torch.Tensor:
-        features1 = F.relu(self._h1(torch.squeeze(state, 1).float()))
-        a = self._h2(features1)
-        a = F.tanh(a)
+        features1 = torch.relu(self._h1(torch.squeeze(state, 1).float()))
+        
+        if self.second_hidden:
+            features2 = torch.relu(self._h2(features1))
+        else:
+            features2 = features1
+        
+        features3 = self._h3(features2)
+
+        a = torch.tanh(features3)
         return a
-        # TODO check action space
 
 def experiment( env_name, horizon, env_gamma, \
                 alg, eps, kappa, k, \
@@ -73,7 +84,7 @@ def experiment( env_name, horizon, env_gamma, \
     # init distribution
     distribution = init_distribution(mu_init=0, sigma_init=sigma_init, size=policy.weights_size, sample_type=sample_type, gamma=gamma, distribution_class=distribution)
     # use network init as init mu
-    distribution._mu = get_weights(approximator.model.network.parameters())
+    # distribution._mu = get_weights(approximator.model.network.parameters())
     print(distribution._mu)
     
     print(f'{policy.weights_size} parameters')
@@ -82,8 +93,11 @@ def experiment( env_name, horizon, env_gamma, \
     alg, params = init_algorithm(algorithm_class=alg, params=init_params)
     agent = alg(mdp.info, distribution, policy, features=None, **params)
 
+    # preprocessor
+    prepro = StandardizationPreprocessor(mdp_info=mdp.info)
+    
     # train
-    core = Core(agent, mdp)
+    core = Core(agent, mdp, preprocessors=[prepro])
 
     dataset_eval = core.evaluate(n_episodes=ep_per_fit, quiet=quiet)
     # print('distribution parameters: ', distribution.get_parameters())
@@ -180,15 +194,15 @@ def default_params():
     defaults = dict(
         # environment
         # env_name = 'HopperBulletEnv-v0',
-        env_name = 'HalfCheetahBulletEnv-v0',
+        env_name = 'AntBulletEnv-v0',
         horizon = 0, # None
         env_gamma = 0.99,
 
         # algorithm
         alg = 'ConstrainedREPSMIFull',
-        eps = 2.7,
-        kappa = 2.,
-        k = 200, # 1/3 of parameters
+        eps = 5.,
+        kappa = 10.,
+        k = 100,
 
         # distribution
         sigma_init = 3e-1,
@@ -204,8 +218,8 @@ def default_params():
 
         # training
         n_epochs = 50,
-        fit_per_epoch = 4, 
-        ep_per_fit = 3000,
+        fit_per_epoch = 1, 
+        ep_per_fit = 50,
 
         # misc
         seed = 0,

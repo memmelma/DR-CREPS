@@ -103,27 +103,27 @@ def default_params():
         horizon = 750,
 
         # algorithm
-        alg = 'REPS',
-        eps = 0.7,
-        kappa = 2,
-        k = 25,
+        alg = 'ConstrainedREPSMIFull',
+        eps = 4.5,
+        kappa = 15,
+        k = 30,
 
         # distribution
         sigma_init = 30.,
-        distribution = 'diag',
+        distribution = 'mi',
 
         # MI related
         method ='MI', # Pearson
         mi_type = 'regression',
         bins = 4,
         sample_type = None,
-        gamma = 0.1,
+        gamma = 0.5,
         mi_avg = 0, # False
 
         # training
         n_epochs = 4,
         fit_per_epoch = 1, 
-        ep_per_fit = 25,
+        ep_per_fit = 60,
 
         # misc
         seed = 0,

@@ -213,32 +213,35 @@ def default_params():
         # alg = 'REPS_MI_ORACLE',
         # alg = 'ConstrainedREPSMIOracle',
         # alg = 'ConstrainedREPSMI',
+        alg = 'ConstrainedREPSMIFull',
         # alg = 'REPS_MI',
-        alg = 'REPS',
-        eps = 0.9,
-        kappa = 14.0,
-        k = 8,
+        # alg = 'REPS',
+        eps = 3.4,
+        kappa = 20.,
+        k = 200,
 
         # distribution
         sigma_init = 7e-2,
         # distribution = 'diag',
-        distribution = 'cholesky',
+        # distribution = 'cholesky',
+        distribution = 'mi',
 
         # MI related
         method = 'MI', # Pearson
+        # method = 'Random',
         mi_type = 'regression',
         bins = 4,
-        sample_type = None,
-        gamma = 0.9,
+        sample_type = 'percentage',
+        gamma = 0.1,
         mi_avg = 0, # False
 
         # training
-        n_epochs = 10,
+        n_epochs = 233,
         fit_per_epoch = 1, 
-        ep_per_fit = 500,
+        ep_per_fit = 15,
 
         # misc
-        seed = 0,
+        seed = 24,
         results_dir = 'results',
         quiet = 1 # True
     )

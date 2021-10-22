@@ -7,11 +7,11 @@ if __name__ == '__main__':
 	local = False
 	test = False
 
-	experiment_name = f'hockey_ablation_random_fix_06'
+	experiment_name = f'hockey_diag_full'
 	
 	launcher = Launcher(experiment_name,
 						'el_air_hockey_mi',
-						25,
+						10, # 25
 						memory=1000,
 						days=1,
 						hours=0,
@@ -160,17 +160,31 @@ if __name__ == '__main__':
 	# launcher.add_experiment(alg='ConstrainedREPSMIFull', eps=4.0, kappa=7.0, method='Pearson', sample_type='percentage', gamma=0.1, k=30, distribution='mi', n_epochs=10000//50, ep_per_fit=150, nn=1)
 	# launcher.add_experiment(alg='ConstrainedREPSMIFull', eps=4.0, kappa=7.0, method='Pearson', sample_type='percentage', gamma=0.5, k=30, distribution='mi', n_epochs=10000//50, ep_per_fit=150, nn=1)
 		
-	eps = 2.0
-	kappa = 12.
-	k = 30
-	for ep_per_fit in [50,100]:
-		n_epochs = int(200*50 / ep_per_fit)
-		distribution = 'mi'
-		launcher.add_experiment(alg='ConstrainedREPS', eps=eps, kappa=kappa, distribution='cholesky', sample_type=None, ep_per_fit=ep_per_fit, n_epochs=n_epochs)
-		for method in ['Pearson', 'MI', 'Random']:
-			for gama in [0.1,0.9]:
-				launcher.add_experiment(alg='ConstrainedREPSMIFull', eps=eps, kappa=kappa, distribution=distribution, sample_type='percentage', method=method, gamma=gama, k=k, ep_per_fit=ep_per_fit, n_epochs=n_epochs)
-			# launcher.add_experiment(alg='ConstrainedREPSMIFull', eps=eps, kappa=kappa, distribution=distribution, sample_type=None, method=method, ep_per_fit=ep_per_fit, n_epochs=n_epochs)
+	# eps = 2.0
+	# kappa = 12.
+	# k = 30
+	# for ep_per_fit in [50,100]:
+	# 	n_epochs = int(200*50 / ep_per_fit)
+	# 	distribution = 'mi'
+	# 	launcher.add_experiment(alg='ConstrainedREPS', eps=eps, kappa=kappa, distribution='cholesky', sample_type=None, ep_per_fit=ep_per_fit, n_epochs=n_epochs)
+	# 	for method in ['Pearson', 'MI', 'Random']:
+	# 		for gama in [0.1,0.9]:
+	# 			launcher.add_experiment(alg='ConstrainedREPSMIFull', eps=eps, kappa=kappa, distribution=distribution, sample_type='percentage', method=method, gamma=gama, k=k, ep_per_fit=ep_per_fit, n_epochs=n_epochs)
+	# 		# launcher.add_experiment(alg='ConstrainedREPSMIFull', eps=eps, kappa=kappa, distribution=distribution, sample_type=None, method=method, ep_per_fit=ep_per_fit, n_epochs=n_epochs)
+
+
+	for eps in [2.0]:
+		for kappa in [12.]:
+			ep_per_fit = 150
+			n_epochs = n_samples // ep_per_fit
+			launcher.add_experiment(alg='ConstrainedREPS', distribution='cholesky', eps=eps, kappa=kappa, sample_type=None, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+			launcher.add_experiment(alg='ConstrainedREPS', distribution='mi', eps=eps, kappa=kappa, sample_type='percentage', method='Pearson', k=30, gamma=0.1, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+			launcher.add_experiment(alg='ConstrainedREPS', distribution='mi', eps=eps, kappa=kappa, sample_type='percentage', method='Pearson', k=30, gamma=0.5, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+			ep_per_fit = 50
+			n_epochs = n_samples // ep_per_fit
+			launcher.add_experiment(alg='ConstrainedREPS', distribution='diag', eps=eps, kappa=kappa, sample_type=None, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+			launcher.add_experiment(alg='ConstrainedREPS', distribution='mi', eps=eps, kappa=kappa, sample_type='percentage', method='Pearson', k=30, gamma=0.1, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+			launcher.add_experiment(alg='ConstrainedREPS', distribution='mi', eps=eps, kappa=kappa, sample_type='percentage', method='Pearson', k=30, gamma=0.5, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
 
 	print(experiment_name)
 	print('experiments:', len(launcher._experiment_list))

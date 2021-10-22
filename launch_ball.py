@@ -8,22 +8,21 @@ if __name__ == '__main__':
 	test = False
 
 	# experiment_name = f'ball_sample'
-	experiment_name = f'ball_all_best_25'
+	experiment_name = f'ball_full_fix_random'
 	
 	launcher = Launcher(experiment_name,
 						'el_ball_mi',
 						25,
 						memory=1000,
-						days=2,
-						hours=24,
+						days=3,
+						hours=0,
 						minutes=0,
 						seconds=0,
-						n_jobs=-1,
-						use_timestamp=True)
+						use_timestamp=False)
 	
-	launcher.add_default_params(n_epochs=250, fit_per_epoch=1, ep_per_fit=25, \
+	launcher.add_default_params(fit_per_epoch=1, \
 								n_basis=20, horizon=750, \
-								sigma_init=1e-0, distribution='diag', bins=4, mi_type='regression', mi_avg=0)
+								sigma_init=1e-0, bins=4, mi_type='regression', mi_avg=0)
 	
 	# # all best
 	# launcher.add_experiment(alg='ConstrainedREPS', eps=2.7, kappa=6.)
@@ -77,6 +76,31 @@ if __name__ == '__main__':
 	# launcher.add_experiment(alg='ConstrainedREPSMI', k=65, method='MI', sample_type='percentage', gamma=0.5, eps=2.7, kappa=6.)
 	# launcher.add_experiment(alg='ConstrainedREPSMI', k=65, method='MI', sample_type='PRO', eps=2.7, kappa=6.)
 
+	n_samples = 7000
+	eps = 4.5
+	kappa = 20.
+
+	# ep_per_fit = 250
+	# n_epochs = n_samples // ep_per_fit
+	# distribution = 'cholesky'
+	# launcher.add_experiment(alg='ConstrainedREPS', eps=eps, kappa=kappa, distribution=distribution, sample_type=None, ep_per_fit=ep_per_fit, n_epochs=n_epochs)
+	# launcher.add_experiment(alg='MORE', eps=eps, kappa=kappa, distribution=distribution, sample_type=None, ep_per_fit=ep_per_fit, n_epochs=n_epochs)
+
+	
+
+	
+	k = 30
+	ep_per_fit = 60
+	n_epochs = n_samples // ep_per_fit
+	distribution = 'mi'
+	for method in ['Pearson', 'MI', 'Random']:
+		for gama in [0.1, 0.5]:
+		
+			launcher.add_experiment(alg='ConstrainedREPSMIFull', eps=eps, kappa=kappa, distribution=distribution, sample_type='percentage', method=method, gamma=gama, k=k, ep_per_fit=ep_per_fit, n_epochs=n_epochs)
+
+		launcher.add_experiment(alg='ConstrainedREPSMIFull', eps=eps, kappa=kappa, distribution=distribution, sample_type=None, method=method, ep_per_fit=ep_per_fit, n_epochs=n_epochs)
+
 	print(experiment_name)
+	print('experiments:', len(launcher._experiment_list))
 
 	launcher.run(local, test)

@@ -104,8 +104,12 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
             #     continue
             if data_dict[exp]['init_params'][0]['ep_per_fit'] != 50:
                 continue
-        
-        # if (data_dict[exp]['init_params'][0]['gamma'] != 0.1 and data_dict[exp]['init_params'][0]['sample_type'] != 'None') and data_dict[exp]['init_params'][0]['alg'] != 'ConstrainedREPS':
+
+
+        # if data_dict[exp]['init_params'][0]['alg'] == 'MORE':
+        #     continue
+
+        # if (data_dict[exp]['init_params'][0]['gamma'] != 0.5 and data_dict[exp]['init_params'][0]['sample_type'] != 'None') and data_dict[exp]['init_params'][0]['alg'] != 'ConstrainedREPS':
         #         continue
         # if data_dict[exp]['init_params'][0]['ep_per_fit'] != 100 and data_dict[exp]['init_params'][0]['alg'] != 'ConstrainedREPS':
         #     continue
@@ -133,6 +137,9 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
 
         y, ci  = get_mean_and_confidence(np.array(data_dict[exp]['returns_mean']))
         ci = ci[1]
+
+        # if np.max(y) < -200:
+        #     continue
         
         # tmp = []
         # for i in np.array(data_dict[exp]['returns_mean']):
@@ -194,10 +201,10 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
                 colors = ['tab:cyan', 'tab:blue', 'tab:green', 'tab:orange', 'tab:pink', 'tab:purple',]
                 line_styles = ['solid', 'solid', 'solid', 'solid', 'solid', 'solid']
 
-            elif exp_name == 'hockey_full':
-                labels = ['MORE', 'CREPS', 'DR-CREPS (PCC)', 'DR-CREPS (MI)']
-                colors = ['tab:green', 'tab:orange', 'tab:pink', 'tab:purple']
-                line_styles = ['solid', 'solid', 'solid', 'solid', 'solid', 'solid']
+            # elif exp_name == 'hockey_full':
+            #     labels = ['MORE', 'CREPS', 'DR-CREPS (PCC)', 'DR-CREPS (MI)']
+            #     colors = ['tab:green', 'tab:orange', 'tab:pink', 'tab:purple']
+            #     line_styles = ['solid', 'solid', 'solid', 'solid', 'solid', 'solid']
 
             elif exp_name == 'ball_full_fix':
                 labels = ['MORE', 'CREPS', 'DR-CREPS (PCC)', 'DR-CREPS (MI)']
@@ -243,8 +250,8 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
                 labels = ['CREPS', 'DR-CREPS (Random)', 'DR-CREPS (PCC)', 'DR-CREPS (MI)', 'DR-CREPS w/o PE (Random)', 'DR-CREPS w/o PE (PCC)', 'DR-CREPS w/o PE (MI)']
                 colors = ['tab:blue', 'tab:brown', 'tab:pink', 'tab:purple', 'tab:brown', 'tab:pink', 'tab:purple']
                 line_styles = ['solid', 'solid', 'solid', 'solid', 'dashed', 'dashed', 'dashed']
-
-            elif 'hockey_ablation_random_fix_06' in exp_name:
+            
+            elif 'hockey_full' in exp_name:
                 labels = ['CREPS', 'DR-CREPS (Random)', 'DR-CREPS (PCC)', 'DR-CREPS (MI)', 'DR-CREPS w/o PE (Random)', 'DR-CREPS w/o PE (PCC)', 'DR-CREPS w/o PE (MI)']
                 colors = ['tab:blue', 'tab:brown', 'tab:pink', 'tab:purple', 'tab:brown', 'tab:pink', 'tab:purple']
                 line_styles = ['solid', 'solid', 'solid', 'solid', 'dashed', 'dashed', 'dashed']
@@ -706,12 +713,15 @@ if __name__ == '__main__':
     # CHECK -> ship random
     exp_name = 'ship_fix/alg_plot_02' # max_runs =22
     # exp_name = 'lqr_ablation_paper_random'
-    # exp_name = 'hockey_ablation_random_fix'
-    exp_name = 'hockey_ablation_random_fix_05'
-    exp_name = 'hockey_ablation_random_fix_02'
-    exp_name = 'hockey_ablation_random_fix_06'
-    exp_name = 'lqr_difficult_paper_08'
-    # exp_name = 'lqr_difficult_paper_06'
+    # exp_name = 'hockey_ablation_random_fix_05'
+    # exp_name = 'hockey_ablation_random_fix_02'
+    # exp_name = 'hockey_ablation_random_fix_06'
+    # exp_name = 'lqr_difficult_BQ_eps_kappa'
+    # exp_name = 'hockey_ablation_random_fix_02'
+    # exp_name = 'lqr_difficult_BQAR_eps_kappa_comp'
+    exp_name = 'lqr_ARBQ_09_fix'
+    exp_name = 'lqr_ARBQ_0109_fix_04'
+    exp_name = 'lqr_ARBQ_0109_fix_07_ineff'
     max_runs = 10
 
     # exp_name = 'bullet_ant_fix_again'

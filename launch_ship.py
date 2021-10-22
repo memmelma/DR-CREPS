@@ -7,24 +7,24 @@ if __name__ == '__main__':
 	test = False
 
 	# experiment_name = f'ship_3_tiles_full_besty_10'
-	experiment_name = f'ship_3_tiles_full_sanity'
+	# experiment_name = f'ship_diag'
+	experiment_name = f'ship_fix_random_missing'
 	
 	launcher = Launcher(experiment_name,
 						'el_ship_mi',
-						10,
+						25,
 						memory=1000,
 						days=2,
 						hours=0,
 						minutes=0,
 						seconds=0,
-						# n_jobs=-1,
 						use_timestamp=False)
 	
-	# launcher.add_default_params(
-	# 							n_tilings=3,
-	# 							sigma_init=7e-2,
-	# 							n_epochs=75, fit_per_epoch=1, ep_per_fit=25,
-	# 							mi_type='regression', bins=4)
+	launcher.add_default_params(
+								n_tilings=3,
+								sigma_init=7e-2,
+								# n_epochs=75, fit_per_epoch=1, ep_per_fit=25,
+								mi_type='regression', bins=4)
 
 	# # all best
 	# launcher.add_experiment(alg='ConstrainedREPS', eps=5.3, kappa=14.)
@@ -42,12 +42,22 @@ if __name__ == '__main__':
 	# 	launcher.add_experiment(alg='REPS', eps=eps)
 	# 	# # RWR
 	# 	launcher.add_experiment(alg='RWR', eps=eps)
-	# for eps in np.arange(6.5, 14.0, 0.5):
+	# # Constrained REPS
+	# for eps in np.arange(8.5, 14.0, 0.5):
 	# 	eps = round(eps,1)
-	# 	for kappa in np.arange(6., 14., 1.):
+	# 	for kappa in np.arange(14., 20., 2.):
 	# 		kappa = round(kappa,1)
-	# 		# Constrained REPS
 	# 		launcher.add_experiment(alg='ConstrainedREPS', eps=eps, kappa=kappa)
+
+	# distribution = 'diag'
+	# eps = 0.5
+	# for k in np.arange(5, 150, 10):
+	# 	for gama in np.arange(0.1, 1.0, 0.1):
+	# 		gama = round(gama,1)
+	# 		launcher.add_experiment(alg='RWR_MI', eps=eps, k=k, gamma=gama, sample_type='percentage', method='MI', distribution=distribution)
+	
+	# launcher.add_experiment(alg='RWR_MI', eps=eps, k=k, sample_type='PRO', method='Pearson', distribution=distribution)
+
 
 	# # k -> ship has 150 parameters
 	# # hyperparameters according to max reward
@@ -100,20 +110,19 @@ if __name__ == '__main__':
 
 	### SHIP FULL COVARIANCE ######################################################################################################################################################
 
-	launcher.add_default_params(
-								n_tilings=3,
+	launcher.add_default_params(n_tilings=3,
 								sigma_init=7e-2,
+								# sigma_init=1e-2,
 								fit_per_epoch=1,
 								mi_type='regression', bins=4)
 
 	n_samples = 3500
 
-	# # Cholesky Gaussian Distribution
+	# Cholesky Gaussian Distribution
 	distribution = 'cholesky'
 
-	# for ep_per_fit in [15, 30]:
-	ep_per_fit = 15
-	n_epochs = n_samples // ep_per_fit
+	# ep_per_fit = 15
+	# n_epochs = n_samples // ep_per_fit
 
 	# 	# REPS & RWR
 	# 	# for eps in np.arange(0.1, 2.5, 0.3):
@@ -137,15 +146,15 @@ if __name__ == '__main__':
 		# launcher.add_experiment(alg='MORE', distribution=distribution, eps=eps, kappa=kappa, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
 
 	# Cholesky Gaussian Distribution for MI based algorithms
-	for eps in [2.4, 3.4]:
-		kappa = 20
-		ep_per_fit = 15
-		n_epochs = n_samples // ep_per_fit
-		launcher.add_experiment(alg='ConstrainedREPSMI', distribution='cholesky', eps=eps, kappa=kappa, sample_type=None, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
-		k = 15
-		launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution='mi', eps=eps, kappa=kappa, k=k, sample_type='percentage', gamma=0.1, method='MI', n_epochs=n_epochs, ep_per_fit=ep_per_fit)
-		launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution='mi', eps=eps, kappa=kappa, k=k, sample_type='percentage', gamma=0.5, method='MI', n_epochs=n_epochs, ep_per_fit=ep_per_fit)
-		launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution='mi', eps=eps, kappa=kappa, k=k, sample_type='percentage', gamma=0.9, method='MI', n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+	# for eps in [2.4, 3.4]:
+	# 	kappa = 20
+	# 	ep_per_fit = 15
+	# 	n_epochs = n_samples // ep_per_fit
+	# 	launcher.add_experiment(alg='ConstrainedREPS', distribution='cholesky', eps=eps, kappa=kappa, sample_type=None, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+	# 	for k in [50, 100, 200]:
+	# 		launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution='mi', eps=eps, kappa=kappa, k=k, sample_type='percentage', gamma=0.1, method='MI', n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+	# 		launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution='mi', eps=eps, kappa=kappa, k=k, sample_type='percentage', gamma=0.5, method='MI', n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+	# 	launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution='mi', eps=eps, kappa=kappa, k=k, sample_type='percentage', gamma=0.9, method='MI', n_epochs=n_epochs, ep_per_fit=ep_per_fit)
 
 
 	# # Constrained REPS with MI
@@ -179,22 +188,47 @@ if __name__ == '__main__':
 	# 			gama = np.round(gama,1)
 	# 			launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution=distribution, eps=eps, kappa=kappa, k=k, sample_type='percentage', gamma=gama, method='MI', n_epochs=n_epochs, ep_per_fit=ep_per_fit)
 
-	# # Best eps from REPS
+	# Best eps from REPS
 	# eps = 0.5
 	
 	# # REPS MI
-	# for k in np.arange(15, 450, 25):
-	# 	 k = int(k)
-	# 	 # n_samples required for full covariance / n_parameters = 2.5
-	# 	 # ep_per_fit = int(k * 3)
-	# 	 for ep_per_fit in [k*3, k*4]:
-	# 		 n_epochs = n_samples // ep_per_fit
-		
-	# 		 for gama in np.arange(0.1,1.0,0.1):
-	# 			 gama = np.round(gama,1)
-	# 			 launcher.add_experiment(alg='REPS_MI_full', distribution=distribution, eps=eps, k=k, sample_type='percentage', gamma=gama, method='MI', n_epochs=n_epochs, ep_per_fit=ep_per_fit)
-	# 	 # launcher.add_experiment(alg='REPS_MI_full', distribution=distribution, eps=eps, k=k, sample_type=None, method='MI', n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+	# distribution = 'mi'
+	# for ep_per_fit in [50, 100, 250]:
+	# 	n_epochs = n_samples // ep_per_fit
+	# 	for method in ['Pearson', 'MI']:
+	# 		for k in [50, 100, 200]:
+	# 			for gama in np.arange(0.1,1.0,0.1):
+	# 				gama = np.round(gama,1)
+	# 				launcher.add_experiment(alg='REPS_MI_full', distribution=distribution, eps=eps, k=k, sample_type='percentage', gamma=gama, method=method, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+	# 		launcher.add_experiment(alg='REPS_MI_full', distribution=distribution, eps=eps, k=k, sample_type=None, method=method, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
 	
+	# kappa = 20.
+	# for ep_per_fit in [15, 50]:
+	# 	n_epochs = n_samples // ep_per_fit
+		
+	# 	# eps = 2.4
+	# 	# launcher.add_experiment(alg='ConstrainedREPS', distribution='cholesky', eps=eps, kappa=kappa, sample_type=None, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+		
+	# 	for eps in [2.4, 3.4]:
+	# 		for method in ['Pearson', 'MI']:
+	# 			for k in [50, 100, 200]:
+	# 				for gama in [0.1, 0.5, 0.9]:
+	# 					launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution='mi', eps=eps, kappa=kappa, k=k, sample_type='percentage', gamma=gama, method=method, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+	# 				launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution='mi', eps=eps, kappa=kappa, k=k, sample_type=None, method=method, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+				
+	# for method in ['MI', 'Pearson']:
+	for method in ['Random']:
+		ep_per_fit = 15
+		n_epochs = n_samples // ep_per_fit 
+		# launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution='mi', eps=3.4, kappa=20., k=200, sample_type='percentage', method=method, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+		launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution='mi', eps=3.4, kappa=20., k=200, sample_type=None, method=method, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+		
+	# 	ep_per_fit = 250
+	# 	n_epochs = n_samples // ep_per_fit 
+	# 	launcher.add_experiment(alg='REPS_MI_full', distribution='mi', eps=0.5, k=100, sample_type='percentage', method=method, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+	
+	
+	# launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution='mi', eps=3.4, kappa=20., k=200, sample_type='percentage', method='Random', n_epochs=233, ep_per_fit=15)
 	
 	# for 3 tilings, k goes to 450 !!!
 	print(experiment_name)

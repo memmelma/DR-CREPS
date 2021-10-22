@@ -62,47 +62,69 @@ def experiment( lqr_dim, n_ineff, env_seed, nn_policy, \
     # init reduced LQR
     if env_seed >= 0:
 
-        rng = default_rng(seed=env_seed)
+        rng = default_rng(seed=0)
         choice = np.arange(0,lqr_dim,1)
         rng.shuffle(choice)
 
         ineff_params = choice[:n_ineff]
         eff_params = choice[n_ineff:]
 
-        oracle = []
-        tmp = np.arange(0,lqr_dim**2,1)
-        for p in eff_params:
-            oracle += tmp[p*lqr_dim:(p+1)*lqr_dim].tolist()
-        init_params['oracle'] = oracle
-        for p in ineff_params:
-            mdp.B[p][p] = 1e-20
-            mdp.Q[p][p] = 1e-20
+        # oracle = []
+        # tmp = np.arange(0,lqr_dim**2,1)
+        # for p in eff_params:
+        #     oracle += tmp[p*lqr_dim:(p+1)*lqr_dim].tolist()
+        # init_params['oracle'] = oracle
         
-        if env_seed == 42:
-            n_corr = 5 * lqr_dim
-            corr_params_0 = rng.choice(eff_params, size=n_corr, replace=True)
-            corr_params_1 = rng.choice(eff_params, size=n_corr, replace=True)
-            for p_0, p_1 in zip(corr_params_0, corr_params_1):
-                A = np.random.uniform(0, 0.5)
-                B = np.random.uniform(0, 0.5)
-                mdp.A[p_0][p_1] = A
-                mdp.A[p_1][p_0] = A
-                mdp.B[p_0][p_1] = B
-                mdp.B[p_1][p_0] = B
+        # for p in ineff_params:
+        #     mdp.B[p][p] = 1e-20
+        #     mdp.Q[p][p] = 1e-20
+
+
+        mdp.B = rng.uniform(0.1, 0.9, (lqr_dim, lqr_dim))
+        mdp.B = mdp.B @ mdp.B.T
+        mdp.Q = rng.uniform(0.1, 0.9, (lqr_dim, lqr_dim))
+        mdp.Q = mdp.Q @ mdp.Q.T
+        mdp.A = rng.uniform(0.1, 0.9, (lqr_dim, lqr_dim))
+        mdp.A = mdp.A @ mdp.A.T
+        mdp.R = rng.uniform(0.1, 0.9, (lqr_dim, lqr_dim))
+        mdp.R = mdp.R @ mdp.R.T
+
+        for p in ineff_params:
+                mdp.A[:,p] = 0
+                mdp.A[p,:] = 0
+                mdp.A[p][p] = 1e-10
+
+                mdp.R[:,p] = 0
+                mdp.R[p,:] = 0
+                mdp.R[p][p] = 1e-10
+
+                mdp.B[:,p] = 0
+                mdp.B[p,:] = 0
+                mdp.B[p][p] = 1e-10
+
+                mdp.Q[:,p] = 0
+                mdp.Q[p,:] = 0
+                mdp.Q[p][p] = 1e-10
 
     # env_seed < 0 for standard behavior
     else:
         ineff_params = []
     
     # compute optimal control return
-    gain_lqr = compute_lqr_feedback_gain(mdp)
+    gain_lqr = compute_lqr_feedback_gain(mdp, max_iterations=100000) # 50
     state = mdp.reset()
     optimal_reward = 0
     for i in range(horizon):
         action = - gain_lqr @ state
         state, reward, _, __ = mdp.step(action)
         optimal_reward += reward
+    print('optimal control', optimal_reward)
     
+    oracle = np.where(np.abs(gain_lqr.flatten()) > 1e-5)[0]
+    print(gain_lqr)
+    init_params['oracle'] = [oracle]
+    print('oracle params', len(oracle))
+
     # init lower level policy
     if nn_policy:
         approximator = Regressor(TorchApproximator,
@@ -153,7 +175,9 @@ def experiment( lqr_dim, n_ineff, env_seed, nn_policy, \
         print('J at iteration ' + str(i) + ': ' + str(round(np.mean(J),4)))
         
         if hasattr(agent, 'top_k_mis'):
-            print('oracle intersect', len(np.intersect1d(oracle,agent.top_k_mis[-1]).tolist()))
+            print('oracle intersect', np.intersect1d(oracle,agent.top_k_mis[-1]).tolist())
+            print('oracle', oracle)
+            print('top_k_mis', agent.top_k_mis[-1])
 
         returns_mean += [np.mean(J)]
         returns_std += [np.std(J)]
@@ -204,52 +228,55 @@ def default_params():
         # lqr_dim = 10,
         # n_ineff = 7,
         # env_seed = 0,
-        lqr_dim = 15,
-        n_ineff = 0,
+        lqr_dim = 5,
+        n_ineff = 2,
         env_seed = 0,
 
         # algorithm
         # alg = 'REPS',
         # alg = 'REPS_MI_full',
         # alg = 'REPS_MI',
-        alg = 'ConstrainedREPSMIFull',
+        alg = 'REPS',
+        # alg = 'ConstrainedREPSMIFull',
         # alg = 'ConstrainedREPS',
         # alg = 'ConstrainedREPSMI',
         # alg = 'RWR_MI',
         # alg = 'ConstrainedREPSMIOracle',
-        eps = 5.,
-        kappa = 25.0,
-        k = 3,
+        # alg = 'REPS_MI_ORACLE',
+        # alg = 'REPS_MI',
+        # alg = 'REPS',
+        eps = 1.,
+        kappa = 10.0,
+        k = 30,
 
         # distribution
         sigma_init = 3e-1,
         # distribution = 'cholesky',
-        # distribution = 'diag',
-        distribution = 'mi',
+        distribution = 'diag',
 
         # MI related
-        method = 'MI',
+        # method = 'MI',
+        method = 'Pearson',
         # method = 'Random',
         # method = 'MI_ALL',
         # method = 'Pearson',
         mi_type = 'regression',
-        bins = 10, # 4 10 best
+        bins = 4, # 4 10 best
         # sample_type = 'importance',
         sample_type = 'percentage',
         # sample_type = 'PRO',
-        # gamma = 1.,
-        gamma = .1,
+        gamma = 0.1,
         mi_avg = 0, # False
 
         # training
         # n_epochs = 50,
         # fit_per_epoch = 1, 
         # ep_per_fit = 60,
-        n_epochs = 10,
+        n_epochs = 10, # 2,
         # n_epochs = 10,
         fit_per_epoch = 1, 
         # ep_per_fit = 100,
-        ep_per_fit = 25,
+        ep_per_fit = 50, # 250,
 
         # misc
         seed = 0,
