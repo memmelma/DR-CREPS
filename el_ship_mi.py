@@ -90,7 +90,7 @@ def experiment( n_tilings, \
     print('parameters', policy.weights_size)
 
     # TODO
-    distribution = joblib.load('logs/ship/all_best_25/alg_ConstrainedREPSMI/k_75/sample_type_percentage/gamma_0.9/eps_5.3/kappa_14.0/ConstrainedREPSMI_0_state')['distribution']
+    # distribution = joblib.load('logs/ship/all_best_25/alg_ConstrainedREPSMI/k_75/sample_type_percentage/gamma_0.9/eps_5.3/kappa_14.0/ConstrainedREPSMI_0_state')['distribution']
     # distribution = joblib.load('C:/Users/Marius/iprl_bbo/logs/ship/ConstrainedREPSMI_0_state')['distribution']
     
     # init agent
@@ -166,11 +166,11 @@ def default_params():
         n_tilings = 1,
 
         # algorithm
-        alg = 'REPS_MI_ORACLE',
+        # alg = 'REPS_MI_ORACLE',
         # alg = 'ConstrainedREPSMIOracle',
         # alg = 'ConstrainedREPSMI',
         # alg = 'REPS_MI',
-        # alg = 'REPS',
+        alg = 'REPS',
         eps = 0.9,
         kappa = 14.0,
         k = 8,
@@ -195,7 +195,7 @@ def default_params():
         # misc
         seed = 2,
         results_dir = 'results',
-        quiet = 1 # True
+        quiet = 0 # True
     )
 
     return defaults

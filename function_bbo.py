@@ -68,10 +68,10 @@ def experiment(alg, params, distribution, n_epochs, fit_per_epoch, ep_per_fit, f
 
 if __name__ == '__main__':
 
-    algs = [MORE]
-    params = [{'eps':.05, 'kappa':.05}]
-    distributions = [GaussianCholeskyDistribution]
+    algs = [MORE, REPS]
+    params = [{'eps':.05, 'kappa':.05}, {'eps':0.05}]
+    distributions = [GaussianCholeskyDistribution, GaussianCholeskyDistribution]
 
     for alg, params, distribution in zip(algs, params, distributions):
         # function = styblinski, himmelblau, rosenbrock, rastrigin
-        experiment(alg, params, distribution, n_epochs=5, fit_per_epoch=1, ep_per_fit=100, function='styblinski', dim=15)
+        experiment(alg, params, distribution, n_epochs=200, fit_per_epoch=1, ep_per_fit=100, function='himmelblau', dim=15)
