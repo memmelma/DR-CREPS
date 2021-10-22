@@ -3,12 +3,6 @@ from el_air_hockey_mi import experiment
 import os
 if __name__ == '__main__':
     
-    # exp_name = 'hockey_eps_kappa/alg_ConstrainedREPS/eps_3.2/kappa_2.0'
-    # load_exp = 'ConstrainedREPS_0'
-
-    # exp_name = 'hockey_full/alg_MORE/eps_2.4/kappa_12.0/distribution_cholesky/ep_per_fit_250/n_epochs_40/'
-    # load_exp = 'MORE_0'
-
     for exp_name, load_exp in zip(
                 ['hockey_full/alg_ConstrainedREPS/eps_2.0/kappa_12.0/distribution_cholesky/ep_per_fit_250/n_epochs_40', 
                 'hockey_full/alg_ConstrainedREPSMIFull/eps_2.0/kappa_12.0/k_30/sample_type_percentage/gamma_0.5/method_MI/distribution_mi/ep_per_fit_50/n_epochs_200', 
@@ -16,7 +10,7 @@ if __name__ == '__main__':
                 ['ConstrainedREPS', 
                 'ConstrainedREPSMIFull', 
                 'MORE']):
-                
+
         for i in range(10):
 
             exp = load_exp+f'_{i}'
@@ -26,8 +20,9 @@ if __name__ == '__main__':
             params['sigma_init'] = state
             params['quiet'] = False
             params['save_render_path'] = os.path.join('video_log', 'air_hockey', exp)
-            params['ep_per_fit'] = 1
+            params['ep_per_fit'] = 5
             params['n_epochs'] = 1
-        
+            params['nn'] = 0
+
             print(params)
             experiment(**params)
