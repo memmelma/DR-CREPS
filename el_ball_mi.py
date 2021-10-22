@@ -18,7 +18,7 @@ def experiment( n_basis, horizon, \
                 sigma_init, distribution, \
                 method, mi_type, bins, sample_type, gamma, mi_avg, \
                 n_epochs, fit_per_epoch, ep_per_fit, \
-                seed, results_dir, quiet):
+                seed, results_dir, quiet, save_render_path):
                 
     quiet = bool(quiet)
     mi_avg = bool(mi_avg)
@@ -27,10 +27,12 @@ def experiment( n_basis, horizon, \
     os.makedirs(results_dir, exist_ok=True)
 
     # MDP
-    mdp = BallRollingGym(horizon=horizon, gamma=0.99, observation_ids=[0,1,2,3], render=not quiet)
+    mdp = BallRollingGym(horizon=horizon, gamma=0.99, observation_ids=[0,1,2,3], render=not quiet, save_render_path=save_render_path)
 
     policy = ProMPPolicy(n_basis=n_basis, basis_width=1e-3, maxSteps=horizon, output=mdp.info.action_space.shape)
 
+    print('parameters', policy.weights_size)
+    
     # init distribution
     distribution = init_distribution(mu_init=0, sigma_init=sigma_init, size=policy.weights_size, sample_type=sample_type, gamma=gamma, distribution_class=distribution)
     
@@ -101,32 +103,33 @@ def default_params():
         horizon = 750,
 
         # algorithm
-        alg = 'REPS',
-        eps = 0.7,
-        kappa = 2,
-        k = 25,
+        alg = 'ConstrainedREPSMIFull',
+        eps = 4.5,
+        kappa = 15,
+        k = 30,
 
         # distribution
         sigma_init = 30.,
-        distribution = 'diag',
+        distribution = 'mi',
 
         # MI related
         method ='MI', # Pearson
         mi_type = 'regression',
         bins = 4,
         sample_type = None,
-        gamma = 0.1,
+        gamma = 0.5,
         mi_avg = 0, # False
 
         # training
         n_epochs = 4,
         fit_per_epoch = 1, 
-        ep_per_fit = 25,
+        ep_per_fit = 60,
 
         # misc
         seed = 0,
         results_dir = 'results',
-        quiet = 1 # True
+        quiet = 1, # True
+        save_render_path = None
     )
 
     return defaults
@@ -160,6 +163,7 @@ def parse_args():
     parser.add_argument('--seed', type=int)
     parser.add_argument('--results-dir', type=str)
     parser.add_argument('--quiet', type=int)
+    parser.add_argument('--save-render-path', type=int)
 
     parser.set_defaults(**default_params())
     args = parser.parse_args()

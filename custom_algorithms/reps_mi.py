@@ -44,19 +44,22 @@ class REPS_MI(BlackBoxOptimization):
 
 		if gamma == -1:
 			print('Using LinearParameter 1->0')
-			self.beta = LinearParameter(0., threshold_value=1., n=100)
+			# self.beta = LinearParameter(1-1e-10, threshold_value=0., n=100)
+			# self.beta = LinearParameter(1., threshold_value=10., n=50)
+			self.beta = LinearParameter(0., threshold_value=1., n=50)
 		elif gamma == -2:
 			print('Using LinearParameter 0->1')
-			self.beta = LinearParameter(1., threshold_value=0., n=100)
+			# self.beta = LinearParameter(1., threshold_value=0., n=100)
+			self.beta = LinearParameter(10., threshold_value=1., n=100)
 		else:
 			self.beta = Parameter(1-gamma)
-		# self.beta = ExponentialParameter(1., exp=0.5)
 
 		self._add_save_attr(_eps='mushroom')
 		self._add_save_attr(_kappa='mushroom')
 
 		self.mus = []
 		self.kls = []
+		self.top_k_mis = []
 
 		self.oracle = oracle
 
@@ -109,7 +112,11 @@ class REPS_MI(BlackBoxOptimization):
 	def _update(self, Jep, theta):
 		
 		self.distribution._gamma = 1 - self.beta()
-		
+		# self.distribution._gamma = np.log10(self.beta())
+		# self.distribution._gamma = np.cbrt(self.beta())
+		# self.distribution._gamma = np.sqrt(self.beta())
+		# self.distribution._gamma = self.beta()**0.25
+		# print(self.distribution._gamma)
 		# REPS
 		eta_start = np.ones(1)
 
@@ -129,7 +136,10 @@ class REPS_MI(BlackBoxOptimization):
 			mi = self.compute_mi(theta, Jep, type=self._mi_type)
 		elif self.method == 'Pearson':
 			mi = self.compute_pearson(theta, Jep)
-			print(mi)
+		# TODO find better implt
+		else:
+			mi = self.compute_pearson(theta, Jep)
+
 		if not self._mi_avg:
 			self.mi_avg = mi / np.max((1e-18,np.max(mi)))
 		else:
@@ -150,8 +160,14 @@ class REPS_MI(BlackBoxOptimization):
 		if self.oracle != None:
 			top_k_mi = self.oracle
 
-		self.distribution._top_k = top_k_mi
-		self.distribution.mle(theta, d)
+		print('top_k_mi',top_k_mi)
+		self.top_k_mis += [top_k_mi]
+
+		if self.method == 'Random':
+			top_k_mi = np.random.randint(0, theta.shape[1], self._k())
+
+		# self.distribution._top_k = top_k_mi
+		self.distribution.mle(theta, d, indices=top_k_mi)
 
 		importance = self.mi_avg #/ np.sum(self.mi_avg)
 		self.distribution.update_importance(importance)

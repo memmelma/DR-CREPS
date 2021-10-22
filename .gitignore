@@ -140,3 +140,4 @@ results/
 *.zip
 
 /logs_mi*
+/video_log

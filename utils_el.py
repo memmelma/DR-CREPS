@@ -5,6 +5,7 @@ from custom_distributions.gaussian_custom import GaussianDiagonalDistribution, G
 from mushroom_rl.algorithms.policy_search.black_box_optimization import REPS, RWR
 from custom_algorithms.more import MORE
 from custom_algorithms.reps_mi import REPS_MI
+from custom_algorithms.rwr_mi import RWR_MI
 from custom_algorithms.constrained_reps import ConstrainedREPS
 from custom_algorithms.constrained_reps_mi import ConstrainedREPSMI
 
@@ -15,7 +16,6 @@ def init_distribution(mu_init=0, sigma_init=1e-3, size=1, sample_type=None, gamm
     
     mu = mu_init * np.ones(size)
 
-    
     if distribution_class == 'diag':
 
         # load full covariance
@@ -38,17 +38,24 @@ def init_distribution(mu_init=0, sigma_init=1e-3, size=1, sample_type=None, gamm
     elif distribution_class == 'cholesky':
         print('sample_type only supported for diagonal covariance')
         print('sigma_init passed is std -> cov = sigma_init**2')
-        sigma = sigma_init**2 * np.eye(size)
-        print(sigma)
-        distribution = GaussianCholeskyDistribution(mu, sigma)
+        if type(sigma_init) != float:
+            distribution = sigma_init
+            print('Successfully loaded distribution!')
+        else:
+            sigma = sigma_init**2 * np.eye(size)
+            distribution = GaussianCholeskyDistribution(mu, sigma)
     elif distribution_class == 'fixed':
         print('sample_type only supported for diagonal covariance')
         print('sigma_init passed is std -> cov = sigma_init**2')
         sigma = sigma_init**2 * np.eye(size)
         distribution = GaussianDistribution(mu, sigma)
     elif distribution_class == 'mi':
-        sigma = sigma_init**2 * np.eye(size)
-        distribution = GaussianDistributionMI(mu, sigma)
+        if type(sigma_init) != float:
+            distribution = sigma_init
+            print('Successfully loaded distribution!')
+        else:
+            sigma = sigma_init**2 * np.eye(size)
+            distribution = GaussianDistributionMI(mu, sigma)
 
         if sample_type == 'fixed':
             distribution.set_fixed_sample(gamma=gamma)
@@ -83,6 +90,10 @@ def init_algorithm(algorithm_class='REPS', params={}):
     elif algorithm_class == 'RWR':
         alg = RWR
         params = {'beta': params['eps']}
+    
+    elif algorithm_class == 'RWR_MI':
+        alg = RWR_MI
+        params = {'eps': params['eps'], 'gamma': params['gamma'], 'k': params['k'], 'bins': params['bins'], 'method': params['method'], 'mi_type': params['mi_type'], 'mi_avg': params['mi_avg']}
 
     elif algorithm_class == 'MORE':
         alg = MORE
