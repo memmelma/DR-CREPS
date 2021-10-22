@@ -67,7 +67,7 @@ def experiment( n_basis, horizon, \
                 method, mi_type, bins, sample_type, gamma, mi_avg, \
                 nn, \
                 n_epochs, fit_per_epoch, ep_per_fit, \
-                seed, results_dir, quiet):
+                seed, results_dir, quiet, save_render_path):
                 
     quiet = bool(quiet)
     mi_avg = bool(mi_avg)
@@ -78,6 +78,9 @@ def experiment( n_basis, horizon, \
     # MDP
     # mdp = BallRollingGym(horizon=horizon, gamma=0.99, observation_ids=[0,1,2,3], render=not quiet)
     mdp = AirHockeyHit(horizon=horizon, debug_gui=not quiet, table_boundary_terminate=True)
+
+    if save_render_path is not None:
+        mdp.activate_save_render(save_render_path)
 
 
     if nn:
@@ -201,7 +204,8 @@ def default_params():
         # misc
         seed = 17, # MI 13 # 16
         results_dir = 'results',
-        quiet = 1 # True
+        quiet = 1, # True
+        save_render_path = None
     )
 
     return defaults
@@ -237,6 +241,7 @@ def parse_args():
     parser.add_argument('--seed', type=int)
     parser.add_argument('--results-dir', type=str)
     parser.add_argument('--quiet', type=int)
+    parser.add_argument('--save-render-path', type=int)
 
     parser.set_defaults(**default_params())
     args = parser.parse_args()

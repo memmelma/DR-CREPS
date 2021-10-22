@@ -1,4 +1,4 @@
-
+import os
 import numpy as np
 import time
 
@@ -12,6 +12,7 @@ gym.logger.set_level(40)
 
 from custom_env import darias
 
+
 largeValObservation = 100
 
 from mushroom_rl.core import Environment, MDPInfo
@@ -23,7 +24,7 @@ class BallRollingGym(Environment):
     Interface for Ball Rolling Gym environment.
 
     """
-    def __init__(self, horizon=1000, gamma=0.99, observation_ids=[0,1,2,3], render=False,
+    def __init__(self, horizon=1000, gamma=0.99, observation_ids=[0,1,2,3], render=False, save_render_path='video_log/ConstrainedREPS',
                  **env_args):
         """
         Constructor.
@@ -67,9 +68,21 @@ class BallRollingGym(Environment):
         else:
             self._convert_action = lambda a: a
 
+        self.save_render_path = save_render_path
+        self.count_render = 0
+        if self.save_render_path is not None:
+            os.makedirs(self.save_render_path, exist_ok=True)
+            p.configureDebugVisualizer(p.COV_ENABLE_GUI,0)
+
         super().__init__(mdp_info)
 
     def reset(self, state=None):
+        if self.save_render_path is not None:
+            p.startStateLogging(
+                p.STATE_LOGGING_VIDEO_MP4,
+                os.path.join(os.getcwd(), self.save_render_path, '{}.mp4'.format(self.count_render)))
+            self.count_render += 1
+        
         if state is None:
             return np.atleast_1d(self.env.reset())
         else:
