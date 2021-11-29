@@ -8,26 +8,20 @@ if __name__ == '__main__':
 
     env_seed = 0
     lqr_dim = 10
-    # eff = 3
-    eff = 5
+    eff = 3
 
-    experiment_name = f'lqr_full'
-    experiment_name = f'lqr_diag'
-    experiment_name = f'lqr_ablation'
-    experiment_name = f'lqr_ablation_k_gamma_full'
-    experiment_name = f'lqr_ablation_store_comp_R'
-    experiment_name = f'lqr_ablation_paper_random'
-    experiment_name = f'lqr_ARBQ_0109_fix_07_ineff'
+    experiment_name = f'lqr_ppo_trpo_reinforce_search_prepro'
 
     launcher = Launcher(experiment_name,
-                        'el_lqr_mi',
-                        10, # 25
+                        'el_lqr_rebuttal',
+                        25,
                         memory=500,
                         days=2,
                         hours=0,
                         minutes=0,
                         seconds=0,
-                        use_timestamp=False)
+                        use_timestamp=False,
+                        conda_env='iprl')
 	
     ### LQR DIAGONAL COVARIANCE ######################################################################################################################################################
 
@@ -104,11 +98,11 @@ if __name__ == '__main__':
 
     ### LQR FULL COVARIANCE ######################################################################################################################################################
 
-    launcher.add_default_params(lqr_dim=lqr_dim, n_ineff=lqr_dim-eff, env_seed=env_seed, 
-                                fit_per_epoch=1,
-                                sigma_init=3e-1,
-                                bins=4, mi_type='regression',
-                                nn_policy=0)
+    # launcher.add_default_params(lqr_dim=lqr_dim, n_ineff=lqr_dim-eff, env_seed=env_seed, 
+    #                             fit_per_epoch=1,
+    #                             sigma_init=3e-1,
+    #                             bins=4, mi_type='regression',
+    #                             nn_policy=0)
 
     # n_samples = 5000
 
@@ -381,7 +375,7 @@ if __name__ == '__main__':
     #     launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution='mi', eps=4.7, kappa=17., k=50, method=method, sample_type=None, gamma=0.1, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
 
 
-    n_samples = 15000
+    # n_samples = 15000
     
     # ep_per_fit = 50
     # n_epochs = n_samples // ep_per_fit
@@ -390,22 +384,42 @@ if __name__ == '__main__':
     # launcher.add_experiment(alg='ConstrainedREPSMI', distribution='diag', eps=1.5, kappa=2.0, sample_type='percentage', gamma=0.1, k=30, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
     
         # launcher.add_experiment(alg='REPS', distribution='cholesky', eps=0.4, sample_type=None, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
-    for eps in [3.5, 4.5]:
-        for kappa in [20.]:
-            ep_per_fit = 200
-            n_epochs = n_samples // ep_per_fit
-            launcher.add_experiment(alg='ConstrainedREPS', distribution='cholesky', eps=eps, kappa=kappa, sample_type=None, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
-            # launcher.add_experiment(alg='ConstrainedREPS', distribution='mi', eps=eps, kappa=kappa, sample_type='percentage', method='MI', k=30, gamma=0.1, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
-            ep_per_fit = 50
-            n_epochs = n_samples // ep_per_fit
-            launcher.add_experiment(alg='ConstrainedREPS', distribution='diag', eps=eps, kappa=kappa, sample_type=None, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
-            # launcher.add_experiment(alg='ConstrainedREPS', distribution='mi', eps=eps, kappa=kappa, sample_type='percentage', method='MI', k=30, gamma=0.1, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+    # for eps in [3.5, 4.5]:
+    #     for kappa in [20.]:
+    #         ep_per_fit = 200
+    #         n_epochs = n_samples // ep_per_fit
+    #         launcher.add_experiment(alg='ConstrainedREPS', distribution='cholesky', eps=eps, kappa=kappa, sample_type=None, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+    #         # launcher.add_experiment(alg='ConstrainedREPS', distribution='mi', eps=eps, kappa=kappa, sample_type='percentage', method='MI', k=30, gamma=0.1, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+    #         ep_per_fit = 50
+    #         n_epochs = n_samples // ep_per_fit
+    #         launcher.add_experiment(alg='ConstrainedREPS', distribution='diag', eps=eps, kappa=kappa, sample_type=None, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+    #         # launcher.add_experiment(alg='ConstrainedREPS', distribution='mi', eps=eps, kappa=kappa, sample_type='percentage', method='MI', k=30, gamma=0.1, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
     
-            for ep_per_fit in [150, 200]:
-                n_epochs = n_samples // ep_per_fit
-                launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution='mi', eps=eps, kappa=kappa, sample_type='percentage', gamma=0.1, k=30, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
-                launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution='mi', eps=eps, kappa=kappa, sample_type='percentage', gamma=0.5, k=30, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
-                launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution='mi', eps=eps, kappa=kappa, sample_type='percentage', gamma=0.9, k=30, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+    #         for ep_per_fit in [150, 200]:
+    #             n_epochs = n_samples // ep_per_fit
+    #             launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution='mi', eps=eps, kappa=kappa, sample_type='percentage', gamma=0.1, k=30, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+    #             launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution='mi', eps=eps, kappa=kappa, sample_type='percentage', gamma=0.5, k=30, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+    #             launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution='mi', eps=eps, kappa=kappa, sample_type='percentage', gamma=0.9, k=30, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+
+    launcher.add_default_params(lqr_dim=lqr_dim, n_ineff=lqr_dim-eff, env_seed=env_seed, 
+                                fit_per_epoch=1,
+                                sigma_init=3e-1)
+
+    n_samples = 5000
+    
+    # # for ep_per_fit in [50, 100, 150, 200, 250]:
+    for ep_per_fit in [100]:
+        n_epochs = n_samples // ep_per_fit
+        for eps in [3e-2, 3e-3, 3e-4]:        
+            launcher.add_experiment(alg='PPO', eps=eps, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+            for kappa in [1e-0, 1e-1, 1e-2]:
+                launcher.add_experiment(alg='TRPO', eps=eps, kappa=kappa, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+        for eps in [1e-1, 1e-2, 1e-3]:
+            launcher.add_experiment(alg='REINFORCE', eps=eps, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+
+    ep_per_fit = 50
+    n_epochs = n_samples // ep_per_fit
+    launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution='mi', eps=4.7, kappa=17., sample_type='percentage', method='Pearson', gamma=0.1, k=50, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
 
     print(experiment_name)
     print('experiments:', len(launcher._experiment_list))

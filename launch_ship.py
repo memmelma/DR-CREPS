@@ -8,23 +8,24 @@ if __name__ == '__main__':
 
 	# experiment_name = f'ship_3_tiles_full_besty_10'
 	# experiment_name = f'ship_diag'
-	experiment_name = f'ship_fix_random_missing'
+	experiment_name = f'ship_search_prepro'
 	
 	launcher = Launcher(experiment_name,
-						'el_ship_mi',
+						'el_ship_rebuttal',
 						25,
-						memory=1000,
+						memory=3000,
 						days=2,
 						hours=0,
 						minutes=0,
 						seconds=0,
+						conda_env='iprl',
 						use_timestamp=False)
 	
-	launcher.add_default_params(
-								n_tilings=3,
-								sigma_init=7e-2,
-								# n_epochs=75, fit_per_epoch=1, ep_per_fit=25,
-								mi_type='regression', bins=4)
+	# launcher.add_default_params(
+	# 							n_tilings=3,
+	# 							sigma_init=7e-2,
+	# 							# n_epochs=75, fit_per_epoch=1, ep_per_fit=25,
+	# 							mi_type='regression', bins=4)
 
 	# # all best
 	# launcher.add_experiment(alg='ConstrainedREPS', eps=5.3, kappa=14.)
@@ -110,16 +111,16 @@ if __name__ == '__main__':
 
 	### SHIP FULL COVARIANCE ######################################################################################################################################################
 
-	launcher.add_default_params(n_tilings=3,
-								sigma_init=7e-2,
-								# sigma_init=1e-2,
-								fit_per_epoch=1,
-								mi_type='regression', bins=4)
+	# launcher.add_default_params(n_tilings=3,
+	# 							sigma_init=7e-2,
+	# 							# sigma_init=1e-2,
+	# 							fit_per_epoch=1,
+	# 							mi_type='regression', bins=4)
 
-	n_samples = 3500
+	# n_samples = 3500
 
-	# Cholesky Gaussian Distribution
-	distribution = 'cholesky'
+	# # Cholesky Gaussian Distribution
+	# distribution = 'cholesky'
 
 	# ep_per_fit = 15
 	# n_epochs = n_samples // ep_per_fit
@@ -217,11 +218,11 @@ if __name__ == '__main__':
 	# 				launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution='mi', eps=eps, kappa=kappa, k=k, sample_type=None, method=method, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
 				
 	# for method in ['MI', 'Pearson']:
-	for method in ['Random']:
-		ep_per_fit = 15
-		n_epochs = n_samples // ep_per_fit 
-		# launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution='mi', eps=3.4, kappa=20., k=200, sample_type='percentage', method=method, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
-		launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution='mi', eps=3.4, kappa=20., k=200, sample_type=None, method=method, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+	# for method in ['Random']:
+	# 	ep_per_fit = 15
+	# 	n_epochs = n_samples // ep_per_fit 
+	# 	# launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution='mi', eps=3.4, kappa=20., k=200, sample_type='percentage', method=method, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+	# 	launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution='mi', eps=3.4, kappa=20., k=200, sample_type=None, method=method, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
 		
 	# 	ep_per_fit = 250
 	# 	n_epochs = n_samples // ep_per_fit 
@@ -231,6 +232,30 @@ if __name__ == '__main__':
 	# launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution='mi', eps=3.4, kappa=20., k=200, sample_type='percentage', method='Random', n_epochs=233, ep_per_fit=15)
 	
 	# for 3 tilings, k goes to 450 !!!
+	launcher.add_default_params(n_tilings=3,
+								sigma_init=7e-2, 
+								fit_per_epoch=1)
+
+	n_samples = 3500
+	
+	for ep_per_fit in [50, 100, 150, 200, 250, 500]:
+	# for ep_per_fit in [100]:
+		n_epochs = n_samples // ep_per_fit
+		# for eps in [3e-2, 3e-3, 3e-4]:
+		eps = 3e-3
+		launcher.add_experiment(alg='PPO', eps=eps, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+			# for kappa in [1e-0, 1e-1, 1e-2]:
+		kappa = 1e-1
+		launcher.add_experiment(alg='TRPO', eps=eps, kappa=kappa, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+		# for eps in [1e-1, 1e-2, 1e-3]:
+		eps = 1e-2
+		launcher.add_experiment(alg='REINFORCE', eps=eps, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+
+	ep_per_fit = 15
+	n_epochs = n_samples // ep_per_fit
+	launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution='mi', eps=3.4, kappa=20., sample_type='percentage', method='Pearson', gamma=0.1, k=200, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+
+
 	print(experiment_name)
 	print('experiments:', len(launcher._experiment_list))
 	launcher.run(local, test)

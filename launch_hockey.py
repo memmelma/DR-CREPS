@@ -1,30 +1,29 @@
-from platform import dist
 from experiment_launcher import Launcher
-import numpy as np
 
 if __name__ == '__main__':
 
 	local = False
 	test = False
 
-	experiment_name = f'hockey_diag_full'
+	experiment_name = f'hockey_search_linear'
 	
 	launcher = Launcher(experiment_name,
-						'el_air_hockey_mi',
-						10, # 25
+						'el_air_hockey_rebuttal',
+						25, # 25
 						memory=1000,
 						days=1,
 						hours=0,
 						minutes=0,
 						seconds=0,
-						use_timestamp=False)
+						use_timestamp=False,
+						conda_env='iprl')
 	
-	launcher.add_default_params(n_basis=30, horizon=120,
-								sigma_init=1e-0,
-								bins=4, mi_type='regression', mi_avg=0, nn=0)
+	# launcher.add_default_params(n_basis=30, horizon=120,
+	# 							sigma_init=1e-0,
+	# 							bins=4, mi_type='regression', mi_avg=0, nn=0)
 	
 
-	n_samples = 10000
+	# n_samples = 10000
 
 	## FULL COVARIANCE
 
@@ -173,18 +172,33 @@ if __name__ == '__main__':
 	# 		# launcher.add_experiment(alg='ConstrainedREPSMIFull', eps=eps, kappa=kappa, distribution=distribution, sample_type=None, method=method, ep_per_fit=ep_per_fit, n_epochs=n_epochs)
 
 
-	for eps in [2.0]:
-		for kappa in [12.]:
-			ep_per_fit = 150
-			n_epochs = n_samples // ep_per_fit
-			launcher.add_experiment(alg='ConstrainedREPS', distribution='cholesky', eps=eps, kappa=kappa, sample_type=None, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
-			launcher.add_experiment(alg='ConstrainedREPS', distribution='mi', eps=eps, kappa=kappa, sample_type='percentage', method='Pearson', k=30, gamma=0.1, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
-			launcher.add_experiment(alg='ConstrainedREPS', distribution='mi', eps=eps, kappa=kappa, sample_type='percentage', method='Pearson', k=30, gamma=0.5, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
-			ep_per_fit = 50
-			n_epochs = n_samples // ep_per_fit
-			launcher.add_experiment(alg='ConstrainedREPS', distribution='diag', eps=eps, kappa=kappa, sample_type=None, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
-			launcher.add_experiment(alg='ConstrainedREPS', distribution='mi', eps=eps, kappa=kappa, sample_type='percentage', method='Pearson', k=30, gamma=0.1, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
-			launcher.add_experiment(alg='ConstrainedREPS', distribution='mi', eps=eps, kappa=kappa, sample_type='percentage', method='Pearson', k=30, gamma=0.5, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+	# for eps in [2.0]:
+	# 	# for kappa in [12.]:
+	# 	for kappa in [8., 10.]:
+	# 		for ep_per_fit in [50, 150]:
+	# 			n_epochs = n_samples // ep_per_fit
+	# 			launcher.add_experiment(alg='ConstrainedREPS', distribution='cholesky', eps=eps, kappa=kappa, sample_type=None, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+	# 			launcher.add_experiment(alg='ConstrainedREPS', distribution='diag', eps=eps, kappa=kappa, sample_type=None, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+	# 			launcher.add_experiment(alg='ConstrainedREPS', distribution='mi', eps=eps, kappa=kappa, sample_type='percentage', method='Pearson', k=30, gamma=0.1, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+	# 			launcher.add_experiment(alg='ConstrainedREPS', distribution='mi', eps=eps, kappa=kappa, sample_type='percentage', method='Pearson', k=30, gamma=0.5, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+	
+	launcher.add_default_params(n_basis=30, horizon=120, fit_per_epoch=1, sigma_init=1e-0)
+
+	n_samples = 10000
+	# for ep_per_fit in [50, 100, 150, 200, 250]:
+	for ep_per_fit in [100]:
+		n_epochs = n_samples // ep_per_fit
+		for eps in [3e-2, 3e-3, 3e-4]:		
+			launcher.add_experiment(alg='PPO', eps=eps, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+			for kappa in [1e-0, 1e-1, 1e-2]:
+				launcher.add_experiment(alg='TRPO', eps=eps, kappa=kappa, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+		for eps in [1e-0, 1e-1, 1e-2, 1e-3, 1e-4]:
+			launcher.add_experiment(alg='REINFORCE', eps=eps, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+
+	ep_per_fit = 50
+	n_epochs = n_samples // ep_per_fit
+	launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution='mi', eps=2., kappa=12., sample_type='percentage', method='Pearson', gamma=0.5, k=30, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+
 
 	print(experiment_name)
 	print('experiments:', len(launcher._experiment_list))

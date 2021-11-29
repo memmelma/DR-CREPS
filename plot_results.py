@@ -94,60 +94,21 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
             continue
         if len(data_dict[exp]['returns_mean']) < max_runs:
             continue
-
-        if 'ship_3_tiles_full_mi_vs_random_FULL' in exp_name:
-            if data_dict[exp]['init_params'][0]['eps'] != 3.4:
+        
+        ## PPO / TRPO
+        if exp_name == 'lqr_ppo_trpo_reinforce_search':
+            if data_dict[exp]['init_params'][0]['kappa'] != 0 and not data_dict[exp]['init_params'][0]['kappa'] >= 1.0:
+                continue 
+            if data_dict[exp]['init_params'][0]['eps'] != 4.7 and data_dict[exp]['init_params'][0]['eps'] != 0.003:
                 continue
-            if data_dict[exp]['init_params'][0]['k'] != 200:
-                continue
-            # if data_dict[exp]['init_params'][0]['sample_type'] != 'percentage':
-            #     continue
-            if data_dict[exp]['init_params'][0]['ep_per_fit'] != 50:
-                continue
-
-
-        # if data_dict[exp]['init_params'][0]['alg'] == 'MORE':
-        #     continue
-
-        # if (data_dict[exp]['init_params'][0]['gamma'] != 0.5 and data_dict[exp]['init_params'][0]['sample_type'] != 'None') and data_dict[exp]['init_params'][0]['alg'] != 'ConstrainedREPS':
-        #         continue
-        # if data_dict[exp]['init_params'][0]['ep_per_fit'] != 100 and data_dict[exp]['init_params'][0]['alg'] != 'ConstrainedREPS':
-        #     continue
-
-        if 'ship_fix/alg_plot_02' in exp_name:
-            if 'Constrained' not in exp:
-                continue
-
+    
         # for broken bullet runs
         if 'bullet' in exp:
             min_length = np.min([len(x) for x in data_dict[exp]['returns_mean']])
             data_dict[exp]['returns_mean'] = [x[:min_length] for x in data_dict[exp]['returns_mean']]
 
-        # try:
-        #     returns_mean = np.array(data_dict[exp]['returns_mean'])
-        #     y = returns_mean.mean(axis=0)[:episodes]
-            
-        #     # FILTERS on mean
-        #     # if np.max(y) < 130:
-        #     #     continue
-        
-        # except:
-        #     print(f'{exp} failed')
-        #     continue
-
         y, ci  = get_mean_and_confidence(np.array(data_dict[exp]['returns_mean']))
         ci = ci[1]
-
-        # if np.max(y) < -200:
-        #     continue
-        
-        # tmp = []
-        # for i in np.array(data_dict[exp]['returns_mean']):
-        #     if i.max() < -60:
-        #         continue
-        #     tmp += [i]
-        # y, ci  = get_mean_and_confidence(np.array(tmp))
-        # ci = ci[1]
 
         # determine x axis
         if x_axis == 'episodes':
@@ -171,6 +132,10 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
         params = exp.split('|')[2:]
         params.remove('alg_'+data_dict[exp]['init_params'][0]['alg'])
         
+        if 'lqr' in exp_name:
+            if np.max(y) < -5:
+                continue
+
         if clean:
             if exp_name == 'lqr_diag/alg_plot':
                 labels = ['RWR', 'PRO', 'REPS', 'REPS w/ PE $\lambda=0.9$', 'REPS w/ PE $\lambda=0.1$', 'CREPS', 'CREPS w/ PE $\lambda=0.1$', 'xxx']
@@ -256,6 +221,11 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
                 colors = ['tab:blue', 'tab:brown', 'tab:pink', 'tab:purple', 'tab:brown', 'tab:pink', 'tab:purple']
                 line_styles = ['solid', 'solid', 'solid', 'solid', 'dashed', 'dashed', 'dashed']
 
+            elif exp_name == 'lqr_ppo_trpo_reinforce_search':
+                labels = ['TRPO', 'PPO', 'DR-CREPS (PCC)']
+                colors = ['tab:green', 'tab:orange', 'tab:pink']
+                line_styles = ['solid', 'solid', 'solid']
+
             else:
                 labels = []
             label = labels[clean_ctr]
@@ -293,7 +263,8 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
         if np.max(y) > max_reward:
             max_reward = np.max(y)
             max_reward_exp = exp
-  
+
+
         print(data_dict[exp]['init_params'][0]['alg'], np.round(np.max(y), 4), sorted(params))
         print('completed runs',len(data_dict[exp]['returns_mean']))
 
@@ -335,6 +306,12 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
             x_0, x_1 = 0, 5000
             x_ticks = 1000
             y_ticks = 10
+        
+        elif 'lqr' in exp:
+            y_0, y_1 = -60, 0
+            x_0, x_1 = 0, 5000
+            x_ticks = 1000
+            y_ticks = 10
 
         elif 'ship' in exp:
             y_0, y_1 = -100, -55
@@ -370,6 +347,10 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
 
     if not clean:
         plt.title(exp_name)
+
+
+    plt.ylim(0, 60)
+
 
     plt.tight_layout()
     plt.grid()
@@ -719,10 +700,10 @@ if __name__ == '__main__':
     # exp_name = 'lqr_difficult_BQ_eps_kappa'
     # exp_name = 'hockey_ablation_random_fix_02'
     # exp_name = 'lqr_difficult_BQAR_eps_kappa_comp'
-    exp_name = 'lqr_ARBQ_09_fix'
-    exp_name = 'lqr_ARBQ_0109_fix_04'
-    exp_name = 'lqr_ARBQ_0109_fix_07_ineff'
-    max_runs = 10
+    # exp_name = 'lqr_ARBQ_09_fix'
+    # exp_name = 'lqr_ARBQ_0109_fix_04'
+    # exp_name = 'lqr_ARBQ_0109_fix_07_ineff'
+    # max_runs = 10
 
     # exp_name = 'bullet_ant_fix_again'
     # # exp_name = 'hockey_bound_nn_fix_again'
@@ -733,8 +714,15 @@ if __name__ == '__main__':
     # exp_name = 'lqr_ablation_oracle_fix'
     # max_runs = 1
 
+    exp_name = 'lqr_ppo_trpo_reinforce_search_prepro'
+    exp_name = 'hockey_search_prepro'
+    exp_name = 'hockey_search_prepro'
+    # exp_name = 'ship_search_prepro'
+    max_runs = 25
 
-    data_dir = os.path.join('logs', exp_name)
+    # data_dir = os.path.join('logs', exp_name)
+    data_dir = os.path.join('..', exp_name)
+
     data_dict = load_data_from_dir(data_dir)
 
     # normal unclean plots
@@ -744,9 +732,9 @@ if __name__ == '__main__':
     # plot_data(data_dict, exp_name, episodes=1000, samples=-1, x_axis='episodes', pdf=True, max_runs=max_runs, clean=True)
     # plot_data(data_dict, exp_name, episodes=1000, samples=-1, x_axis='episodes', pdf=False, max_runs=max_runs, clean=True)
 
-    # MI vs Pearson vs Random
-    plot_parameter(data_dict, exp_name)
-    plot_parameter(data_dict, exp_name, pdf=True)
+    # # MI vs Pearson vs Random
+    # plot_parameter(data_dict, exp_name)
+    # plot_parameter(data_dict, exp_name, pdf=True)
 
     # # plot_mi(data_dict, exp_name, pdf=pdf)
     # plot_kl(data_dict, exp_name, pdf=pdf)
