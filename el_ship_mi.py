@@ -219,7 +219,7 @@ def default_params():
         # alg = 'ConstrainedREPSMI',
         alg = 'ConstrainedREPSMIFull',
         # alg = 'REPS_MI',
-        alg = 'REPS',
+        # alg = 'REPS',
         eps = 0.9,
         kappa = 14.0,
         k = 8,
@@ -247,7 +247,7 @@ def default_params():
         # misc
         seed = 24,
         results_dir = 'results',
-        quiet = 0 # True
+        quiet = 1 # True
     )
 
     return defaults
