@@ -84,6 +84,6 @@ def init_algorithm(algorithm_class='REPS', params={}):
                     'C': params['C'], 'mi_estimator': params['mi_estimator'], 'gdr': True}
     
     else:
-        print("Invalid algorithm selection. Select one of ['REPS', 'REPS-PE', 'DR-REPS-PE', 'RWR', 'PRO', 'RWR-PE', 'MORE', 'CREPS', 'CREPS-PE', 'DR-CREPS-PE'")
+        raise Exception("Invalid algorithm selection. Select one of ['REPS', 'REPS-PE', 'DR-REPS-PE', 'RWR', 'PRO', 'RWR-PE', 'MORE', 'CREPS', 'CREPS-PE', 'DR-CREPS-PE'")
 
     return alg, params

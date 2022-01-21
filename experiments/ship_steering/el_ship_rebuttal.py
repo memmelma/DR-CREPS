@@ -23,7 +23,7 @@ from mushroom_rl.utils.optimizers import AdaptiveOptimizer
 from mushroom_rl.policy import StateStdGaussianPolicy
 from mushroom_rl.utils.preprocessors import StandardizationPreprocessor
 
-from utils_el import init_distribution, init_algorithm, log_constraints
+from experiments.utils import init_distribution, init_algorithm, log_constraints
 
 def experiment( n_tilings, \
                 alg, eps, kappa, k, \

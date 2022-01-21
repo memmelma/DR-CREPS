@@ -23,7 +23,7 @@ from mushroom_rl.solvers.lqr import compute_lqr_feedback_gain
 
 from mushroom_rl.utils.preprocessors import StandardizationPreprocessor
 
-from utils_el import init_distribution, init_algorithm, log_constraints
+from experiments.utils import init_distribution, init_algorithm, log_constraints
 
 import torch
 import torch.nn as nn

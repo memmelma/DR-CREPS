@@ -1,7 +1,7 @@
 import joblib
 import os
 
-from el_ball_mi import experiment
+from experiments.ball_stopping.el_ball_stopping import experiment
 
 import argparse
 

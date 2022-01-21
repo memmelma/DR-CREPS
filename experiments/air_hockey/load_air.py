@@ -1,5 +1,5 @@
 import joblib
-from el_air_hockey_mi import experiment
+from experiments.air_hockey.el_air_hockey import experiment
 import os
 if __name__ == '__main__':
     

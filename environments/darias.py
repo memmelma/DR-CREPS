@@ -48,9 +48,7 @@ class Darias:
                                   100.0, 100.0, 100.0, 100.0, 100.0, 100.0]
 
     def reset(self):
-        import os
-        print(os.getcwd())
-        self.id = p.loadURDF("/custom_env/urdf/darias.urdf")
+        self.id = p.loadURDF("environments/urdf/darias.urdf")
 
         if self._mode == R_ARM:
             self.jointIndexes = np.arange(2,9)

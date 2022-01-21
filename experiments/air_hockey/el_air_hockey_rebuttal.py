@@ -24,7 +24,7 @@ from mushroom_rl.algorithms.policy_search import REINFORCE, GPOMDP, eNAC
 from mushroom_rl.utils.optimizers import AdaptiveOptimizer
 from mushroom_rl.policy import StateStdGaussianPolicy
 
-from utils_el import init_distribution, init_algorithm, log_constraints
+from experiments.utils import init_distribution, init_algorithm, log_constraints
 
 from mushroom_rl.utils.preprocessors import StandardizationPreprocessor
 

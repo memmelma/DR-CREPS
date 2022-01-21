@@ -3,10 +3,9 @@ import scipy
 from scipy.optimize import minimize
 from scipy.stats import multivariate_normal
 
-from mushroom_rl.distributions.distribution import Distribution
-from mushroom_rl.distributions import GaussianCholeskyDistribution
+import mushroom_rl
 
-class GaussianDiagonalDistribution(Distribution):
+class GaussianDiagonalDistribution(mushroom_rl.distributions.distribution.Distribution):
     """
     Gaussian distribution with diagonal covariance matrix. The parameters
     vector represents the mean and the standard deviation for each dimension.
@@ -111,13 +110,13 @@ class GaussianDiagonalDistribution(Distribution):
         sigma = self._std
 
         eta_omg_opt_start = np.array([1., 1.])
-        res = minimize(GaussianDiagonalDistribution._lagrangian_eta_omg, eta_omg_opt_start,
+        res = minimize(mushroom_rl.distributions.GaussianDiagonalDistribution._lagrangian_eta_omega, eta_omg_opt_start,
                        bounds=((np.finfo(np.float32).eps, np.inf),(np.finfo(np.float32).eps, np.inf)),
                        args=(weights, theta, mu, sigma, n_dims, eps, kappa))
 
         eta_opt, omg_opt  = res.x[0], res.x[1]
 
-        mu_new, sigma_new = GaussianDiagonalDistribution.closed_form_mu1_sigma_new(weights, theta, mu, sigma, n_dims, eps, eta_opt, omg_opt, kappa)
+        mu_new, sigma_new = mushroom_rl.distributions.GaussianDiagonalDistribution._compute_mu_sigma_from_lagrangian(weights, theta, mu, sigma, eta_opt, omg_opt)
 
         self._mu, self._std = mu_new, sigma_new
 
@@ -155,56 +154,7 @@ class GaussianDiagonalDistribution(Distribution):
     def parameters_size(self):
         return 2 * len(self._mu)
 
-    @staticmethod
-    def closed_form_mu1_sigma_new(*args):
-        weights, theta, mu, sigma, n, eps, eta, omg, kappa = args
-        weights_sum = np.sum(weights)
-
-        mu_new = (weights @ theta + eta * mu) / (weights_sum + eta)
-        sigma_new =  ( np.sum([w_i * (theta_i-mu_new)**2 for theta_i, w_i in zip(theta, weights)], axis=0) + eta*sigma**2 + eta*(mu_new - mu)**2 ) / ( weights_sum + eta - omg )
-        sigma_new = np.sqrt(sigma_new)
-        return mu_new, sigma_new
-
-    @staticmethod
-    def _closed_form_KL_constraint_M_projection(*args):
-        mu, mu_new, sigma, sigma_new, sigma_inv, sigma_new_inv, logdet_sigma, logdet_sigma_new, n_dims = args
-        
-        return 0.5*(np.trace(sigma_new_inv@sigma) - n_dims + logdet_sigma_new - logdet_sigma + (mu_new - mu).T @ sigma_new_inv @ (mu_new - mu))
-    
-    @staticmethod
-    def _closed_form_entropy(*args):
-        logdet_sigma, n_dims = args
-        c = n_dims * np.log(2*np.pi)
-        
-        return 0.5 * (logdet_sigma + c + n_dims)
-
-    @staticmethod
-    def _lagrangian_eta_omg(lag_array, *args):
-        weights, theta, mu, sigma, n_dims, eps, kappa = args
-        eta, omg = lag_array[0], lag_array[1]
-
-        mu_new, sigma_new = GaussianDiagonalDistribution.closed_form_mu1_sigma_new(weights, theta, mu, sigma, n_dims, eps, eta, omg, kappa)
-        
-        sigma = np.diag(sigma**2)
-        sigma_new = np.diag(sigma_new**2)
-
-        sigma_inv = np.linalg.inv(sigma)
-        sigma_new_inv = np.linalg.inv(sigma_new)
-
-        (sign_sigma, logdet_sigma) = np.linalg.slogdet(sigma)
-        (sign_sigma_new, logdet_sigma_new) = np.linalg.slogdet(sigma_new)
-
-        c = n_dims * np.log(2*np.pi)
-
-        sum1 = np.sum([w_i * (-0.5*(theta_i - mu_new)[:,np.newaxis].T @ sigma_new_inv @ (theta_i -  mu_new)[:,np.newaxis] - 0.5 * logdet_sigma_new - c/2) for w_i, theta_i in zip(weights, theta)])
-        
-        sum2 = eta * (eps - GaussianDiagonalDistribution._closed_form_KL_constraint_M_projection(mu, mu_new, sigma, sigma_new, sigma_inv, sigma_new_inv, logdet_sigma, logdet_sigma_new, n_dims))
-        
-        sum3 = omg * (GaussianDiagonalDistribution._closed_form_entropy(logdet_sigma_new, n_dims) - ( GaussianDiagonalDistribution._closed_form_entropy(logdet_sigma, n_dims) - kappa ) )
-
-        return sum1 + sum2 + sum3
-
-class GaussianDistributionGDR(Distribution):
+class GaussianDistributionGDR(mushroom_rl.distributions.distribution.Distribution):
     """
     Gaussian distribution with full covariance matrix. The parameters
     vector represents the mean and the Cholesky decomposition of the
@@ -328,13 +278,13 @@ class GaussianDistributionGDR(Distribution):
         theta = theta[:, indices]
 
         eta_omg_opt_start = np.array([1, 1])
-        res = minimize(GaussianCholeskyDistribution._lagrangian_eta_omg, eta_omg_opt_start,
+        res = minimize(mushroom_rl.distributions.GaussianCholeskyDistribution._lagrangian_eta_omega, eta_omg_opt_start,
                        bounds=((np.finfo(np.float32).eps, np.inf),(np.finfo(np.float32).eps, np.inf)),
                        args=(weights, theta, mu, sigma, n_dims, eps, kappa))
 
         eta_opt, omg_opt  = res.x[0], res.x[1]
 
-        mu_new, sigma_new = GaussianCholeskyDistribution.closed_form_mu1_sigma_new(weights, theta, mu, sigma, n_dims, eps, eta_opt, omg_opt, kappa)
+        mu_new, sigma_new = mushroom_rl.distributions.GaussianCholeskyDistribution._compute_mu_sigma_from_lagrangian(weights, theta, mu, sigma, eta_opt, omg_opt)
 
         # substitute back mu
         mu_new_tmp = np.zeros_like(self._mu)
