@@ -1,6 +1,0 @@
-conda activate iprl
-For ($i=0; $i -le 2; $i++) {
-	For ($j=0; $j -le 9; $j++) {
-		python load_ball.py --alg $i --seed $j
-	}
-}
