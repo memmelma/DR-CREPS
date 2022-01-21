@@ -1,5 +1,5 @@
-#Written by Weihao Gao from UIUC
-#https://github.com/wgao9/knnie
+# Code adapted from https://github.com/wgao9/knnie
+
 import scipy.spatial as ss
 import scipy.stats as sst
 from scipy.special import digamma,gamma

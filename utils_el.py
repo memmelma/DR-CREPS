@@ -1,135 +1,89 @@
 import numpy as np
 
-from custom_distributions.gaussian_custom import GaussianDiagonalDistribution, GaussianCholeskyDistribution, GaussianDistribution, GaussianDistributionMI
+from algorithms import DR_CREPS_PE, DR_REPS_PE, RWR_PE
+from distributions import GaussianDiagonalDistribution, GaussianDistributionGDR
+from mushroom_rl.distributions import GaussianDistribution, GaussianCholeskyDistribution
 
-from mushroom_rl.algorithms.policy_search.black_box_optimization import REPS, RWR
-from custom_algorithms.more import MORE
-from custom_algorithms.reps_mi import REPS_MI
-from custom_algorithms.rwr_mi import RWR_MI
-from custom_algorithms.constrained_reps import ConstrainedREPS
-from custom_algorithms.constrained_reps_mi import ConstrainedREPSMI
+from mushroom_rl.distributions.distribution import Distribution
+from mushroom_rl.algorithms.policy_search.black_box_optimization import REPS, RWR, ConstrainedREPS, MORE
 
-from custom_algorithms.reps_mi_full import REPS_MI_full
-from custom_algorithms.constrained_reps_mi_full import ConstrainedREPSMIFull
-
-def init_distribution(mu_init=0, sigma_init=1e-3, size=1, sample_type=None, gamma=0.0, distribution_class='diag'):
+def init_distribution(mu_init=0, sigma_init=1e-3, size=1, sample_strat=None, lambd=0.0, distribution_class='diag'):
     
     mu = mu_init * np.ones(size)
 
-    if distribution_class == 'diag':
+    if type(sigma_init) != float and type(sigma_init) is Distribution:
+        distribution = sigma_init
+        print(f'Successfully loaded distribution {type(sigma_init)}!')
 
-        # load full covariance
-        if type(sigma_init) != float:
-            distribution = sigma_init
-            print('Successfully loaded distribution!')
-        else:
-            sigma = sigma_init * np.ones(size)
-            distribution = GaussianDiagonalDistribution(mu, sigma)
-
-        if sample_type == 'fixed':
-            distribution.set_fixed_sample(gamma=gamma)
-        elif sample_type == 'percentage':
-            distribution.set_percentage_sample(gamma=gamma)
-        elif sample_type == 'importance':
-            distribution.set_importance_sample()
-        elif sample_type == 'PRO':
-            distribution.set_PRO_sample()
-
-    elif distribution_class == 'cholesky':
-        print('sample_type only supported for diagonal covariance')
-        print('sigma_init passed is std -> cov = sigma_init**2')
-        if type(sigma_init) != float:
-            distribution = sigma_init
-            print('Successfully loaded distribution!')
-        else:
-            sigma = sigma_init**2 * np.eye(size)
-            distribution = GaussianCholeskyDistribution(mu, sigma)
-    elif distribution_class == 'fixed':
-        print('sample_type only supported for diagonal covariance')
-        print('sigma_init passed is std -> cov = sigma_init**2')
+    elif distribution_class == 'diag':
+        sigma = sigma_init * np.ones(size)
+        distribution = GaussianDiagonalDistribution(mu, sigma)
+    else:
         sigma = sigma_init**2 * np.eye(size)
-        distribution = GaussianDistribution(mu, sigma)
-    elif distribution_class == 'mi':
-        if type(sigma_init) != float:
-            distribution = sigma_init
-            print('Successfully loaded distribution!')
-        else:
-            sigma = sigma_init**2 * np.eye(size)
-            distribution = GaussianDistributionMI(mu, sigma)
+        if distribution_class == 'cholesky':
+            distribution = GaussianCholeskyDistribution(mu, sigma)
+        elif distribution_class == 'fixed':
+            distribution = GaussianDistribution(mu, sigma)
+        elif distribution_class == 'gdr':
+            distribution = GaussianDistributionGDR(mu, sigma)
 
-        if sample_type == 'fixed':
-            distribution.set_fixed_sample(gamma=gamma)
-        elif sample_type == 'percentage':
-            distribution.set_percentage_sample(gamma=gamma)
-        elif sample_type == 'importance':
-            distribution.set_importance_sample()
-        elif sample_type == 'PRO':
-            distribution.set_PRO_sample()
+    assert sample_strat is not None and (distribution_class != 'cholesky' or distribution_class != 'fixed'), \
+        f"Argument 'sample_strat' only supported for distribution_class = 'diag' or 'gdr', got {distribution_class}!"
+    if sample_strat is not None:
+        distribution.set_sample_strat(sample_strat=sample_strat, lambd=lambd)
 
     return distribution
 
+
 def init_algorithm(algorithm_class='REPS', params={}):
 
-    # algorithms
     if algorithm_class == 'REPS':
         alg = REPS
         params = {'eps': params['eps']}
 
-    elif algorithm_class == 'REPS_MI_full':
-        alg = REPS_MI_full
-        params = {'eps': params['eps'], 'gamma': params['gamma'], 'k': params['k'], 'bins': params['bins'],  'method': params['method'],'mi_type': params['mi_type'], 'mi_avg': params['mi_avg']}
+    elif algorithm_class == 'REPS-PE':
+        alg = DR_REPS_PE
+        params = {'eps': params['eps'], 'lambd': params['lambd'], 'k': params['k'],
+                    'C': params['C'],'mi_estimator': params['mi_estimator'], 'gdr': False}
 
-    elif algorithm_class == 'REPS_MI':
-        alg = REPS_MI
-        params = {'eps': params['eps'], 'gamma': params['gamma'], 'k': params['k'], 'bins': params['bins'], 'method': params['method'], 'mi_type': params['mi_type'], 'mi_avg': params['mi_avg']}
+    elif algorithm_class == 'DR-REPS-PE':
+        alg = DR_REPS_PE
+        params = {'eps': params['eps'], 'lambd': params['lambd'], 'k': params['k'],
+                    'C': params['C'], 'mi_estimator': params['mi_estimator'], 'gdr': True}
       
-    elif algorithm_class == 'REPS_MI_ORACLE':
-        alg = REPS_MI
-        params = {'eps': params['eps'], 'gamma': params['gamma'], 'k': params['k'], 'bins': params['bins'], 'method': params['method'], 'mi_type': params['mi_type'], 'mi_avg': params['mi_avg'], 'oracle': params['oracle']}
-
     elif algorithm_class == 'RWR':
         alg = RWR
         params = {'beta': params['eps']}
     
-    elif algorithm_class == 'RWR_MI':
-        alg = RWR_MI
-        params = {'eps': params['eps'], 'gamma': params['gamma'], 'k': params['k'], 'bins': params['bins'], 'method': params['method'], 'mi_type': params['mi_type'], 'mi_avg': params['mi_avg']}
+    elif algorithm_class == 'PRO':
+        alg = RWR_PE
+        params = {'eps': params['eps'], 'lambd': 0, 'k': 0,
+                    'C': 'PCC', 'mi_estimator': None}
+
+    elif algorithm_class == 'RWR-PE':
+        alg = RWR_PE
+        params = {'eps': params['eps'], 'lambd': params['lambd'], 'k': params['k'],
+                    'C': params['C'], 'mi_estimator': params['mi_estimator']}
 
     elif algorithm_class == 'MORE':
         alg = MORE
         params = {'eps': params['eps'], 'kappa': params['kappa']}
         
-    elif algorithm_class == 'ConstrainedREPS':
+    elif algorithm_class == 'CREPS':
         alg = ConstrainedREPS
         params = {'eps': params['eps'], 'kappa': params['kappa']}
 
-    elif algorithm_class == 'ConstrainedREPSMI':
-        alg = ConstrainedREPSMI
-        params = {'eps': params['eps'], 'k': params['k'], 'kappa': params['kappa'], 'gamma': params['gamma'], 'bins': params['bins'], 'method': params['method'], 'mi_type': params['mi_type'], 'mi_avg': params['mi_avg']}
+    elif algorithm_class == 'CREPS-PE':
+        alg = DR_CREPS_PE
+        params = {'eps': params['eps'], 'k': params['k'], 'kappa': params['kappa'], 'lambd': params['lambd'],
+                    'C': params['C'], 'mi_estimator': params['mi_estimator'], 'gdr': False}
 
-    elif algorithm_class == 'ConstrainedREPSMIFull':
-        alg = ConstrainedREPSMIFull
-        params = {'eps': params['eps'], 'k': params['k'], 'kappa': params['kappa'], 'gamma': params['gamma'], 'bins': params['bins'], 'method': params['method'], 'mi_type': params['mi_type'], 'mi_avg': params['mi_avg']}
+    elif algorithm_class == 'DR-CREPS-PE':
+        alg = DR_CREPS_PE
+        params = {'eps': params['eps'], 'k': params['k'], 'kappa': params['kappa'], 'lambd': params['lambd'],
+                    'C': params['C'], 'mi_estimator': params['mi_estimator'], 'gdr': True}
     
-    elif algorithm_class == 'ConstrainedREPSMIOracle':
-        alg = ConstrainedREPSMI
-        params = {'eps': params['eps'], 'k': params['k'], 'kappa': params['kappa'], 'gamma': params['gamma'], 'bins': params['bins'], 'method': params['method'], 'mi_type': params['mi_type'], 'mi_avg': params['mi_avg'], 'oracle': params['oracle']}
+    else:
+        print("Invalid algorithm selection. Select one of ['REPS', 'REPS-PE', 'DR-REPS-PE', 'RWR', 'PRO', 'RWR-PE', 'MORE', 'CREPS', 'CREPS-PE', 'DR-CREPS-PE'")
 
     return alg, params
-
-def log_constraints(agent):
-    mus = None
-    kls = None
-    entropys = None
-    mi_avg = None
-
-    if hasattr(agent, 'mis'):
-        mi_avg = agent.mis
-    if hasattr(agent, 'mus'):
-        mus = agent.mus
-    if hasattr(agent, 'kls'):
-        kls = agent.kls
-    if hasattr(agent, 'entropys'):
-        entropys = agent.entropys
-    
-    return mus, kls, entropys, mi_avg
