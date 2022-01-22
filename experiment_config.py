@@ -19,7 +19,16 @@ def experiment(**kwargs):
         experiment(**kwargs)
 
     elif kwargs['env'] == 'ShipSteering':
-        experiment_ship_steering(**kwargs)
+        if kwargs['alg'] in gradient_methods:
+            from experiments.ship_steering.el_grad import experiment
+        elif kwargs['alg'] in evolution_strategies:
+            from experiments.ship_steering.el_es import experiment
+        elif kwargs['alg'] in policy_search:
+            from experiments.ship_steering.el_bbo import experiment
+        elif kwargs['alg'] in optimizers:
+            from experiments.ship_steering.el_optim import experiment
+        experiment(**kwargs)
+
     elif kwargs['env'] == 'AirHockey':
         experiment_air_hockey(**kwargs)
     elif kwargs['env'] == 'BallStopping':
@@ -32,7 +41,7 @@ def default_params():
     defaults = dict(
         
         # environment
-        env = 'LQR',
+        env = 'ShipSteering',
         seed = 0,
         env_seed = 42,
 
@@ -48,7 +57,7 @@ def default_params():
         horizon = 750,
 
         # policy search
-        alg = 'BFGS',
+        alg = 'TRPO',
         eps = 1.,
         kappa = 3.5,
         # GDR

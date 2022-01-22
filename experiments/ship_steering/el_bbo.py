@@ -1,5 +1,4 @@
 import os
-import joblib
 import numpy as np
 
 from mushroom_rl.environments import ShipSteering
@@ -14,9 +13,9 @@ from mushroom_rl.policy import DeterministicPolicy
 from mushroom_rl.approximators.parametric import LinearApproximator
 from mushroom_rl.approximators.regressor import Regressor
 
-from experiments.utils import init_distribution, init_algorithm
+from experiments.utils import init_distribution, init_policy_search_algorithm, save_results
 
-def experiment_ship_steering(
+def experiment(
     env, seed, env_seed, \
     lqr_dim, red_dim, \
     n_tilings, \
@@ -25,6 +24,8 @@ def experiment_ship_steering(
     distribution, sigma_init, \
     C, mi_estimator, \
     sample_strat, lambd, \
+    nn_policy, actor_lr, critic_lr, max_kl, optim_eps, \
+    n_rollout, population_size, optim_lr, \
     n_epochs, fit_per_epoch, ep_per_fit, \
     results_dir, save_render_path, verbose
 ):
@@ -55,7 +56,8 @@ def experiment_ship_steering(
     input_shape = (features.size,)
 
     # parametric policy
-    approximator = Regressor(LinearApproximator, input_shape=input_shape,
+    approximator = Regressor(LinearApproximator,
+                             input_shape=input_shape,
                              output_shape=mdp.info.action_space.shape)
     policy = DeterministicPolicy(approximator)
 
@@ -64,7 +66,7 @@ def experiment_ship_steering(
                                         sample_strat=sample_strat, lambd=lambd, distribution_class=distribution)
     
     # policy search algorithm
-    alg, params = init_algorithm(algorithm_class=alg, params=init_params)
+    alg, params = init_policy_search_algorithm(algorithm_class=alg, params=init_params)
     agent = alg(mdp.info, distribution, policy, features=features, **params)
 
     # train
@@ -102,16 +104,11 @@ def experiment_ship_steering(
         'alg': alg
     })
 
-    joblib.dump(dump_dict, os.path.join(results_dir, f'{alg.__name__}_{seed}'))
-    
     dump_state = dict({
         'distribution': distribution
     })
 
-    joblib.dump(dump_state, os.path.join(results_dir, f'{alg.__name__}_{seed}_state'))
-
-    filename = os.path.join(results_dir, f'log_{alg.__name__}_{seed}.txt')
-    os.makedirs(results_dir, exist_ok=True)
-    with open(filename, 'w') as file:
-        for key in init_params.keys():
-            file.write(f'{key}: {init_params[key]}\n')
+    save_results(dump_dict, results_dir, alg, init_params, seed)
+    alg.__name__ = alg.__name__ + '_state'
+    save_results(dump_state, results_dir, alg, init_params, seed)
+    
