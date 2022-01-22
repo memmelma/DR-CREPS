@@ -1,5 +1,4 @@
 import os
-import joblib
 import numpy as np
 
 from mushroom_rl.environments.pybullet_envs.air_hockey import AirHockeyHit
@@ -9,10 +8,10 @@ from mushroom_rl.utils.dataset import compute_J
 
 from policy.promp_policy import ProMPPolicy
 
-from experiments.utils import init_distribution, init_algorithm
+from experiments.utils import init_distribution, init_policy_search_algorithm, save_results
 
 
-def experiment_air_hockey(
+def experiment(
     env, seed, env_seed, \
     lqr_dim, red_dim, \
     n_tilings, \
@@ -21,6 +20,8 @@ def experiment_air_hockey(
     distribution, sigma_init, \
     C, mi_estimator, \
     sample_strat, lambd, \
+    nn_policy, actor_lr, critic_lr, max_kl, optim_eps, \
+    n_rollout, population_size, optim_lr, \
     n_epochs, fit_per_epoch, ep_per_fit, \
     results_dir, save_render_path, verbose
 ):
@@ -44,7 +45,7 @@ def experiment_air_hockey(
                                         sample_strat=sample_strat, lambd=lambd, distribution_class=distribution)
 
     # policy search algorithm
-    alg, params = init_algorithm(algorithm_class=alg, params=init_params)
+    alg, params = init_policy_search_algorithm(algorithm_class=alg, params=init_params)
     agent = alg(mdp.info, distribution, policy, features=None, **params)
     
     # train
@@ -81,16 +82,10 @@ def experiment_air_hockey(
         'alg': alg
     })
 
-    joblib.dump(dump_dict, os.path.join(results_dir, f'{alg.__name__}_{seed}'))
-    
     dump_state = dict({
         'distribution': distribution
     })
 
-    joblib.dump(dump_state, os.path.join(results_dir, f'{alg.__name__}_{seed}_state'))
-
-    filename = os.path.join(results_dir, f'log_{alg.__name__}_{seed}.txt')
-    os.makedirs(results_dir, exist_ok=True)
-    with open(filename, 'w') as file:
-        for key in init_params.keys():
-            file.write(f'{key}: {init_params[key]}\n')
+    save_results(dump_dict, results_dir, alg, init_params, seed)
+    alg.__name__ = alg.__name__ + '_state'
+    save_results(dump_state, results_dir, alg, init_params, seed)
