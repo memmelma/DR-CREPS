@@ -1,11 +1,24 @@
+import os
+import joblib
 import numpy as np
 
-from algorithms import DR_CREPS_PE, DR_REPS_PE, RWR_PE
+from algorithms import DR_CREPS_PE, DR_REPS_PE, RWR_PE, CEM
 from distributions import GaussianDiagonalDistribution, GaussianDistributionGDR
 from mushroom_rl.distributions import GaussianDistribution, GaussianCholeskyDistribution
 
 from mushroom_rl.distributions.distribution import Distribution
 from mushroom_rl.algorithms.policy_search.black_box_optimization import REPS, RWR, ConstrainedREPS, MORE
+
+from mushroom_rl.approximators.parametric import TorchApproximator
+from mushroom_rl.approximators.parametric import LinearApproximator
+from mushroom_rl.approximators.regressor import Regressor
+
+from mushroom_rl.algorithms.actor_critic import PPO, TRPO
+from mushroom_rl_benchmark.builders.actor_critic.deep_actor_critic import PPOBuilder, TRPOBuilder
+
+from mushroom_rl.algorithms.policy_search import REINFORCE
+from mushroom_rl.utils.optimizers import AdaptiveOptimizer
+from mushroom_rl.policy import StateStdGaussianPolicy
 
 def init_distribution(mu_init=0, sigma_init=1e-3, size=1, sample_strat=None, lambd=0.0, distribution_class='diag'):
     
@@ -27,17 +40,20 @@ def init_distribution(mu_init=0, sigma_init=1e-3, size=1, sample_strat=None, lam
         elif distribution_class == 'gdr':
             distribution = GaussianDistributionGDR(mu, sigma)
 
-    assert sample_strat is not None and (distribution_class != 'cholesky' or distribution_class != 'fixed'), \
-        f"Argument 'sample_strat' only supported for distribution_class = 'diag' or 'gdr', got {distribution_class}!"
     if sample_strat is not None:
+        assert distribution_class != 'cholesky' or distribution_class != 'fixed', \
+            f"Argument 'sample_strat' only supported for distribution_class = 'diag' or 'gdr', got {distribution_class}!"
         distribution.set_sample_strat(sample_strat=sample_strat, lambd=lambd)
 
     return distribution
 
+def init_policy_search_algorithm(algorithm_class='REPS', params={}):
 
-def init_algorithm(algorithm_class='REPS', params={}):
+    if algorithm_class == 'CEM':
+        alg = CEM
+        params = {'eps': params['eps']}
 
-    if algorithm_class == 'REPS':
+    elif algorithm_class == 'REPS':
         alg = REPS
         params = {'eps': params['eps']}
 
@@ -87,3 +103,47 @@ def init_algorithm(algorithm_class='REPS', params={}):
         raise Exception("Invalid algorithm selection. Select one of ['REPS', 'REPS-PE', 'DR-REPS-PE', 'RWR', 'PRO', 'RWR-PE', 'MORE', 'CREPS', 'CREPS-PE', 'DR-CREPS-PE'")
 
     return alg, params
+
+def init_grad_agent(mdp, alg, actor_lr, critic_lr, max_kl, optim_eps, nn_policy=False):
+    if alg == 'PPO':
+        agent_builder = PPOBuilder.default(
+            actor_lr=actor_lr,
+            critic_lr=critic_lr,
+            n_features=32
+        )
+        return agent_builder.build(mdp.info), PPO
+    
+    elif alg == 'TRPO':
+        alg = TRPO
+        agent_builder = TRPOBuilder.default(
+            critic_lr= critic_lr,
+            max_kl= max_kl,
+            n_features=32
+        )
+        return agent_builder.build(mdp.info), TRPO
+
+    ## Policy Gradient
+    elif alg == 'REINFORCE':
+        approximator = Regressor(LinearApproximator,
+                                input_shape=mdp.info.observation_space.shape,
+                                output_shape=mdp.info.action_space.shape)
+
+        sigma = Regressor(LinearApproximator,
+                        input_shape=mdp.info.observation_space.shape,
+                        output_shape=mdp.info.action_space.shape)
+
+        # sigma_weights = sigma_init * np.eye(sigma.weights_size)
+        # sigma.set_weights(sigma_weights)
+
+        policy = StateStdGaussianPolicy(approximator, sigma)
+
+        return REINFORCE(mdp.info, policy, optimizer=AdaptiveOptimizer(eps=optim_eps)), REINFORCE
+
+def save_results(dump_dict, results_dir, alg, init_params, seed):
+    joblib.dump(dump_dict, os.path.join(results_dir, f'{alg.__name__}_{seed}'))
+    
+    filename = os.path.join(results_dir, f'log_{alg.__name__}_{seed}.txt')
+    os.makedirs(results_dir, exist_ok=True)
+    with open(filename, 'w') as file:
+        for key in init_params.keys():
+            file.write(f'{key}: {init_params[key]}\n')

@@ -44,7 +44,7 @@ class MushroomAgent(nn.Module):
         raise NotImplementedError
 
     def no_grad_update(self, rewards, population_params, optim):
-        lr = optim.param_groups[0]["lr"]
+        self.lr = optim.param_groups[0]["lr"]
 
         std = rewards.std()
         if std == 0:
@@ -82,7 +82,7 @@ class LinearRegressorNES(MushroomAgent):
         if weights == self.parameters():
             return
         torch.nn.utils.vector_to_parameters(weights, self.parameters())
-        
+
 class ProMPNES(MushroomAgent):
     def __init__(self, input_size, output_size, population_size=256, n_rollout=2, sigma=1e-3, l_decay=0.999, l2_decay=0.005, features=None, discrete=False, n_basis=30, basis_width=1e-3, c=None, maxSteps=1000, time_scale=1):
         super().__init__(input_size, output_size, population_size=population_size, n_rollout=n_rollout, sigma=sigma, l_decay=l_decay, l2_decay=l2_decay, features=features, discrete=discrete)
