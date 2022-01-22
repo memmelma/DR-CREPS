@@ -61,6 +61,7 @@ def load_data_from_dir(data_dir):
                 if '.' not in file:
                     # load file
                     data_load = joblib.load(os.path.join(root, file))   
+                    
                     # add exp to dict
                     for key in data_load.keys():
                         # create new key for exp
@@ -76,7 +77,7 @@ def load_data_from_dir(data_dir):
             data_dict_all[key] = data_dict
     return data_dict_all
 
-def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples', n_samples = 1, max_runs=25, pdf=False, clean=False):
+def plot_data(data_dict, exp_name, exp_title='', episodes=1000, samples=5000, x_axis='samples', n_samples = 1, max_runs=25, pdf=False, clean=False):
 
     os.makedirs(f'imgs/{exp_name}', exist_ok=True)
     fig, ax = plt.subplots()
@@ -95,19 +96,29 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
         if len(data_dict[exp]['returns_mean']) < max_runs:
             continue
         
-        ## PPO / TRPO
-        if exp_name == 'lqr_ppo_trpo_reinforce_search':
-            if data_dict[exp]['init_params'][0]['kappa'] != 0 and not data_dict[exp]['init_params'][0]['kappa'] >= 1.0:
-                continue 
-            if data_dict[exp]['init_params'][0]['eps'] != 4.7 and data_dict[exp]['init_params'][0]['eps'] != 0.003:
-                continue
-    
+        # if data_dict[exp]['init_params'][0]['alg'] != 'REINFORCE':
+        #     continue
+
         # for broken bullet runs
         if 'bullet' in exp:
             min_length = np.min([len(x) for x in data_dict[exp]['returns_mean']])
             data_dict[exp]['returns_mean'] = [x[:min_length] for x in data_dict[exp]['returns_mean']]
 
-        y, ci  = get_mean_and_confidence(np.array(data_dict[exp]['returns_mean']))
+        try:
+            y, ci  = get_mean_and_confidence(np.array(data_dict[exp]['returns_mean']))
+        except:
+            lengths = []
+            for e in data_dict[exp]['returns_mean']:
+                lengths += [len(e)]
+            for i, e in enumerate(data_dict[exp]['returns_mean']):
+                # print(i,min(lengths))
+                thresh = 11000
+                if min(lengths) < thresh:
+                    data_dict[exp]['returns_mean'][i] += list(np.ones(thresh - min(lengths))*data_dict[exp]['returns_mean'][i][-1])
+
+                data_dict[exp]['returns_mean'][i] = data_dict[exp]['returns_mean'][i][:thresh]
+            y, ci  = get_mean_and_confidence(np.array(data_dict[exp]['returns_mean']))
+
         ci = ci[1]
 
         # determine x axis
@@ -130,11 +141,14 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
         # # plot single experiment
         init_params = data_dict[exp]['init_params'][0]
         params = exp.split('|')[2:]
-        params.remove('alg_'+data_dict[exp]['init_params'][0]['alg'])
-        
-        if 'lqr' in exp_name:
-            if np.max(y) < -5:
-                continue
+        try:
+            params.remove('alg_'+data_dict[exp]['init_params'][0]['alg'])
+        except:
+            pass
+
+        # if 'lqr' in exp_name:
+        # if np.max(y) < 90:
+        #     continue
 
         if clean:
             if exp_name == 'lqr_diag/alg_plot':
@@ -226,24 +240,45 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
                 colors = ['tab:green', 'tab:orange', 'tab:pink']
                 line_styles = ['solid', 'solid', 'solid']
 
+            elif 'rebuttal' in exp_name:
+                labels = ['TRPO', 'REINFORCE', 'PPO', 'Nelder-Mead simplex', 'natural ES', 'L-BFGS', 'ES', 'DR-CREPS (PCC)', 'CEM']
+                colors = ['tab:cyan', 'tab:olive', 'tab:blue', 'tab:gray', 'tab:red', 'tab:green', 'tab:orange', 'tab:pink', 'tab:brown']
+                line_styles = ['solid', 'solid', 'solid', 'solid', 'solid', 'solid', 'solid', 'solid', 'solid']
+
             else:
                 labels = []
             label = labels[clean_ctr]
-
-            handles, lbls = ax.get_legend_handles_labels()
-            if 'lqr' in exp_name and 'optimal control' not in lbls:
-                plt.hlines(np.array(data_dict[exp]['optimal_reward'][0]).mean(), 0, n_samples*x.max(), 'red', label='optimal control')
-            elif 'ship' in exp_name and 'optimal' not in lbls:
-                    plt.hlines(-58.5, 0, n_samples*x.max(), 'red', label='optimal')
-
             if 'RWR w/ PE' in label:
                 continue
+
+            handles, lbls = ax.get_legend_handles_labels()
+            if 'lqr' in exp_name and 'optimal' not in lbls:
+            # if 'lqr' in exp_name and 'optimal control' not in lbls:
+                # plt.hlines(np.array(data_dict[exp]['optimal_reward'][0]).mean(), 0, n_samples*x.max(), 'red', label='optimal control', ls='dashed')
+                plt.hlines(np.array(data_dict[exp]['optimal_reward'][0]).mean(), 0, n_samples*x.max(), 'red', label='optimal', ls='dashed')
+            elif 'ship' in exp_name and 'optimal' not in lbls:
+                plt.hlines(-58.5, 0, n_samples*x.max(), 'red', label='optimal', ls='dashed')
+
             color = colors[clean_ctr]
             ls = line_styles[clean_ctr]
             clean_ctr += 1
-            
-            if 'lqr' in exp_name:
+
+            if 'lqr_rebuttal' ==  exp_name:
+                ax.plot(x*n_samples,y, label=label, color=color, ls=ls, linewidth=2)
+            elif 'lqr' in  exp_name:
                 ax.plot(x*n_samples,y, label=label, color=color, ls=ls, linewidth=3 if 'pink' in color else 2)
+            elif 'rebuttal' in exp_name:
+                if label == 'Nelder-Mead simplex':
+                    def smooth(y, box_pts):
+                        box = np.ones(box_pts)/box_pts
+                        y_smooth = np.convolve(y, box, mode='same')
+                        return y_smooth
+                    y = smooth(y,50)
+                    ci = smooth(ci,50)
+                    ax.plot(x, y, label=None, color=color, ls=ls, linewidth=2)
+                else:
+                    ax.plot(x*n_samples,y, label=None, color=color, ls=ls, linewidth=2)
+                # ax.plot(x*n_samples,y, label=None, color=color, ls=ls, linewidth=2)
             else:
                 ax.plot(x*n_samples,y, label=label, color=color, ls=ls, linewidth=2)
                 
@@ -290,7 +325,19 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
     ax.set_ylabel('J', fontsize=20)
 
     if clean:
-        ax.legend(fontsize=12)
+        # ax.legend(loc='lower right',fontsize=12)
+        # legend = plt.legend(loc="lower right", fontsize=12)
+        # legend.get_frame().set_alpha(0.5)
+        legend = ax.legend(loc='upper left', bbox_to_anchor=(-0.15,-0.3),fontsize=12, prop={'size': 12}, ncol=10)
+        # legend = plt.legend(loc='upper left', bbox_to_anchor=(-0.15,-0.3),fontsize=12, prop={'size': 12}, ncol=10)
+        def export_legend(legend, filename="legend.pdf", expand=[-5,-5,5,5]):
+            fig  = legend.figure
+            fig.canvas.draw()
+            bbox  = legend.get_window_extent()
+            bbox = bbox.from_extents(*(bbox.extents + np.array(expand)))
+            bbox = bbox.transformed(fig.dpi_scale_trans.inverted())
+            fig.savefig(filename, dpi="figure", bbox_inches=bbox)
+        export_legend(legend)
     else:
         ax.legend(loc='upper left', bbox_to_anchor=(-0.2,-0.2), prop={'size': 6}, ncol=1)
 
@@ -308,17 +355,17 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
             y_ticks = 10
         
         elif 'lqr' in exp:
-            y_0, y_1 = -60, 0
+            y_0, y_1 = -70, 0
             x_0, x_1 = 0, 5000
             x_ticks = 1000
             y_ticks = 10
 
         elif 'ship' in exp:
             y_0, y_1 = -100, -55
-            x_0, x_1 = 0, 3500
+            x_0, x_1 = 0, 3400
             x_ticks = 1000
             y_ticks = 10
-        
+
         elif 'hockey' in exp:
             y_0, y_1 = 0, 150
             x_0, x_1 = 0, 10000
@@ -347,9 +394,11 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
 
     if not clean:
         plt.title(exp_name)
+    else:
+        plt.title(exp_title, fontsize=20)
 
 
-    plt.ylim(0, 60)
+    # plt.ylim(0, 60)
 
 
     plt.tight_layout()
@@ -359,6 +408,13 @@ def plot_data(data_dict, exp_name, episodes=1000, samples=5000, x_axis='samples'
         x_left, x_right = ax.get_xlim()
         y_low, y_high = ax.get_ylim()
         ax.set_aspect(abs((x_right-x_left)/(y_low-y_high))*ratio)
+    
+    
+    # ratio = 4/3
+    # x_left, x_right = ax.get_xlim()
+    # y_low, y_high = ax.get_ylim()
+    # ax.set_aspect(abs((x_right-x_left)/(y_low-y_high))*ratio)
+    
     plt.savefig(f"imgs/{exp_name}/returns.{'pdf' if pdf else 'png'}", bbox_inches='tight', pad_inches=0)
     plt.close()
 
@@ -715,10 +771,17 @@ if __name__ == '__main__':
     # max_runs = 1
 
     exp_name = 'lqr_ppo_trpo_reinforce_search_prepro'
-    exp_name = 'hockey_search_prepro'
-    exp_name = 'hockey_search_prepro'
-    # exp_name = 'ship_search_prepro'
-    max_runs = 25
+    # exp_name = 'hockey_search_prepro'
+    exp_name = 'hockey_search_best'
+    exp_name = 'ship_prepro_search'
+    exp_name = 'lqr_nm_bfgs'
+    exp_name = 'lqr_estimators'
+    # exp_name = 'hockey_rebuttal'
+    # exp_name = 'lqr_rebuttal'
+    # exp_name = 'bullet_hopper_linear_search'
+    max_runs = 20
+    # exp_name = 'hockey_rebuttal'
+    # max_runs = 20
 
     # data_dir = os.path.join('logs', exp_name)
     data_dir = os.path.join('..', exp_name)
@@ -729,8 +792,9 @@ if __name__ == '__main__':
     plot_data(data_dict, exp_name, episodes=1000, samples=-1, x_axis='episodes', pdf=pdf, max_runs=max_runs, clean=False)
 
     # for paper plots
-    # plot_data(data_dict, exp_name, episodes=1000, samples=-1, x_axis='episodes', pdf=True, max_runs=max_runs, clean=True)
-    # plot_data(data_dict, exp_name, episodes=1000, samples=-1, x_axis='episodes', pdf=False, max_runs=max_runs, clean=True)
+    # exp_title = 'ShipSteering'
+    # plot_data(data_dict, exp_name, exp_title=exp_title, episodes=1000, samples=-1, x_axis='episodes', pdf=True, max_runs=max_runs, clean=True)
+    # plot_data(data_dict, exp_name, exp_title=exp_title, episodes=1000, samples=-1, x_axis='episodes', pdf=False, max_runs=max_runs, clean=True)
 
     # # MI vs Pearson vs Random
     # plot_parameter(data_dict, exp_name)

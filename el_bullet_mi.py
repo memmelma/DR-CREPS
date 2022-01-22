@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from mushroom_rl.approximators.parametric import TorchApproximator
+from mushroom_rl.approximators.parametric import LinearApproximator
 from mushroom_rl.approximators.regressor import Regressor
 from mushroom_rl.core import Core, Logger
 from mushroom_rl.policy import DeterministicPolicy
@@ -63,7 +64,7 @@ def experiment( env_name, horizon, env_gamma, \
                 sigma_init, distribution, \
                 method, mi_type, bins, sample_type, gamma, mi_avg, \
                 n_epochs, fit_per_epoch, ep_per_fit, \
-                seed, results_dir, quiet):
+                seed, results_dir, quiet, nn_policy):
                 
     quiet = bool(quiet)
     mi_avg = bool(mi_avg)
@@ -74,12 +75,19 @@ def experiment( env_name, horizon, env_gamma, \
     # MDP
     mdp = Gym(env_name, horizon=None if horizon == 0 else horizon, gamma=0.99, render=not quiet)
     
-    approximator = Regressor(TorchApproximator,
+    if nn_policy:
+        approximator = Regressor(TorchApproximator,
                              network = Network,
                              input_shape=mdp.info.observation_space.shape,
                              output_shape=mdp.info.action_space.shape)
+
+        policy = DeterministicPolicy(mu=approximator)
     
-    policy = DeterministicPolicy(mu=approximator)
+    else:
+        approximator = Regressor(LinearApproximator,
+                             input_shape=mdp.info.observation_space.shape,
+                             output_shape=mdp.info.action_space.shape)
+        policy = DeterministicPolicy(mu=approximator)
 
     # init distribution
     distribution = init_distribution(mu_init=0, sigma_init=sigma_init, size=policy.weights_size, sample_type=sample_type, gamma=gamma, distribution_class=distribution)
@@ -94,10 +102,11 @@ def experiment( env_name, horizon, env_gamma, \
     agent = alg(mdp.info, distribution, policy, features=None, **params)
 
     # preprocessor
-    prepro = StandardizationPreprocessor(mdp_info=mdp.info)
-    
-    # train
-    core = Core(agent, mdp, preprocessors=[prepro])
+    if nn_policy:
+        prepro = StandardizationPreprocessor(mdp_info=mdp.info)
+        core = Core(agent, mdp, preprocessors=[prepro])
+    else:
+        core = Core(agent, mdp)
 
     dataset_eval = core.evaluate(n_episodes=ep_per_fit, quiet=quiet)
     # print('distribution parameters: ', distribution.get_parameters())
@@ -224,7 +233,8 @@ def default_params():
         # misc
         seed = 0,
         results_dir = 'results',
-        quiet = 1 # True
+        quiet = 1, # True
+        nn_policy = 0
     )
 
     return defaults
@@ -259,6 +269,7 @@ def parse_args():
     parser.add_argument('--seed', type=int)
     parser.add_argument('--results-dir', type=str)
     parser.add_argument('--quiet', type=int)
+    parser.add_argument('--nn-policy', type=int)
 
     parser.set_defaults(**default_params())
     args = parser.parse_args()

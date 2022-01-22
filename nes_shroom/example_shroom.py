@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from nes.nes_shroom import CoreNES
+from nes_shroom import CoreNES
 from modules import ProMPNES, LinearRegressorNES
 
 from mushroom_rl.environments.pybullet_envs.air_hockey import AirHockeyHit
@@ -9,7 +9,7 @@ from mushroom_rl.features import Features
 from mushroom_rl.features.tiles import Tiles
 
 if __name__ == '__main__':
-    n_samples = 10000
+    n_samples = 2000
     n_rollout = 2
     population_size = 256
     n_step = n_samples // (population_size * n_rollout)
@@ -48,12 +48,15 @@ if __name__ == '__main__':
     policy = ProMPNES(input_size, output_size, population_size=population_size, l_decay= 0.999, l2_decay=0.005, sigma=sigma_init, n_rollout=n_rollout, maxSteps=horizon, features=features)
     policy = LinearRegressorNES(input_size, output_size, population_size=population_size, l_decay=1., l2_decay=0., sigma=sigma_init, n_rollout=n_rollout, features=features)
     
+    exp_name = 'nes_try'
+    alg = 'nes'
+    seed = 32
     nes = CoreNES(policy, mdp, optimizer=torch.optim.Adam, optimizer_lr=optim_lr,
-                    n_step=n_step, seed=42)
+                    n_step=n_step, seed=seed)
 
-    nes.train('nes')
+    nes.train(strat=alg)
     
-    nes.log()
+    nes.log(exp_name=exp_name, alg=alg, seed=seed, results_dir='..')
 
     
     

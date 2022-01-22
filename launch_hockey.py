@@ -5,10 +5,10 @@ if __name__ == '__main__':
 	local = False
 	test = False
 
-	experiment_name = f'hockey_search_linear'
+	experiment_name = f'hockey_search_cem'
 	
 	launcher = Launcher(experiment_name,
-						'el_air_hockey_rebuttal',
+						'el_air_hockey_mi',
 						25, # 25
 						memory=1000,
 						days=1,
@@ -185,20 +185,25 @@ if __name__ == '__main__':
 	launcher.add_default_params(n_basis=30, horizon=120, fit_per_epoch=1, sigma_init=1e-0)
 
 	n_samples = 10000
-	# for ep_per_fit in [50, 100, 150, 200, 250]:
-	for ep_per_fit in [100]:
+	# # for ep_per_fit in [50, 100, 150, 200, 250]:
+	# for ep_per_fit in [100]:
+	# 	n_epochs = n_samples // ep_per_fit
+	# 	for eps in [3e-2, 3e-3, 3e-4]:		
+	# 		launcher.add_experiment(alg='PPO', eps=eps, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+	# 		for kappa in [1e-0, 1e-1, 1e-2]:
+	# 			launcher.add_experiment(alg='TRPO', eps=eps, kappa=kappa, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+	# 	for eps in [1e-0, 1e-1, 1e-2, 1e-3, 1e-4]:
+	# 		launcher.add_experiment(alg='REINFORCE', eps=eps, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+
+	# ep_per_fit = 50
+	# n_epochs = n_samples // ep_per_fit
+	# launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution='mi', eps=2., kappa=12., sample_type='percentage', method='Pearson', gamma=0.5, k=30, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+
+	for ep_per_fit in [50, 100, 150, 200, 250]:
+	# for ep_per_fit in [20]:
 		n_epochs = n_samples // ep_per_fit
-		for eps in [3e-2, 3e-3, 3e-4]:		
-			launcher.add_experiment(alg='PPO', eps=eps, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
-			for kappa in [1e-0, 1e-1, 1e-2]:
-				launcher.add_experiment(alg='TRPO', eps=eps, kappa=kappa, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
-		for eps in [1e-0, 1e-1, 1e-2, 1e-3, 1e-4]:
-			launcher.add_experiment(alg='REINFORCE', eps=eps, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
-
-	ep_per_fit = 50
-	n_epochs = n_samples // ep_per_fit
-	launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution='mi', eps=2., kappa=12., sample_type='percentage', method='Pearson', gamma=0.5, k=30, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
-
+		n_elites = ep_per_fit // 2
+		launcher.add_experiment(alg='CEM', eps=n_elites, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
 
 	print(experiment_name)
 	print('experiments:', len(launcher._experiment_list))

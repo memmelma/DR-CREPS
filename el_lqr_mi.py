@@ -75,36 +75,36 @@ def experiment( lqr_dim, n_ineff, env_seed, nn_policy, \
         #     oracle += tmp[p*lqr_dim:(p+1)*lqr_dim].tolist()
         # init_params['oracle'] = oracle
         
-        # for p in ineff_params:
-        #     mdp.B[p][p] = 1e-20
-        #     mdp.Q[p][p] = 1e-20
-
-
-        mdp.B = rng.uniform(0.1, 0.9, (lqr_dim, lqr_dim))
-        mdp.B = mdp.B @ mdp.B.T
-        mdp.Q = rng.uniform(0.1, 0.9, (lqr_dim, lqr_dim))
-        mdp.Q = mdp.Q @ mdp.Q.T
-        mdp.A = rng.uniform(0.1, 0.9, (lqr_dim, lqr_dim))
-        mdp.A = mdp.A @ mdp.A.T
-        mdp.R = rng.uniform(0.1, 0.9, (lqr_dim, lqr_dim))
-        mdp.R = mdp.R @ mdp.R.T
-
         for p in ineff_params:
-                mdp.A[:,p] = 0
-                mdp.A[p,:] = 0
-                mdp.A[p][p] = 1e-10
+            mdp.B[p][p] = 1e-20
+            mdp.Q[p][p] = 1e-20
 
-                mdp.R[:,p] = 0
-                mdp.R[p,:] = 0
-                mdp.R[p][p] = 1e-10
 
-                mdp.B[:,p] = 0
-                mdp.B[p,:] = 0
-                mdp.B[p][p] = 1e-10
+        # mdp.B = rng.uniform(0.1, 0.9, (lqr_dim, lqr_dim))
+        # mdp.B = mdp.B @ mdp.B.T
+        # mdp.Q = rng.uniform(0.1, 0.9, (lqr_dim, lqr_dim))
+        # mdp.Q = mdp.Q @ mdp.Q.T
+        # mdp.A = rng.uniform(0.1, 0.9, (lqr_dim, lqr_dim))
+        # mdp.A = mdp.A @ mdp.A.T
+        # mdp.R = rng.uniform(0.1, 0.9, (lqr_dim, lqr_dim))
+        # mdp.R = mdp.R @ mdp.R.T
 
-                mdp.Q[:,p] = 0
-                mdp.Q[p,:] = 0
-                mdp.Q[p][p] = 1e-10
+        # for p in ineff_params:
+        #         mdp.A[:,p] = 0
+        #         mdp.A[p,:] = 0
+        #         mdp.A[p][p] = 1e-10
+
+        #         mdp.R[:,p] = 0
+        #         mdp.R[p,:] = 0
+        #         mdp.R[p][p] = 1e-10
+
+        #         mdp.B[:,p] = 0
+        #         mdp.B[p,:] = 0
+        #         mdp.B[p][p] = 1e-10
+
+        #         mdp.Q[:,p] = 0
+        #         mdp.Q[p,:] = 0
+        #         mdp.Q[p][p] = 1e-10
 
     # env_seed < 0 for standard behavior
     else:
@@ -236,7 +236,6 @@ def default_params():
         # alg = 'REPS',
         # alg = 'REPS_MI_full',
         # alg = 'REPS_MI',
-        alg = 'REPS',
         # alg = 'ConstrainedREPSMIFull',
         # alg = 'ConstrainedREPS',
         # alg = 'ConstrainedREPSMI',
@@ -245,7 +244,9 @@ def default_params():
         # alg = 'REPS_MI_ORACLE',
         # alg = 'REPS_MI',
         # alg = 'REPS',
-        eps = 1.,
+        # eps = 1.,
+        alg = 'CEM',
+        eps = 10,
         kappa = 10.0,
         k = 30,
 
@@ -260,7 +261,8 @@ def default_params():
         # method = 'Random',
         # method = 'MI_ALL',
         # method = 'Pearson',
-        mi_type = 'regression',
+        # mi_type = 'regression',
+        mi_type = 'sample',
         bins = 4, # 4 10 best
         # sample_type = 'importance',
         sample_type = 'percentage',

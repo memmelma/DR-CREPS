@@ -100,7 +100,7 @@ def experiment( lqr_dim, n_ineff, env_seed, nn_policy, \
 
     ## TRPO / PPO
     if alg == 'PPO':
-        nn_policy = True
+        nn_policy = False
         alg = PPO
         agent_builder = PPOBuilder.default(
             # actor_lr=3e-4,
@@ -112,7 +112,7 @@ def experiment( lqr_dim, n_ineff, env_seed, nn_policy, \
         agent = agent_builder.build(mdp.info)
     
     elif alg == 'TRPO':
-        nn_policy = True
+        nn_policy = False
         alg = TRPO
         agent_builder = TRPOBuilder.default(
             # critic_lr=3e-3,
@@ -125,7 +125,7 @@ def experiment( lqr_dim, n_ineff, env_seed, nn_policy, \
 
     ## Policy Gradient
     elif alg == 'REINFORCE':
-        nn_policy = True
+        nn_policy = False # True
         approximator = Regressor(LinearApproximator,
                                 input_shape=mdp.info.observation_space.shape,
                                 output_shape=mdp.info.action_space.shape)
@@ -134,8 +134,8 @@ def experiment( lqr_dim, n_ineff, env_seed, nn_policy, \
                         input_shape=mdp.info.observation_space.shape,
                         output_shape=mdp.info.action_space.shape)
 
-        sigma_weights = sigma_init * np.ones(sigma.weights_size)
-        sigma.set_weights(sigma_weights)
+        # sigma_weights = sigma_init * np.eye(sigma.weights_size)
+        # sigma.set_weights(sigma_weights)
 
         policy = StateStdGaussianPolicy(approximator, sigma)
 
@@ -228,7 +228,8 @@ def default_params():
         env_seed = 0,
 
         # algorithm
-        alg = 'PPO',
+        # alg = 'PPO',
+        alg = 'REINFORCE',
         eps = 3e-3,
         kappa = 0,
         k = 0,
@@ -238,7 +239,6 @@ def default_params():
         distribution = None,
 
         # MI related
-        # method = 'MI',
         method = None,
         mi_type = None,
         bins = 0,

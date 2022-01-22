@@ -8,10 +8,10 @@ if __name__ == '__main__':
 
 	# experiment_name = f'ship_3_tiles_full_besty_10'
 	# experiment_name = f'ship_diag'
-	experiment_name = f'ship_search_prepro'
+	experiment_name = f'ship_cem'
 	
 	launcher = Launcher(experiment_name,
-						'el_ship_rebuttal',
+						'el_ship_mi',
 						25,
 						memory=3000,
 						days=2,
@@ -238,23 +238,25 @@ if __name__ == '__main__':
 
 	n_samples = 3500
 	
-	for ep_per_fit in [50, 100, 150, 200, 250, 500]:
+	# # # for ep_per_fit in [50, 100, 150, 200, 250, 500]:
 	# for ep_per_fit in [100]:
+	# 	n_epochs = n_samples // ep_per_fit
+	# 	for eps in [3e-2, 3e-3, 3e-4]:
+	# 		launcher.add_experiment(alg='PPO', eps=eps, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+	# 		for kappa in [1e-0, 1e-1, 1e-2]:
+	# 			launcher.add_experiment(alg='TRPO', eps=eps, kappa=kappa, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+	# 	for eps in [1e-1, 1e-2, 1e-3]:
+	# 		launcher.add_experiment(alg='REINFORCE', eps=eps, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+
+	# ep_per_fit = 15
+	# n_epochs = n_samples // ep_per_fit
+	# launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution='mi', eps=3.4, kappa=20., sample_type='percentage', method='Pearson', gamma=0.1, k=200, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+
+	for ep_per_fit in [50, 100, 150, 200, 250]:
+	# for ep_per_fit in [20]:
 		n_epochs = n_samples // ep_per_fit
-		# for eps in [3e-2, 3e-3, 3e-4]:
-		eps = 3e-3
-		launcher.add_experiment(alg='PPO', eps=eps, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
-			# for kappa in [1e-0, 1e-1, 1e-2]:
-		kappa = 1e-1
-		launcher.add_experiment(alg='TRPO', eps=eps, kappa=kappa, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
-		# for eps in [1e-1, 1e-2, 1e-3]:
-		eps = 1e-2
-		launcher.add_experiment(alg='REINFORCE', eps=eps, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
-
-	ep_per_fit = 15
-	n_epochs = n_samples // ep_per_fit
-	launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution='mi', eps=3.4, kappa=20., sample_type='percentage', method='Pearson', gamma=0.1, k=200, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
-
+		n_elites = ep_per_fit // 2
+		launcher.add_experiment(alg='CEM', eps=n_elites, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
 
 	print(experiment_name)
 	print('experiments:', len(launcher._experiment_list))

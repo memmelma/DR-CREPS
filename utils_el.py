@@ -8,6 +8,7 @@ from custom_algorithms.reps_mi import REPS_MI
 from custom_algorithms.rwr_mi import RWR_MI
 from custom_algorithms.constrained_reps import ConstrainedREPS
 from custom_algorithms.constrained_reps_mi import ConstrainedREPSMI
+from custom_algorithms.cem import CEM
 
 from custom_algorithms.reps_mi_full import REPS_MI_full
 from custom_algorithms.constrained_reps_mi_full import ConstrainedREPSMIFull
@@ -73,6 +74,10 @@ def init_algorithm(algorithm_class='REPS', params={}):
     # algorithms
     if algorithm_class == 'REPS':
         alg = REPS
+        params = {'eps': params['eps']}
+
+    elif algorithm_class == 'CEM':
+        alg = CEM
         params = {'eps': params['eps']}
 
     elif algorithm_class == 'REPS_MI_full':

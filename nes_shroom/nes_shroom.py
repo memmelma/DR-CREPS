@@ -5,18 +5,17 @@ import numpy as np
 
 from copy import deepcopy
 
-from .utils import *
+from nes_shroom.utils import *
 
 import joblib
 
 class CoreNES():
     """
-    :ivar int gen: Current generation
-    :ivar Policy policy: Trained policy
-    :ivar torch.optim.Optimizer optim: Optimizer of the policy
+    NES based on https://github.com/goktug97/nes-torch
+    ES based on https://github.com/alirezamika/evostra/blob/master/evostra/algorithms/evolution_strategy.py
     """
-    def __init__(self, policy, mdp, optimizer=torch.optim.Adam, optimizer_lr=0.02, 
-                    n_step=300, n_rollout=2, seed=42):
+    def __init__(self, policy, mdp,  alg='nes', optimizer=torch.optim.Adam, optimizer_lr=0.02, 
+                    n_step=300, n_rollout=2, prepro=None, seed=42):
 
 
         np.random.seed(seed)
@@ -26,8 +25,11 @@ class CoreNES():
         torch.backends.cudnn.benchmark = False
         torch.backends.cudnn.deterministic = True
 
+        self.alg = alg
         self.env = mdp
         self.horizon = mdp.info.horizon
+
+        self.prepro = prepro
 
         self.gen = 0
         self.n_rollout = n_rollout
@@ -42,6 +44,20 @@ class CoreNES():
         self.best_reward = -np.inf
 
         self.rewards_mean = []
+        self.init_params = dict({
+            'n_epochs': self.n_step,
+            'ep_per_fit': self.policy.population_size * self.n_rollout,
+            'fit_per_epoch': 1,
+            'alg': self.alg,
+            'eps': 0,
+            'kappa': 0,
+            'gamma': 0,
+            'k': 0,
+            'method': None,
+            'mi_type': None,
+            'sample_type': None,
+            'mi_avg': 0
+        })
 
     def evaluate_populations(self, population_params):
         rewards = []
@@ -55,6 +71,7 @@ class CoreNES():
         return reward_array
 
     def evaluate_policy(self, policy):
+        gamma = self.env.info.gamma
         total_reward = 0
         for _ in range(self.n_rollout):
             done = False
@@ -63,15 +80,18 @@ class CoreNES():
 
             horizon_counter = 0
             while not done:
+                if self.prepro is not None:
+                    obs = self.prepro(obs)
                 action = policy.draw_action(obs)
                 obs, reward, done, _ = self.env.step(action.numpy())
                 
-                if self.horizon is not None:
-                    horizon_counter += 1
-                    if horizon_counter == self.horizon:
-                        done = True
+                # if self.horizon is not None:
+                horizon_counter += 1
+                if horizon_counter == self.horizon:
+                    done = True
 
-                total_reward += reward
+                total_reward += gamma ** horizon_counter * reward
+
         return total_reward / self.n_rollout
 
     def optimize(self, grad, limit_grad=False):
@@ -85,12 +105,18 @@ class CoreNES():
             index += size
         self.optim.step()
 
-    def train(self, strat='nes'):
+    def train(self):
         """Train ``self.policy`` for ``self.config.nes.n_steps`` to increase reward returns
         from the ``self.env`` using Natural Evolution Strategy gradient estimation."""
         torch.set_grad_enabled(False)
      
         n_samples = 0
+        
+        # initial evaluation
+        reward = self.evaluate_policy(self.policy)
+        self.rewards_mean += [reward]
+        print(f'Gen: 0 Test Reward: {reward} Best Reward: {self.best_reward}')
+
         for gen in range(self.n_step):
             self.gen = gen
 
@@ -100,12 +126,12 @@ class CoreNES():
             # Evaluate Population
             rewards = self.evaluate_populations(population_params)
 
-            if strat == 'nes':
+            if self.alg == 'NES':
                 # Calculate Gradients
                 grad = self.policy.calculate_gradients(rewards, epsilons)
                 self.optimize(grad)
 
-            elif strat == 'es':
+            elif self.alg == 'ES':
                 self.policy.no_grad_update(rewards, population_params, self.optim)
             else:
                 return
@@ -115,24 +141,37 @@ class CoreNES():
             
             reward = self.evaluate_policy(self.policy)
 
-            self.rewards_mean += [[reward]]
+            self.rewards_mean += [reward]
             
             if reward > self.best_reward:
                 self.best_reward = reward
-            print(f'Gen: {self.gen} Test Reward: {reward} Best Reward: {self.best_reward}')
+            print(f'Gen: {self.gen+1} Test Reward: {reward} Best Reward: {self.best_reward}')
 
         sys.stdout = sys.__stdout__
         torch.set_grad_enabled(True)
 
-    def log(self, alg_name='NES', seed=42, results_dir='results'):
+    def log(self, exp_name, alg='NES', seed=42, results_dir='results'):
         
+        alg_name = 'alg_'+alg
+        results_dir = os.path.join(results_dir, exp_name, alg_name)
         os.makedirs(results_dir, exist_ok=True)
 
         self.init_params = dict({
             'n_epochs': self.n_step,
             'fit_per_epoch': self.policy.population_size * self.n_rollout,
-            'ep_per_fit': 1
+            'ep_per_fit': 1,
+            'alg': alg_name,
+
+            'eps': 0,
+            'kappa': 0,
+            'gamma': 0,
+            'k': 0,
+            'method': None,
+            'mi_type': None,
+            'sample_type': None,
+            'mi_avg': 0
         })
+
 
         dump_dict = dict({
             'returns_mean': self.rewards_mean,
@@ -143,4 +182,4 @@ class CoreNES():
             'lr': self.optimizer_lr
         })
 
-        joblib.dump(dump_dict, os.path.join(results_dir, f'{alg_name}_{seed}'))
+        joblib.dump(dump_dict, os.path.join(results_dir, f'{alg}_{seed}'))

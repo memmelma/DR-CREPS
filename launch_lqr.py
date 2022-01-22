@@ -10,10 +10,11 @@ if __name__ == '__main__':
     lqr_dim = 10
     eff = 3
 
-    experiment_name = f'lqr_ppo_trpo_reinforce_search_prepro'
+    experiment_name = f'lqr_estimators'
 
     launcher = Launcher(experiment_name,
-                        'el_lqr_rebuttal',
+                        # 'el_lqr_rebuttal',
+                        'el_lqr_mi',
                         25,
                         memory=500,
                         days=2,
@@ -407,19 +408,32 @@ if __name__ == '__main__':
 
     n_samples = 5000
     
-    # # for ep_per_fit in [50, 100, 150, 200, 250]:
-    for ep_per_fit in [100]:
-        n_epochs = n_samples // ep_per_fit
-        for eps in [3e-2, 3e-3, 3e-4]:        
-            launcher.add_experiment(alg='PPO', eps=eps, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
-            for kappa in [1e-0, 1e-1, 1e-2]:
-                launcher.add_experiment(alg='TRPO', eps=eps, kappa=kappa, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
-        for eps in [1e-1, 1e-2, 1e-3]:
-            launcher.add_experiment(alg='REINFORCE', eps=eps, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+    # # # for ep_per_fit in [50, 100, 150, 200, 250]:
+    # for ep_per_fit in [100]:
+    #     n_epochs = n_samples // ep_per_fit
+    #     for eps in [3e-2, 3e-3, 3e-4]:        
+    #         launcher.add_experiment(alg='PPO', eps=eps, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+    #         for kappa in [1e-0, 1e-1, 1e-2]:
+    #             launcher.add_experiment(alg='TRPO', eps=eps, kappa=kappa, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+    #     for eps in [1e-1, 1e-2, 1e-3]:
+    #         launcher.add_experiment(alg='REINFORCE', eps=eps, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
 
     ep_per_fit = 50
     n_epochs = n_samples // ep_per_fit
+    
+    for mi_type in ['regression', 'score', 'sample']:
+        for bins in [3,4,5]:
+            launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution='mi', eps=4.7, kappa=17., sample_type='percentage', method='MI', gamma=0.1, k=50, n_epochs=n_epochs, ep_per_fit=ep_per_fit,
+                                    bins=bins, mi_type=mi_type)
+
     launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution='mi', eps=4.7, kappa=17., sample_type='percentage', method='Pearson', gamma=0.1, k=50, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+    launcher.add_experiment(alg='ConstrainedREPSMIFull', distribution='mi', eps=4.7, kappa=17., sample_type='percentage', method='Random', gamma=0.1, k=50, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
+
+    # # for ep_per_fit in [50, 100, 150, 200, 250]:
+    # for ep_per_fit in [20]:
+    #     n_epochs = n_samples // ep_per_fit
+    #     n_elites = ep_per_fit // 2
+    #     launcher.add_experiment(alg='CEM', eps=n_elites, n_epochs=n_epochs, ep_per_fit=ep_per_fit)
 
     print(experiment_name)
     print('experiments:', len(launcher._experiment_list))

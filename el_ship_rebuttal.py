@@ -56,88 +56,7 @@ def experiment( n_tilings, \
     features = Features(tilings=tilings)
     input_shape = (features.size,)
 
-    if 'Oracle' in alg or 'ORACLE' in alg:
-
-        # # get ORACLE
-        # oracle_dict = dict()
-        # for seed in range(5):
-        #     mdp_oracle = ShipSteering()
-        #     approximator_oracle = Regressor(LinearApproximator, input_shape=input_shape,
-        #                             output_shape=mdp_oracle.info.action_space.shape)
-        #     policy_oracle = DeterministicPolicy(approximator_oracle)
-            
-        #     if tilings == 1:
-        #     # path = 'logs/ship/all_best/alg_REPS_MI/k_25/sample_type_percentage/gamma_0.6/eps_0.9'
-        #         path = f'logs/ship/all_best/alg_REPS/eps_0.9/'
-        #         algo = f'REPS_{seed}'
-        #     elif tilings == 3:
-        #         path = f'logs/ship/3_tiles/alg_ConstrainedREPSMI/k_55/sample_type_percentage/gamma_0.9/eps_9.5/kappa_12.0/'
-        #         algo = f'ConstrainedREPSMI_{seed}'
-            
-        #     init_params = joblib.load(os.path.join(path, algo))['init_params']
-        #     distribution_oracle = joblib.load(os.path.join(path, f'{algo}_state'))['distribution']
-        #     alg_oracle, params_orcale = init_algorithm(algorithm_class='ConstrainedREPSMI', params=init_params)
-        #     agent_oracle = alg_oracle(mdp_oracle.info, distribution_oracle, policy_oracle, features=features, **params_orcale)
-        #     core_oracle = Core(agent_oracle, mdp_oracle)
-
-        #     eval_oracle = core_oracle.evaluate(n_episodes=1, quiet=quiet)
-            
-        #     oracle = np.arange(0, policy_oracle.weights_size, 1)[agent_oracle.states > 0].tolist()
-        #     del policy_oracle, distribution_oracle, alg_oracle, params_orcale, agent_oracle, core_oracle, eval_oracle, approximator_oracle, mdp_oracle
-            
-        #     # count parameter occurences 
-        #     for orac in oracle:
-        #         if str(orac) in oracle_dict.keys():
-        #             oracle_dict[str(orac)] += 1
-        #         else:
-        #             oracle_dict[str(orac)] = 1
-        #     print('oracle',oracle)
-
-        #     # only select parameters that appear at least 50% of the time in 25 runs 
-        #     oracle_new = []
-        #     for key in oracle_dict.keys():
-        #         val = oracle_dict[key]
-        #         # if val > 12:
-        #         if val > 0:
-        #             oracle_new += [key]
-        # print('oracle_all', oracle_new)
-        # exit()
-        
-        if n_tilings == 1:
-            oracle = ['75', '80', '81', '86', '87', '92', '93', '100']
-            oracle = ['75', '80', '81', '86', '87', '92', '93', '100', '118', '105']
-        elif n_tilings == 3:
-            oracle = ['80', '81', '86', '87', '93', '100', '105', '112', '117', '118',
-                     '225', '230', '231', '236', '237', '242', '243', '250', '380', '386',
-                      '392', '393', '400', '405', '92', '106', '111']
-            oracle = ['80', '81', '86', '87', '93', '100', '105', '112', '117', '118',
-                    '225', '230', '231', '236', '237', '242', '243', '250', '380', '381',
-                     '386', '387', '392', '393', '400', '405', '92', '106', '111', '123',
-                      '248', '385', '391', '397']
-        else:
-            print('Define Oracle or specify path! Exiting...')
-            exit()
-        #     print('Using hard coded Oracle!')
-            # print('Failed to load Oracle!')
-            # if seed >= 0 and seed < 25 and tilings == 1:
-            #     oracle = [75, 80, 81, 86, 87, 92, 93, 100]
-            #     print('Using hard coded Oracle!')
-            # elif seed >= 0 and seed < 25 and tilings == 3:
-            # else:
-            #     print('Define Oracle or specify path! Exiting...')
-            #     exit()
-
-    else:
-        oracle=None
-
     init_params = locals()
-    init_params['oracle'] = oracle
-
-    # init approximator
-    approximator = Regressor(LinearApproximator, input_shape=input_shape,
-                             output_shape=mdp.info.action_space.shape)
-    policy = DeterministicPolicy(approximator)
-
 
     print('action space', mdp.info.action_space.shape)
 
@@ -156,8 +75,7 @@ def experiment( n_tilings, \
             # critic_lr=3e-4,
             actor_lr=eps, # 3e-3,
             critic_lr=eps, # 3e-3,
-            n_features=32,
-            preprocessors = features
+            n_features=32
         )
         agent = agent_builder.build(mdp.info)
     
@@ -193,13 +111,15 @@ def experiment( n_tilings, \
         optimizer = AdaptiveOptimizer(eps=eps) # 1e-2
         algorithm_params = dict(optimizer=optimizer)
         agent = alg(mdp.info, policy, **algorithm_params)
+        # agent = alg(mdp.info, policy, features=features, **algorithm_params)
     else:
         # init distribution
+        approximator = Regressor(LinearApproximator, input_shape=input_shape,
+                             output_shape=mdp.info.action_space.shape)
+        policy = DeterministicPolicy(approximator)
         distribution = init_distribution(mu_init=0, sigma_init=sigma_init, size=policy.weights_size, sample_type=sample_type, gamma=gamma, distribution_class=distribution)
         alg, params = init_algorithm(algorithm_class=alg, params=init_params)
         agent = alg(mdp.info, distribution, policy, **params)
-
-    print('parameters', agent.policy.policy_params)
 
     # train
     if nn_policy:
@@ -274,7 +194,7 @@ def default_params():
         n_tilings = 3,
 
         # algorithm
-        alg = 'PPO',
+        alg = 'REINFORCE',
         eps = 3e-3,
         kappa = 0,
         k = 0,

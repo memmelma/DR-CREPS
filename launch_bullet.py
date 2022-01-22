@@ -8,7 +8,7 @@ if __name__ == '__main__':
 
     env_seed = 0
 
-    experiment_name = f'bullet_ant_fix_again' # still to run
+    experiment_name = f'bullet_hopper_linear_search'
 
     launcher = Launcher(experiment_name,
                         'el_bullet_mi',
@@ -18,12 +18,12 @@ if __name__ == '__main__':
                         hours=0,
                         minutes=0,
                         seconds=0,
+						conda_env='iprl',
                         use_timestamp=False)
     
-    launcher.add_default_params(env_name='AntBulletEnv-v0', horizon=0, env_gamma=0.99, # Walker2DBulletEnv-v0, HopperBulletEnv-v0
-                                # n_epochs=25, ep_per_fit=3000, fit_per_epoch=4,
-                                fit_per_epoch=1, # n_epochs=70
-                                sigma_init=3e-1, # 3e-1 maybe even less
+    launcher.add_default_params(env_name='HopperBulletEnv-v0', horizon=0, env_gamma=0.99, # Walker2DBulletEnv-v0 AntBulletEnv-v0
+                                fit_per_epoch=1,
+                                sigma_init=3e-1,
                                 bins=4, mi_type='regression')
     
     # launcher.add_experiment(alg='REPS', eps=0.2, distribution='cholesky')
@@ -44,14 +44,17 @@ if __name__ == '__main__':
     #         launcher.add_experiment(alg='ConstrainedREPSMIFull', eps=5.0, kappa=25., method='MI', sample_type='percentage', gamma=0.1, k=k, distribution='mi', ep_per_fit=ep_per_fit, n_epochs=n_epochs)
     #         launcher.add_experiment(alg='ConstrainedREPSMIFull', eps=5.0, kappa=25., method='Pearson', sample_type='percentage', gamma=0.1, k=k, distribution='mi', ep_per_fit=ep_per_fit, n_epochs=n_epochs)
 
-    ep_per_fit = 25
+    ep_per_fit = 100
     n_epochs = 50000 // ep_per_fit
-    launcher.add_experiment(alg='ConstrainedREPSMIFull', eps=5.0, kappa=25., method='Pearson', sample_type='percentage', gamma=0.1, k=100, distribution='mi', ep_per_fit=ep_per_fit, n_epochs=n_epochs)
-    launcher.add_experiment(alg='ConstrainedREPSMIFull', eps=6.0, kappa=25., method='Pearson', sample_type='percentage', gamma=0.1, k=100, distribution='mi', ep_per_fit=ep_per_fit, n_epochs=n_epochs)
-    launcher.add_experiment(alg='ConstrainedREPSMIFull', eps=5.0, kappa=25., method='Pearson', sample_type='percentage', gamma=0.5, k=100, distribution='mi', ep_per_fit=ep_per_fit, n_epochs=n_epochs)
-
-    launcher.add_experiment(alg='ConstrainedREPSMIFull', eps=5.0, kappa=5., method='Pearson', sample_type='percentage', gamma=0.1, k=100, distribution='mi', ep_per_fit=ep_per_fit, n_epochs=n_epochs)
-    launcher.add_experiment(alg='ConstrainedREPSMIFull', eps=5.0, kappa=10., method='Pearson', sample_type='percentage', gamma=0.1, k=100, distribution='mi', ep_per_fit=ep_per_fit, n_epochs=n_epochs)
+    for k in [100, 150, 200]:
+        launcher.add_experiment(alg='ConstrainedREPSMIFull', eps=5.0, kappa=15., method='Pearson', sample_type='percentage', gamma=0.9, k=k, distribution='mi', ep_per_fit=ep_per_fit, n_epochs=n_epochs)
+        launcher.add_experiment(alg='ConstrainedREPSMIFull', eps=5.0, kappa=15., method='Pearson', sample_type='percentage', gamma=0.5, k=k, distribution='mi', ep_per_fit=ep_per_fit, n_epochs=n_epochs)
+        launcher.add_experiment(alg='ConstrainedREPSMIFull', eps=5.0, kappa=15., method='MI', sample_type='percentage', gamma=0.9, k=k, distribution='mi', ep_per_fit=ep_per_fit, n_epochs=n_epochs)
+        launcher.add_experiment(alg='ConstrainedREPSMIFull', eps=5.0, kappa=15., method='MI', sample_type='percentage', gamma=0.5, k=k, distribution='mi', ep_per_fit=ep_per_fit, n_epochs=n_epochs)
+        launcher.add_experiment(alg='ConstrainedREPSMIFull', eps=5.0, kappa=25., method='Pearson', sample_type='percentage', gamma=0.9, k=k, distribution='mi', ep_per_fit=ep_per_fit, n_epochs=n_epochs)
+        launcher.add_experiment(alg='ConstrainedREPSMIFull', eps=5.0, kappa=25., method='Pearson', sample_type='percentage', gamma=0.5, k=k, distribution='mi', ep_per_fit=ep_per_fit, n_epochs=n_epochs)
+        launcher.add_experiment(alg='ConstrainedREPSMIFull', eps=5.0, kappa=25., method='MI', sample_type='percentage', gamma=0.9, k=k, distribution='mi', ep_per_fit=ep_per_fit, n_epochs=n_epochs)
+        launcher.add_experiment(alg='ConstrainedREPSMIFull', eps=5.0, kappa=25., method='MI', sample_type='percentage', gamma=0.5, k=k, distribution='mi', ep_per_fit=ep_per_fit, n_epochs=n_epochs)
     
     
     # for k in [50, 100, 250]:

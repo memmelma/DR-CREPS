@@ -2,7 +2,7 @@ import torch
 from torch import nn
 import numpy as np
 
-from utils import *
+from nes_shroom.utils import *
 
 class ShroomAgent(nn.Module):
     def __init__(self, input_size, output_size, population_size=256, n_rollout: int = 2, sigma=1e-3, lr=0.002, l_decay=0.999, l2_decay=0.005, features=None, discrete=False):
@@ -42,7 +42,7 @@ class ShroomAgent(nn.Module):
         raise NotImplementedError
 
     def no_grad_update(self, rewards, population_params, optim):
-        lr = optim.param_groups[0]["lr"]
+        self.lr = optim.param_groups[0]["lr"]
 
         std = rewards.std()
         if std == 0:
@@ -60,7 +60,8 @@ class LinearRegressorNES(ShroomAgent):
     def __init__(self, input_size, output_size, population_size=256, n_rollout=2, sigma=1e-3, l_decay=0.999, l2_decay=0.005, features=None, discrete=False):
         super().__init__(input_size, output_size, population_size=population_size, n_rollout=n_rollout, sigma=sigma, l_decay=l_decay, l2_decay=l2_decay, features=features, discrete=discrete)
         
-        self.w = nn.Parameter(torch.zeros((input_size, output_size)))
+        self.w = nn.Parameter(torch.normal(mean=torch.zeros(input_size*output_size), std=sigma*torch.ones(input_size*output_size)).reshape(input_size, output_size))
+        # self.w = nn.Parameter(torch.zeros(input_size*output_size).reshape(input_size,output_size))
         
 
     def draw_action(self, state):
@@ -96,7 +97,9 @@ class ProMPNES(ShroomAgent):
         self.trajectory = None
 
         self.dim = output_size
+        # self.weights = nn.Parameter(torch.normal(mean=torch.zeros(self.dim*self.n_basis), std=sigma*torch.ones(self.dim*self.n_basis)))
         self.weights = nn.Parameter(torch.zeros(self.dim*self.n_basis))
+        
 
         self.time_scale = time_scale
         self.basis_width = basis_width
