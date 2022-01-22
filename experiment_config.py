@@ -30,9 +30,27 @@ def experiment(**kwargs):
         experiment(**kwargs)
 
     elif kwargs['env'] == 'AirHockey':
-        experiment_air_hockey(**kwargs)
+        if kwargs['alg'] in gradient_methods:
+            from experiments.air_hockey.el_grad import experiment
+        elif kwargs['alg'] in evolution_strategies:
+            from experiments.air_hockey.el_es import experiment
+        elif kwargs['alg'] in policy_search:
+            from experiments.air_hockey.el_bbo import experiment
+        elif kwargs['alg'] in optimizers:
+            from experiments.air_hockey.el_optim import experiment
+        experiment(**kwargs)
+
     elif kwargs['env'] == 'BallStopping':
-        experiment_ball_stopping(**kwargs)
+        if kwargs['alg'] in gradient_methods:
+            from experiments.ball_stopping.el_grad import experiment
+        elif kwargs['alg'] in evolution_strategies:
+            from experiments.ball_stopping.el_es import experiment
+        elif kwargs['alg'] in policy_search:
+            from experiments.ball_stopping.el_bbo import experiment
+        elif kwargs['alg'] in optimizers:
+            from experiments.ball_stopping.el_optim import experiment
+        experiment(**kwargs)
+
     else:
         print('Environment does not exist! Exiting ...')
 
@@ -41,7 +59,7 @@ def default_params():
     defaults = dict(
         
         # environment
-        env = 'ShipSteering',
+        env = 'BallStopping',
         seed = 0,
         env_seed = 42,
 
@@ -57,7 +75,7 @@ def default_params():
         horizon = 750,
 
         # policy search
-        alg = 'TRPO',
+        alg = 'PPO',
         eps = 1.,
         kappa = 3.5,
         # GDR
