@@ -1,16 +1,17 @@
 from experiment_launcher import Launcher
-from experiment_config import default_params
+from .reproduce_experiments import reproduce_lqr_experiments, reproduce_ship_steering, reproduce_air_hockey, reproduce_ball_stopping
+
 
 if __name__ == '__main__':
 
-    local = True
+    local = False
     test = False
 
     experiment_name = f'test'
 
     launcher = Launcher(experiment_name,
                         'experiment_config',
-                        5,
+                        25,
                         memory=500,
                         days=2,
                         hours=0,
@@ -20,16 +21,10 @@ if __name__ == '__main__':
                         conda_env='iprl'
                         )
     
-    launcher.add_default_params(**default_params())
-
-    launcher.add_experiment(
-        env='LQR',
-        alg='DR-CREPS-PE', eps=4.7, kappa=17., k=50,
-        distribution='gdr',
-        C='PCC',
-        sample_strat='percentage', lambd=0.1,
-        n_epochs=10, ep_per_fit=50
-    )
+    launcher = reproduce_lqr_experiments(launcher) # memory=500
+    # launcher = reproduce_ship_steering(launcher) # memory=3000
+    # launcher = reproduce_air_hockey(launcher) # memory=1000
+    # launcher = reproduce_ball_stopping(launcher) # memory=3000
 
     print('name:', experiment_name)
     print('experiments:', len(launcher._experiment_list))

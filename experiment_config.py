@@ -64,59 +64,59 @@ def default_params():
         env_seed = 42,
 
         # LQR
-        lqr_dim = 10,
-        red_dim = 7,
+        lqr_dim = 0,
+        red_dim = 0,
 
         # ShipSteering
-        n_tilings = 3,
+        n_tilings = 0,
 
         # AirHockey and BallStopping: ProMP
-        n_basis = 30,
-        horizon = 750,
+        n_basis = 0,
+        horizon = 0,
 
         # policy search
-        alg = 'PPO',
-        eps = 1.,
-        kappa = 3.5,
+        alg = None,
+        eps = 0,
+        kappa = 0,
         # GDR
-        k = 30,
+        k = 0,
 
         # gradient methods
         nn_policy = 0,
         # PPO
-        actor_lr = 3e-3,
+        actor_lr = 0,
         # PPO/TRPO
-        critic_lr = 3e-3,
+        critic_lr = 0,
         # TRPO
-        max_kl = 1e-1,
+        max_kl = 0,
         # REINFORCE
-        optim_eps = 1e-2,
+        optim_eps = 0,
 
         # evolution strategies
-        n_rollout = 10,
-        population_size = 256,
-        optim_lr = 1e-2,
+        n_rollout = 0,
+        population_size = 0,
+        optim_lr = 0,
 
         # distribution
-        distribution = 'diag',
-        sigma_init = 3e-1,
+        distribution = None,
+        sigma_init = 0,
 
         # correlation measure
-        C = 'PCC',
-        mi_estimator = 'regression',
+        C = None,
+        mi_estimator = None,
 
         # sample strategy
         sample_strat = None,
         # PE
-        lambd = 0.1,
+        lambd = 0,
 
         # training
-        n_epochs = 10,
-        fit_per_epoch = 1,
-        ep_per_fit = 50,
+        n_epochs = 0,
+        fit_per_epoch = 0,
+        ep_per_fit = 0,
 
         # misc
-        results_dir = 'results',
+        results_dir = None,
         save_render_path = None,
         verbose = 0
     )
