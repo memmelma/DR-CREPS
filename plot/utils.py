@@ -38,7 +38,7 @@ def load_data_from_dir(data_dir):
     assert bool(data_dict_all), f'No data found at {data_dir}!'
     return data_dict_all
 
-def plot_data(data_dict, exp_name, title, labels, colors, line_styles, x_lim=5000, max_runs=25, axis=None, legend_params=None, optimal_key=None, out_path='', pdf=False):
+def plot_data(data_dict, exp_name, title, labels, colors, line_styles, x_lim=5000, max_runs=25, axis=None, legend_params=None, optimal_key=None, out_path='', smooth_algo=[], pdf=False):
 
     out_path = os.path.join(out_path, f'imgs/{exp_name}')
     os.makedirs(out_path, exist_ok=True)
@@ -64,13 +64,21 @@ def plot_data(data_dict, exp_name, title, labels, colors, line_styles, x_lim=500
         y = y[:cut]
         ci = ci[1][:cut]
 
+        if labels[i_exp] in smooth_algo:
+            def smooth(y, box_pts):
+                box = np.ones(box_pts)/box_pts
+                y_smooth = np.convolve(y, box, mode='same')
+                return y_smooth
+            y = smooth(y,50)
+            ci = smooth(ci,50)
+
         x = np.arange(0, cut, 1) * init_params['ep_per_fit']
         
         ax.plot(x, y, label=labels[i_exp], color=colors[i_exp], ls=line_styles[i_exp], linewidth=2)
         ax.fill_between(x, (y-ci), (y+ci), color=colors[i_exp], alpha=.3)
             
         params = exp.split('|')[2:]
-        print(init_params['alg'], np.round(np.max(y), 4), sorted(params))
+        print(init_params['alg'], 'max J:', np.round(np.max(y), 4), sorted(params))
         print('Completed runs', len(exp_dict['returns_mean']))
 
     if optimal_key is not None:
