@@ -1,3 +1,9 @@
+# shannon
 squeue -u $USER | awk '{print $1}' | tail -n+2 | xargs scancel
-
 squeue -t PENDING -u $USER | awk '{print $1}' | tail -n+2 | xargs scancel
+
+# HRZ
+squeue --me -h -o "%i" | xargs scancel
+
+
+
