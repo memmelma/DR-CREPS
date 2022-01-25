@@ -2,12 +2,12 @@ import os
 import joblib
 import numpy as np
 
-from algorithms import DR_CREPS_PE, DR_REPS_PE, RWR_PE, CEM
+from algorithms import DR_CREPS_PE, DR_REPS_PE, RWR_PE, CEM, MORE
 from distributions import GaussianDiagonalDistribution, GaussianDistributionGDR
 from mushroom_rl.distributions import GaussianDistribution, GaussianCholeskyDistribution
 
 from mushroom_rl.distributions.distribution import Distribution
-from mushroom_rl.algorithms.policy_search.black_box_optimization import REPS, RWR, ConstrainedREPS, MORE
+from mushroom_rl.algorithms.policy_search.black_box_optimization import REPS, RWR, ConstrainedREPS
 
 from mushroom_rl.approximators.parametric import TorchApproximator
 from mushroom_rl.approximators.parametric import LinearApproximator
@@ -21,6 +21,8 @@ from mushroom_rl.utils.optimizers import AdaptiveOptimizer
 from mushroom_rl.policy import StateStdGaussianPolicy
 
 def init_distribution(mu_init=0, sigma_init=1e-3, size=1, sample_strat=None, lambd=0.0, distribution_class='diag'):
+    
+    print('distribution_class', distribution_class)
     
     mu = mu_init * np.ones(size)
 
@@ -49,6 +51,8 @@ def init_distribution(mu_init=0, sigma_init=1e-3, size=1, sample_strat=None, lam
 
 def init_policy_search_algorithm(algorithm_class='REPS', params={}):
 
+    print('algorithm_class', algorithm_class)
+    
     if algorithm_class == 'CEM':
         alg = CEM
         params = {'eps': params['eps']}

@@ -1,12 +1,23 @@
 import argparse
 
+import environments
+
 policy_search = ['CEM', 'REPS', 'REPS-PE', 'DR-REPS-PE', 'RWR', 'PRO', 'RWR-PE',
                     'MORE', 'CREPS', 'CREPS-PE', 'DR-CREPS-PE']
 gradient_methods = ['TRPO', 'PPO', 'REINFORCE']
 evolution_strategies = ['ES', 'NES']
 optimizers = ['NM', 'BFGS']
 
+envs = ['LQR', 'ShipSteering', 'BallStopping', 'AirHockey']
+
 def experiment(**kwargs):
+    
+    assert kwargs['env'] in envs, \
+        f'Environment "{kwargs["env"]}" does not exist!'
+    assert (kwargs['alg'] in gradient_methods) or (kwargs['alg'] in evolution_strategies) \
+        or (kwargs['alg'] in policy_search) or (kwargs['alg'] in optimizers), \
+        f'Algorithm "{kwargs["alg"]}" does not exist!'
+
     if kwargs['env'] == 'LQR':
         if kwargs['alg'] in gradient_methods:
             from experiments.lqr.el_grad import experiment
@@ -50,9 +61,6 @@ def experiment(**kwargs):
         elif kwargs['alg'] in optimizers:
             from experiments.ball_stopping.el_optim import experiment
         experiment(**kwargs)
-
-    else:
-        print('Environment does not exist! Exiting ...')
 
 
 def default_params():
@@ -116,7 +124,7 @@ def default_params():
         ep_per_fit = 0,
 
         # misc
-        results_dir = None,
+        results_dir = 'results',
         save_render_path = None,
         verbose = 0
     )
@@ -134,7 +142,7 @@ def parse_args():
 
     # LQR
     parser.add_argument('--lqr-dim', type=int, help="dimensionality of LQR")
-    parser.add_argument('--red_dim', type=int, help="reduced dimensionalities of LQR")
+    parser.add_argument('--red-dim', type=int, help="reduced dimensionalities of LQR")
 
     # ShipSteering
     parser.add_argument('--n-tilings', type=int, help="number of tilings to use as features in 'ShipSteering'")
