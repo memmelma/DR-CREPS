@@ -1,5 +1,5 @@
 from experiment_launcher import Launcher
-from .reproduce_experiments import reproduce_lqr_experiments, reproduce_ship_steering, reproduce_air_hockey, reproduce_ball_stopping
+from experiments import reproduce_lqr_experiments, reproduce_ship_steering, reproduce_air_hockey, reproduce_ball_stopping
 
 
 if __name__ == '__main__':
@@ -7,12 +7,13 @@ if __name__ == '__main__':
     local = False
     test = False
 
-    experiment_name = f'test'
+    experiment_name = f'LQR_camera_ready'
+    # experiment_name = f'Ball_Stopping_camera_ready'
 
     launcher = Launcher(experiment_name,
                         'experiment_config',
-                        25,
-                        memory=500,
+                        1,
+                        memory=3000,
                         days=2,
                         hours=0,
                         minutes=0,
@@ -21,8 +22,8 @@ if __name__ == '__main__':
                         conda_env='iprl'
                         )
     
-    launcher = reproduce_lqr_experiments(launcher) # memory=500
-    # launcher = reproduce_ship_steering(launcher) # memory=3000
+    # launcher = reproduce_lqr_experiments(launcher) # memory=500
+    launcher = reproduce_ship_steering(launcher) # memory=3000
     # launcher = reproduce_air_hockey(launcher) # memory=1000
     # launcher = reproduce_ball_stopping(launcher) # memory=3000
 
