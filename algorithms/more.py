@@ -56,7 +56,7 @@ class MORE(BlackBoxOptimization):
 
     def _update(self, Jep, theta):
         
-        kappa = self.distribution.entropy() + self.kappa
+        kappa = self.distribution.entropy() + self.kappa()
 
         n = len(self.distribution._mu)
         dist_params = self.distribution.get_parameters()
