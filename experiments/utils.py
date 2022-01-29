@@ -43,7 +43,7 @@ def init_distribution(mu_init=0, sigma_init=1e-3, size=1, sample_strat=None, lam
             distribution = GaussianDistributionGDR(mu, sigma)
 
     if sample_strat is not None:
-        assert distribution_class != 'cholesky' or distribution_class != 'fixed', \
+        assert distribution_class == 'diag' or distribution_class == 'gdr', \
             f"Argument 'sample_strat' only supported for distribution_class = 'diag' or 'gdr', got {distribution_class}!"
         distribution.set_sample_strat(sample_strat=sample_strat, lambd=lambd)
 
@@ -144,9 +144,11 @@ def init_grad_agent(mdp, alg, actor_lr, critic_lr, max_kl, optim_eps, nn_policy=
         return REINFORCE(mdp.info, policy, optimizer=AdaptiveOptimizer(eps=optim_eps)), REINFORCE
 
 def save_results(dump_dict, results_dir, alg, init_params, seed):
-    joblib.dump(dump_dict, os.path.join(results_dir, f'{alg.__name__}_{seed}'))
+    alg_name = alg.__name__ if type(alg) is not str else alg
+
+    joblib.dump(dump_dict, os.path.join(results_dir, f'{alg_name}_{seed}'))
     
-    filename = os.path.join(results_dir, f'log_{alg.__name__}_{seed}.txt')
+    filename = os.path.join(results_dir, f'log_{alg_name}_{seed}.txt')
     os.makedirs(results_dir, exist_ok=True)
     with open(filename, 'w') as file:
         for key in init_params.keys():

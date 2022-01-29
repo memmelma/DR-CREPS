@@ -1,17 +1,20 @@
 from experiment_config import default_params
 
-def reproduce_lqr_experiments(launcher):
+def reproduce_lqr_experiments(launcher, local):
 
-    dpd = default_params()
+    if local:
+        params = default_params()
+    else:
+        params = dict()
 
-    dpd['env'] = 'LQR'
-    dpd['lqr_dim'] = 10
-    dpd['red_dim'] = 7
-    dpd['sigma_init'] = 3e-1
-    dpd['results_dir'] = 'results'
-    dpd['ep_per_fit'] = 1
+    params['env'] = 'LQR'
+    params['lqr_dim'] = 10
+    params['red_dim'] = 7
+    params['sigma_init'] = 3e-1
+    params['results_dir'] = 'results'
+    params['fit_per_epoch'] = 1
 
-    launcher.add_default_params(**dpd)
+    launcher.add_default_params(**params)
 
     launcher.add_experiment(
         alg='MORE', eps=4.7, kappa=17.,
@@ -25,6 +28,12 @@ def reproduce_lqr_experiments(launcher):
         n_epochs=33, ep_per_fit=150
     )
     
+    launcher.add_experiment(
+        alg='CREPS', eps=4.7, kappa=17.,
+        distribution='cholesky',
+        n_epochs=20, ep_per_fit=250
+    )
+
     launcher.add_experiment(
         alg='NES', optim_lr=0.03,
         distribution='cholesky',
@@ -62,7 +71,7 @@ def reproduce_lqr_experiments(launcher):
         alg='DR-CREPS-PE', eps=4.7, kappa=17.,
         k=50, distribution='gdr',
         C='MI', mi_estimator = 'regression',
-        sample_strat='percentage', lamdb=0.1,
+        sample_strat='percentage', lambd=0.1,
         n_epochs=100, ep_per_fit=50
     )
 
@@ -76,17 +85,20 @@ def reproduce_lqr_experiments(launcher):
 
     return launcher
 
-def reproduce_ship_steering(launcher):
+def reproduce_ship_steering(launcher, local):
 
-    dpd = default_params()
+    if local:
+        params = default_params()
+    else:
+        params = dict()
 
-    dpd['env'] = 'ShipSteering'
-    dpd['n_tilings'] = 3
-    dpd['sigma_init'] = 7e-2
-    dpd['results_dir'] = 'results'
-    dpd['ep_per_fit'] = 1
+    params['env'] = 'ShipSteering'
+    params['n_tilings'] = 3
+    params['sigma_init'] = 7e-2
+    params['results_dir'] = 'results'
+    params['fit_per_epoch'] = 1
 
-    launcher.add_default_params(**dpd)
+    launcher.add_default_params(**params)
 
     launcher.add_experiment(
         alg='DR-REPS-PE', eps=0.5,
@@ -145,24 +157,27 @@ def reproduce_ship_steering(launcher):
         alg='DR-CREPS-PE', eps=3.4, kappa=20.,
         k=200, distribution='gdr',
         C='MI', mi_estimator='regression',
-        sample_strat='percentage', lamdb=0.1,
+        sample_strat='percentage', lambd=0.1,
         n_epochs=233, ep_per_fit=15
     )
 
     return launcher
 
-def reproduce_air_hockey(launcher):
+def reproduce_air_hockey(launcher, local):
 
-    dpd = default_params()
+    if local:
+        params = default_params()
+    else:
+        params = dict()
 
-    dpd['env'] = 'ShipSteering'
-    dpd['n_basis'] = 30
-    dpd['horizon'] = 120
-    dpd['sigma_init'] = 1e-0
-    dpd['results_dir'] = 'results'
-    dpd['ep_per_fit'] = 1
+    params['env'] = 'ShipSteering'
+    params['n_basis'] = 30
+    params['horizon'] = 120
+    params['sigma_init'] = 1e-0
+    params['results_dir'] = 'results'
+    params['fit_per_epoch'] = 1
 
-    launcher.add_default_params(**dpd)
+    launcher.add_default_params(**params)
 
     launcher.add_experiment(
         alg='MORE', eps=2.4, kappa=12.,
@@ -205,24 +220,27 @@ def reproduce_air_hockey(launcher):
         alg='DR-CREPS-PE', eps=2.0, kappa=12.,
         k=30, distribution='gdr',
         C='MI', mi_estimator='regression',
-        sample_strat='percentage', lamdb=0.5,
+        sample_strat='percentage', lambd=0.5,
         n_epochs=200, ep_per_fit=50
     )
 
     return launcher
 
-def reproduce_ball_stopping(launcher):
+def reproduce_ball_stopping(launcher, local):
+    
+    if local:
+        params = default_params()
+    else:
+        params = dict()
 
-    dpd = default_params()
+    params['env'] = 'ShipSteering'
+    params['n_basis'] = 20
+    params['horizon'] = 750
+    params['sigma_init'] = 1e-0
+    params['results_dir'] = 'results'
+    params['fit_per_epoch'] = 1
 
-    dpd['env'] = 'BallStopping'
-    dpd['n_basis'] = 20
-    dpd['horizon'] = 750
-    dpd['sigma_init'] = 1e-0
-    dpd['results_dir'] = 'results'
-    dpd['ep_per_fit'] = 1
-
-    launcher.add_default_params(**dpd)
+    launcher.add_default_params(**params)
 
     launcher.add_experiment(
         alg='MORE', eps=4.5, kappa=20.,
@@ -265,7 +283,7 @@ def reproduce_ball_stopping(launcher):
         alg='DR-CREPS-PE', eps=4.5, kappa=20.,
         k=30, distribution='gdr',
         C='MI', mi_estimator='regression',
-        sample_strat='percentage', lamdb=0.5,
+        sample_strat='percentage', lambd=0.5,
         n_epochs=116, ep_per_fit=60
     )
 
