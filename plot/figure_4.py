@@ -10,7 +10,7 @@ if __name__ == '__main__':
     out_path = '/work/scratch/pl29zovi/DR-CREPS'
     data_dict = utils.load_data_from_dir(data_path)
 
-    labels = ['TRPO', 'PPO', 'NES', 'MORE', 'DR-CREPS-PE (PCC)', 'DR-CREPS-PE (MI)', 'CREPS']
+    labels = ['TRPO', 'PPO', 'NES', 'MORE', 'DR-CREPS (PCC)', 'DR-CREPS (MI)', 'CREPS']
     colors = ['red', 'orange', 'yellow', 'teal', 'blue', 'magenta', 'cyan']
     line_styles = ['solid', 'solid', 'solid', 'solid', 'solid', 'solid', 'solid']
 

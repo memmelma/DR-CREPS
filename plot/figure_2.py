@@ -12,7 +12,7 @@ if __name__ == '__main__':
     data_dict = utils.load_data_from_dir(data_path)
 
     # labels = ['TRPO', 'REINFORCE', 'PPO', 'Nelder-Mead simplex', 'natural ES', 'L-BFGS', 'ES', 'DR-CREPS (PCC)', 'CEM']
-    labels = ['RWR', 'REPS', 'REPS-PE (PCC) $\lambda=0.9$', 'REPS-PE (PCC) $\lambda=0.1$', 'PRO', 'CREPS', 'CREPS-PE (PCC) $\lambda=0.1$']
+    labels = ['RWR', 'REPS', 'REPS w/ PE (PCC) $\lambda=0.9$', 'REPS w/ (PCC) $\lambda=0.1$', 'PRO', 'CREPS', 'CREPS w/ (PCC) $\lambda=0.1$']
     colors = ['teal', 'orange', 'red', 'red', 'magenta', 'cyan', 'blue', 'blue', 'gray']
     line_styles = ['solid', 'solid', 'dotted', 'dashed', 'solid', 'solid', 'dashed', 'solid']
 
