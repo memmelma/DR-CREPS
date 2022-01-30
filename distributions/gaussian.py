@@ -27,7 +27,7 @@ class GaussianDiagonalDistribution(mushroom_rl.distributions.distribution.Distri
 
         self._lambd = 0
         self._sample_strat = None
-        self._allowed_sample_strats = ['fixed', 'percentage', 'importance', 'PRO']
+        self._allowed_sample_strats = ['fixed', 'percentage', 'importance', 'PRO', 'None']
         
         self._top_k = []
         self._importance = None
@@ -41,7 +41,7 @@ class GaussianDiagonalDistribution(mushroom_rl.distributions.distribution.Distri
         assert sample_strat in self._allowed_sample_strats, f"'sample_strat={sample_strat}' not supported! Choose one of {self._allowed_sample_strats}!"
         assert 0 <= lambd and lambd <= 1, f'lambd must be 0 \leq \lambda \leq 1 got {lambd}'
         self._sample_strat = sample_strat
-        self.lambd = lambd
+        self._lambd = lambd
 
     def sample(self):
         from copy import copy
@@ -109,10 +109,11 @@ class GaussianDiagonalDistribution(mushroom_rl.distributions.distribution.Distri
         mu = self._mu
         sigma = self._std
 
-        eta_omg_opt_start = np.array([1., 1.])
+        eta_omg_opt_start = np.array([1000., 0.])
         res = minimize(mushroom_rl.distributions.GaussianDiagonalDistribution._lagrangian_eta_omega, eta_omg_opt_start,
                        bounds=((np.finfo(np.float32).eps, np.inf),(np.finfo(np.float32).eps, np.inf)),
-                       args=(weights, theta, mu, sigma, n_dims, eps, kappa))
+                       args=(weights, theta, mu, sigma, n_dims, eps, kappa),
+                       method='L-BFGS-B')
 
         eta_opt, omg_opt  = res.x[0], res.x[1]
 
@@ -177,7 +178,7 @@ class GaussianDistributionGDR(mushroom_rl.distributions.distribution.Distributio
 
         self._lambd = 0
         self._sample_strat = None
-        self._allowed_sample_strats = ['fixed', 'percentage', 'importance']
+        self._allowed_sample_strats = ['fixed', 'percentage', 'importance', 'None']
         
         self._top_k = []
         self._importance = None
@@ -191,7 +192,7 @@ class GaussianDistributionGDR(mushroom_rl.distributions.distribution.Distributio
         assert sample_strat in self._allowed_sample_strats, f"'sample_strat={sample_strat}' not supported! Choose one of {self._allowed_sample_strats}!"
         assert 0 <= lambd and lambd <= 1, f'lambd must be 0 \leq \lambda \leq 1 got {lambd}'
         self._sample_strat = sample_strat
-        self.lambd = lambd
+        self._lambd = lambd
 
     def sample(self):
         return np.random.multivariate_normal(self._mu, self.sigma_prime)
@@ -277,10 +278,11 @@ class GaussianDistributionGDR(mushroom_rl.distributions.distribution.Distributio
         n_dims = len(mu)
         theta = theta[:, indices]
 
-        eta_omg_opt_start = np.array([1, 1])
+        eta_omg_opt_start = np.array([1000., 0.])
         res = minimize(mushroom_rl.distributions.GaussianCholeskyDistribution._lagrangian_eta_omega, eta_omg_opt_start,
                        bounds=((np.finfo(np.float32).eps, np.inf),(np.finfo(np.float32).eps, np.inf)),
-                       args=(weights, theta, mu, sigma, n_dims, eps, kappa))
+                       args=(weights, theta, mu, sigma, n_dims, eps, kappa),
+                       method='L-BFGS-B')
 
         eta_opt, omg_opt  = res.x[0], res.x[1]
 
@@ -328,3 +330,24 @@ class GaussianDistributionGDR(mushroom_rl.distributions.distribution.Distributio
         n_dims = len(self._mu)
 
         return 2 * n_dims
+
+from mushroom_rl.distributions import GaussianCholeskyDistribution
+
+class GaussianCholeskyDistribution_(GaussianCholeskyDistribution):
+    
+    def con_wmle(self, theta, weights, eps, kappa):
+        n_dims = len(self._mu)
+        mu =self._mu
+        sigma = self._chol_sigma.dot(self._chol_sigma.T)
+        
+        eta_omg_start = np.array([1000, 0])
+        res = minimize(GaussianCholeskyDistribution._lagrangian_eta_omega, eta_omg_start,
+                       bounds=((np.finfo(np.float32).eps, np.inf),(np.finfo(np.float32).eps, np.inf)),
+                       args=(weights, theta, mu, sigma, n_dims, eps, kappa),
+                       method='L-BFGS-B')
+        
+        eta_opt, omg_opt  = res.x[0], res.x[1]
+
+        mu_new, sigma_new = GaussianCholeskyDistribution._compute_mu_sigma_from_lagrangian(weights, theta, mu, sigma, eta_opt, omg_opt)
+
+        self._mu, self._chol_sigma = mu_new, np.linalg.cholesky(sigma_new)
