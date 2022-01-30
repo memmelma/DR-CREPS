@@ -10,6 +10,11 @@ if __name__ == '__main__':
     out_path = '/work/scratch/pl29zovi/DR-CREPS'
     data_dict = utils.load_data_from_dir(data_path)
 
+    # # CR_LQR_full
+    # labels = ['TRPO', 'PPO', 'NES', 'MORE', 'DR-CREPS (PCC)', 'DR-CREPS w/o PE (PCC)', 'DR-CREPS (MI)', 'DR-CREPS w/o PE (MI)','CREPS']
+    # colors = ['red', 'orange', 'yellow', 'teal', 'blue', 'blue', 'magenta', 'magenta', 'cyan']
+    # line_styles = ['solid', 'solid', 'solid', 'solid', 'solid', 'dashed', 'solid', 'dashed', 'solid']
+
     labels = ['TRPO', 'PPO', 'NES', 'MORE', 'DR-CREPS (PCC)', 'DR-CREPS (MI)', 'CREPS']
     colors = ['red', 'orange', 'yellow', 'teal', 'blue', 'magenta', 'cyan']
     line_styles = ['solid', 'solid', 'solid', 'solid', 'solid', 'solid', 'solid']
@@ -27,4 +32,4 @@ if __name__ == '__main__':
                 # legend_params={'loc':'upper left', 'bbox_to_anchor': (-0.15,-0.3), 'fontsize': 12, 'prop': {'size': 12}, 'ncol': 10},
                 legend_params={'loc':'lower right', 'fontsize': 12, 'prop': {'size': 12}, 'ncol': 1},
                 optimal_key='optimal control',
-                out_path=out_path, pdf=False)
+                filename='results_lqr', out_path=out_path, pdf=True)

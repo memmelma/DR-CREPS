@@ -40,7 +40,8 @@ def load_data_from_dir(data_dir):
     assert bool(data_dict_all), f'No data found at {data_dir}!'
     return data_dict_all
 
-def plot_data(data_dict, exp_name, title, labels, colors, line_styles, x_lim=5000, max_runs=25, axis=None, legend_params=None, optimal_key=None, out_path='', smooth_algo=[], pdf=False):
+def plot_data(data_dict, exp_name, title, labels, colors, line_styles, x_lim=5000, max_runs=25, axis=None, legend_params=None, \
+                optimal_key=None, filename='returns' ,out_path='', smooth_algo=[], pdf=False, save_legend=False):
 
     # Color blind safe colors
     # https://github.com/garrettj403/SciencePlots/blob/ed7efb91447c33ce0cc05df1c6b28efbd14e5589/styles/color/vibrant.mplstyle
@@ -104,13 +105,36 @@ def plot_data(data_dict, exp_name, title, labels, colors, line_styles, x_lim=500
     ax.set_xlabel('episodes', fontsize=20)
     ax.set_ylabel(r'$J$', fontsize=20)
 
-    if legend_params is not None:
+    
+    if save_legend:
+
+        def export_legend(legend, filename_legend="legend", expand=[-5,-5,5,5]):
+            filename_legend = os.path.join(out_path, filename_legend)
+            fig  = legend.figure
+            fig.canvas.draw()
+            bbox  = legend.get_window_extent()
+            bbox = bbox.from_extents(*(bbox.extents + np.array(expand)))
+            bbox = bbox.transformed(fig.dpi_scale_trans.inverted())
+            if pdf:
+                fig.savefig(filename_legend+'.pdf', dpi="figure", bbox_inches=bbox)
+            fig.savefig(filename_legend+'.png', dpi="figure", bbox_inches=bbox)
+            print(f'Exported legend to {filename_legend}')
+            return
+
+        legend = ax.legend(**legend_params)
+        export_legend(legend)
+        return
+        
+    elif legend_params is not None:
         plt.legend(**legend_params)
 
-    plt.title(title, fontsize=20)
+    # plt.title(title, fontsize=20)
 
     plt.tight_layout()
     plt.grid()
     
-    plt.savefig(os.path.join(out_path, f"returns.{'pdf' if pdf else 'png'}"), bbox_inches='tight', pad_inches=0)
+    if pdf:
+        plt.savefig(os.path.join(out_path, f"{filename}.pdf"), bbox_inches='tight', pad_inches=0)
+    plt.savefig(os.path.join(out_path, f"{filename}.png"), bbox_inches='tight', pad_inches=0)    
+
     plt.close()
