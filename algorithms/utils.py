@@ -37,7 +37,7 @@ def compute_mi(theta, Jep, estimator='regression'):
             MI += [mutual_info_histogram_entropy(theta_i, Jep, bins=4)]
         MI = np.array(MI)
     elif estimator == 'regression':
-        MI = mutual_info_regression(theta, Jep, discrete_features=False, n_neighbors=3, random_state=42)
+        MI = mutual_info_regression(theta, Jep, discrete_features=False, n_neighbors=4, random_state=42)
     return MI
 
 def compute_pcc(theta, Jep):
