@@ -1,7 +1,5 @@
 import argparse
-
-import environments
-
+import pprint
 policy_search = ['CEM', 'REPS', 'REPS-PE', 'DR-REPS-PE', 'RWR', 'PRO', 'RWR-PE',
                     'MORE', 'CREPS', 'CREPS-PE', 'DR-CREPS-PE']
 gradient_methods = ['TRPO', 'PPO', 'REINFORCE']
@@ -12,6 +10,8 @@ envs = ['LQR', 'ShipSteering', 'BallStopping', 'AirHockey']
 
 def experiment(**kwargs):
     
+    pprint.pprint(kwargs)
+
     assert kwargs['env'] in envs, \
         f'Environment "{kwargs["env"]}" does not exist!'
     assert (kwargs['alg'] in gradient_methods) or (kwargs['alg'] in evolution_strategies) \
