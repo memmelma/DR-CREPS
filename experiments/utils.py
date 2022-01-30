@@ -3,8 +3,8 @@ import joblib
 import numpy as np
 
 from algorithms import DR_CREPS_PE, DR_REPS_PE, RWR_PE, CEM, MORE
-from distributions import GaussianDiagonalDistribution, GaussianDistributionGDR
-from mushroom_rl.distributions import GaussianDistribution, GaussianCholeskyDistribution
+from distributions import GaussianDiagonalDistribution, GaussianDistributionGDR, GaussianCholeskyDistribution
+from mushroom_rl.distributions import GaussianDistribution
 
 from mushroom_rl.distributions.distribution import Distribution
 from mushroom_rl.algorithms.policy_search.black_box_optimization import REPS, RWR, ConstrainedREPS
@@ -145,11 +145,14 @@ def init_grad_agent(mdp, alg, actor_lr, critic_lr, max_kl, optim_eps, nn_policy=
 
 def save_results(dump_dict, results_dir, alg, init_params, seed):
     alg_name = alg.__name__ if type(alg) is not str else alg
+    filename = os.path.join(results_dir, f'{alg_name}_{seed}')
+    joblib.dump(dump_dict, filename)
+    print(f'Results dumped at {os.path.join(os.getcwd(),filename)}')
 
-    joblib.dump(dump_dict, os.path.join(results_dir, f'{alg_name}_{seed}'))
-    
     filename = os.path.join(results_dir, f'log_{alg_name}_{seed}.txt')
     os.makedirs(results_dir, exist_ok=True)
     with open(filename, 'w') as file:
         for key in init_params.keys():
             file.write(f'{key}: {init_params[key]}\n')
+    print(f'Params dumped at {os.path.join(os.getcwd(),filename)}')
+    
