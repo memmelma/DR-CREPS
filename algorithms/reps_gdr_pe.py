@@ -36,7 +36,7 @@ class DR_REPS_PE(BlackBoxOptimization):
 		"""
 
 		self._eps = to_parameter(eps)
-		self._lambda = to_parameter(lambd)
+		self._lambd = to_parameter(lambd)
 		self._k = to_parameter(k)
 
 		self._mi_estimator = mi_estimator
@@ -47,7 +47,7 @@ class DR_REPS_PE(BlackBoxOptimization):
 		
 		self._add_save_attr(_eps='mushroom')
 		self._add_save_attr(_kappa='mushroom')
-		self._add_save_attr(_lambda='mushroom')
+		self._add_save_attr(_lambd='mushroom')
 		self._add_save_attr(_k='mushroom')
 
 		super().__init__(mdp_info, distribution, policy, features)
@@ -60,7 +60,7 @@ class DR_REPS_PE(BlackBoxOptimization):
 
 	def _update(self, Jep, theta):
 		
-		self.distribution._lambda = self._lambda()
+		self.distribution._lambd = self._lambd()
 
 		if type(self.distribution) is GaussianDistributionGDR:
 			# rotate samples
