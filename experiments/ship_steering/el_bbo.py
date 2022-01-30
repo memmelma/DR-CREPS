@@ -40,20 +40,21 @@ def experiment(
     mdp = ShipSteering()
 
     # features
-    high = [150, 150, np.pi]
-    low = [0, 0, -np.pi]
-    # low = [0, 0, -np.pi, -0.26]
-    # high = [150, 150, np.pi, 0.26]
-    n_tiles = [5, 5, 6]
-    # n_tiles = [5, 5, 6, 5]
-    low = np.array(low, dtype=float)
-    high = np.array(high, dtype=float)
+    if alg not in ['TRPO', 'PPO', 'REINFORCE']:
+        high = [150, 150, np.pi]
+        low = [0, 0, -np.pi]
+        n_tiles = [5, 5, 6]
+        low = np.array(low, dtype=float)
+        high = np.array(high, dtype=float)
 
-    tilings = Tiles.generate(n_tilings=n_tilings, n_tiles=n_tiles, 
-                            low=low, high=high)
+        tilings = Tiles.generate(n_tilings=n_tilings, n_tiles=n_tiles, 
+                                low=low, high=high)
 
-    features = Features(tilings=tilings)
-    input_shape = (features.size,)
+        features = Features(tilings=tilings)
+        input_shape = (features.size,)
+    else:
+        features = None
+        input_shape = mdp.info.observation_space.shape
 
     # parametric policy
     approximator = Regressor(LinearApproximator,
