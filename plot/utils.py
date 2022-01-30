@@ -3,6 +3,8 @@ import joblib
 import numpy as np
 import scipy.stats as st
 import matplotlib.pyplot as plt
+import distributions
+# plt.style.use('tableau-colorblind10')
 
 # Code taken from https://github.com/MushroomRL/mushroom-rl-benchmark/blob/28872e5d09e9afabba0ece8cbf827d296d427af4/mushroom_rl_benchmark/utils/plot.py
 def get_mean_and_confidence(data):
@@ -40,13 +42,19 @@ def load_data_from_dir(data_dir):
 
 def plot_data(data_dict, exp_name, title, labels, colors, line_styles, x_lim=5000, max_runs=25, axis=None, legend_params=None, optimal_key=None, out_path='', smooth_algo=[], pdf=False):
 
+    # Color blind safe colors
+    # https://github.com/garrettj403/SciencePlots/blob/ed7efb91447c33ce0cc05df1c6b28efbd14e5589/styles/color/vibrant.mplstyle
+    # https://personal.sron.nl/~pault/#fig:scheme_bright
+    # combination of 'Vibrant' colours extended by 'yellow' ('Bright') and 'black' ('High-contrast') 
+    color_dict = dict({'orange': '#EE7733', 'blue': '#0077BB', 'cyan': '#33BBEE', 'magenta': '#EE3377', 'red': '#CC3311', 'teal': '#009988', 'grey':'#BBBBBB', 'yellow': '#CCBB44', 'black': '#000000'})
+        
     out_path = os.path.join(out_path, f'imgs/{exp_name}')
     os.makedirs(out_path, exist_ok=True)
     fig, ax = plt.subplots()
 
     for i_exp, exp in enumerate(sorted(data_dict.keys(), reverse=True)):
 
-        assert len(data_dict[exp]['returns_mean']) >= max_runs, f"Some runs might have failed! runs {len(data_dict[exp]['returns_mean'])} < max_runs {max_runs}"
+        assert len(data_dict[exp]['returns_mean']) >= max_runs, f"Some runs of {exp} might have failed! runs {len(data_dict[exp]['returns_mean'])} < max_runs {max_runs}"
 
         exp_dict = data_dict[exp]
         init_params = exp_dict['init_params'][0]
@@ -60,7 +68,7 @@ def plot_data(data_dict, exp_name, title, labels, colors, line_styles, x_lim=500
             return x[:max_len]
         
         y, ci  = get_mean_and_confidence([make_same_length(x, max_len) for x in exp_dict['returns_mean']])
-
+        
         y = y[:cut]
         ci = ci[1][:cut]
 
@@ -73,9 +81,9 @@ def plot_data(data_dict, exp_name, title, labels, colors, line_styles, x_lim=500
             ci = smooth(ci,50)
 
         x = np.arange(0, cut, 1) * init_params['ep_per_fit']
-        
-        ax.plot(x, y, label=labels[i_exp], color=colors[i_exp], ls=line_styles[i_exp], linewidth=2)
-        ax.fill_between(x, (y-ci), (y+ci), color=colors[i_exp], alpha=.3)
+
+        ax.plot(x, y, label=labels[i_exp], color=color_dict[colors[i_exp]], ls=line_styles[i_exp], linewidth=2)
+        ax.fill_between(x, (y-ci), (y+ci), color=color_dict[colors[i_exp]], alpha=.3)
             
         params = exp.split('|')[2:]
         print(init_params['alg'], 'max J:', np.round(np.max(y), 4), sorted(params))
@@ -94,9 +102,10 @@ def plot_data(data_dict, exp_name, title, labels, colors, line_styles, x_lim=500
         plt.xlim(x_0, x_1)
 
     ax.set_xlabel('episodes', fontsize=20)
-    ax.set_ylabel('J', fontsize=20)
+    ax.set_ylabel(r'$J$', fontsize=20)
 
-    plt.legend(**legend_params)
+    if legend_params is not None:
+        plt.legend(**legend_params)
 
     plt.title(title, fontsize=20)
 
