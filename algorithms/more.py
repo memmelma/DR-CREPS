@@ -92,8 +92,9 @@ class MORE(BlackBoxOptimization):
         uid = np.triu_indices(n)
         R[uid] = beta[1 + n:]
         R.T[uid] = R[uid]
-        
-        w, v = np.linalg.eig(R)
+
+        w, v = np.linalg.eigh(R)
+
         w[w >= 0.0] = -1e-12
         R = v @ np.diag(w) @ v.T
         R = 0.5 * (R + R.T)
@@ -115,7 +116,7 @@ class MORE(BlackBoxOptimization):
         slogdet_0 = np.linalg.slogdet( (2*np.pi) * Q )
         slogdet_1 = np.linalg.slogdet( (2*np.pi) * (eta + omg) * F )
         term1 = (f.T @ F @ f) - eta * (b.T @ np.linalg.inv(Q) @ b) - eta * slogdet_0[1] + (eta + omg) * slogdet_1[1] + r_0
-        
+
         return eta * eps - omg * kappa + 0.5 * term1[0]
 
     @staticmethod
