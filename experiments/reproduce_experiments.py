@@ -1,5 +1,83 @@
 from experiment_config import default_params
 
+def reproduce_diag_lqr_experiments(launcher, local):
+
+    if local:
+        params = default_params()
+    else:
+        params = dict()
+
+    params['env'] = 'LQR'
+    params['lqr_dim'] = 10
+    params['red_dim'] = 7
+    params['sigma_init'] = 3e-1
+    params['results_dir'] = 'results'
+    params['fit_per_epoch'] = 1
+
+    launcher.add_default_params(**params)
+
+    launcher.add_experiment(
+        alg='RWR', eps=0.2,
+        distribution='diag',
+        sample_strat=None,
+        n_epochs=80, ep_per_fit=25
+    )
+
+    launcher.add_experiment(
+        alg='PRO', eps=0.2,
+        distribution='diag',
+        sample_strat='PRO',
+        n_epochs=80, ep_per_fit=25
+    )
+
+    launcher.add_experiment(
+        alg='REPS', eps=0.4,
+        distribution='diag',
+        sample_strat=None,
+        n_epochs=80, ep_per_fit=25
+    )
+
+    launcher.add_experiment(
+        alg='REPS-PE', eps=0.4,
+        distribution='diag',
+        C='PCC', k=30,
+        sample_strat='percentage', lambd=0.1,
+        n_epochs=80, ep_per_fit=25
+    )
+
+    launcher.add_experiment(
+        alg='REPS-PE', eps=0.4,
+        distribution='diag',
+        C='PCC', k=30,
+        sample_strat='percentage', lambd=0.9,
+        n_epochs=80, ep_per_fit=25
+    )
+
+    launcher.add_experiment(
+        alg='CREPS', eps=2.5, kappa=6.0,
+        distribution='diag',
+        sample_strat=None,
+        n_epochs=80, ep_per_fit=25
+    )
+
+    launcher.add_experiment(
+        alg='CREPS-PE', eps=2.5, kappa=6.0,
+        distribution='diag',
+        C='PCC', k=30,
+        sample_strat='percentage', lambd=0.1,
+        n_epochs=80, ep_per_fit=25
+    )
+
+    launcher.add_experiment(
+        alg='CREPS-PE', eps=2.5, kappa=6.0,
+        distribution='diag',
+        C='PCC', k=30,
+        sample_strat='percentage', lambd=0.9,
+        n_epochs=80, ep_per_fit=25
+    )
+
+    return launcher
+
 def reproduce_lqr_experiments(launcher, local):
 
     if local:
@@ -26,12 +104,6 @@ def reproduce_lqr_experiments(launcher, local):
         alg='CREPS', eps=4.7, kappa=17.,
         distribution='cholesky',
         n_epochs=33, ep_per_fit=150
-    )
-    
-    launcher.add_experiment(
-        alg='CREPS', eps=4.7, kappa=17.,
-        distribution='cholesky',
-        n_epochs=20, ep_per_fit=250
     )
 
     launcher.add_experiment(
@@ -170,7 +242,7 @@ def reproduce_air_hockey(launcher, local):
     else:
         params = dict()
 
-    params['env'] = 'ShipSteering'
+    params['env'] = 'AirHockey'
     params['n_basis'] = 30
     params['horizon'] = 120
     params['sigma_init'] = 1e-0
@@ -233,7 +305,7 @@ def reproduce_ball_stopping(launcher, local):
     else:
         params = dict()
 
-    params['env'] = 'ShipSteering'
+    params['env'] = 'BallStopping'
     params['n_basis'] = 20
     params['horizon'] = 750
     params['sigma_init'] = 1e-0
