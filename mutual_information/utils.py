@@ -139,16 +139,20 @@ def compute_MI(x, y, I, H_x, bins, random_seed):
 	PCC_xy = 0
 
 	legend = [
-		'$I_{true}$',
-		'$I_{regress}$',
-		'$I_{hist}$',
-		'$I_{KSG}$',
+		'$MI_{true}$',
+		'$MI_{regression}$',
+		'$MI_{histogram}$',
+		'$MI_{KSG}$',
 		# '$I_{revKSG}$',
 		# '$I_{revKSGone}$',
 		# '$I_{revKSGdiv}$',
 	]
 
-	colors = ['tab:red', 'tab:blue', 'tab:orange', 'tab:green', 'tab:purple', 'tab:brown', 'tab:olive', 'tab:pink']
+	# {'orange': '#EE7733', 'blue': '#0077BB', 'cyan': '#33BBEE', 'magenta': '#EE3377', 'red': '#CC3311', 
+	# 	'teal': '#009988', 'grey':'#BBBBBB', 'yellow': '#CCBB44', 'black': '#000000'}
+	colors = ['#CC3311', '#EE3377', '#0077BB', '#009988']
+	# colors = ['#CC3311', '#EE3377', '#009988']
+
 	linestyles = ['-', ':', '--', '-.', 'solid', 'dashed', 'dashdot', 'dotted']
 	assert len(linestyles) >= len(bins), 'define more linestyles'
 	
@@ -171,7 +175,7 @@ def compute_MI(x, y, I, H_x, bins, random_seed):
 				# I_xy_ksg_rev[bin_i] += calc_MI_revised_KSG(x_tmp, y_tmp[:,None], bin)
 				I_xy_sklearn_regression[bin_i] += [calc_MI_sklearn_regression(x, y_tmp, n_neighbors=bin, random_state=random_seed)]
 		
-		PCC_xy += calc_PCC(x_tmp, y_tmp)
+		# PCC_xy += calc_PCC(x_tmp, y_tmp)
 
 		# I_xy_ksg_rev_one = calc_MI_revised_KSG(x, y, bin)
 	# I_xy_ksg_rev_div = (np.array(I_xy_ksg_rev) / (i+1)).tolist()
@@ -179,9 +183,12 @@ def compute_MI(x, y, I, H_x, bins, random_seed):
 	if len(bins) > 1:
 		results = [I, *I_xy_sklearn_regression, *I_xy_samples, *I_xy_ksg]
 	else:
-		legend += ['$I_{PCC}$']
+		legend += ['$MI_{PCC}$']
 		results = [I, *I_xy_sklearn_regression, *I_xy_samples, *I_xy_ksg, PCC_xy]
 	
 	# results = [I, *I_xy_sklearn_regression, *I_xy_samples, *I_xy_ksg, *I_xy_ksg_rev, I_xy_ksg_rev_one, *I_xy_ksg_rev_div, PCC_xy]
 	
+	# results = [I, *I_xy_sklearn_regression, *I_xy_ksg]
+	results = [I, *I_xy_sklearn_regression, *I_xy_samples, *I_xy_ksg]
+
 	return results, legend, colors, linestyles

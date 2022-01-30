@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from utils import analytical_MI, compute_MI, get_mean_and_confidence
 
-def plot_samples(m, n, samples=[5, 10, 15], bins=[3, 4], noise_factor=2, n_runs=25, log_dir='', random_seed=42, override=False):
+def plot_samples(m, n, samples=[5, 10, 15], bins=[3, 4], noise_factor=2, n_runs=25, log_dir='', random_seed=42, override=False, save_legend=False):
 	
 	file_name = f'mi_m_{m}_n_{n}_bins_{bins}_{f"noise_{noise_factor}" if noise_factor > 0. else ""}'
 	mi_runs = []
@@ -30,11 +30,10 @@ def plot_samples(m, n, samples=[5, 10, 15], bins=[3, 4], noise_factor=2, n_runs=
 	mean, ci = get_mean_and_confidence(np.transpose(mi_runs, (1,0,2)))
 
 	for i in range(0, mean.shape[1]-1):
-		print(colors[1:][i//len(bins)], i, i//len(bins))
-		ax.plot(samples, mean[:,i],
+		ax.plot(samples, mean[:,1:][:,i],
 				color=colors[1:][i//len(bins)], 
 				linestyle=linestyle[i%len(bins)])
-		ax.fill_between(samples, mean[:,i]+ci[0][:,i], mean[:,i]+ci[1][:,i], 
+		ax.fill_between(samples, mean[:,1:][:,i]+ci[0][:,1:][:,i], mean[:,1:][:,i]+ci[1][:,1:][:,i], 
 						color=colors[1:][i//len(bins)], alpha=.2)
 
 	ax.plot(samples,  mean[:,0], color=colors[0], linestyle='-')
@@ -43,15 +42,36 @@ def plot_samples(m, n, samples=[5, 10, 15], bins=[3, 4], noise_factor=2, n_runs=
 	for color, leg in zip(colors, legend):
 		legend_elements += [Line2D([0], [0], color=color, lw=1, label=leg)]
 	
-	if len(colors) % 2 != 0:
-		legend_elements += [Line2D([0], [0], color='white', lw=1, label='')]
+	# if len(colors) % 2 != 0:
+	# 	legend_elements += [Line2D([0], [0], color='white', lw=1, label='')]
 
 	for i, bin in enumerate(bins):
 		legend_elements += [Line2D([0], [0], color='black', lw=1, label=f'bins/$k$={bin}', linestyle=linestyle[i])]
 
 
-	ax.legend(handles=legend_elements, loc='upper center', bbox_to_anchor=(0.5, -0.2),
-		  fancybox=True, ncol=4)
+	# ax.legend(handles=legend_elements, loc='upper center', bbox_to_anchor=(0.5, -0.2),
+	# 	  fancybox=True, ncol=4)
+
+	
+
+	if save_legend:
+		legend = ax.legend(handles=legend_elements, loc='upper center', bbox_to_anchor=(0.5, -0.2), fancybox=True, ncol=10)
+
+		def export_legend(legend, filename_legend="legend_mi_apx", expand=[-5,-5,5,5]):
+			filename_legend = os.path.join(log_dir, filename_legend)
+			fig  = legend.figure
+			fig.canvas.draw()
+			bbox  = legend.get_window_extent()
+			bbox = bbox.from_extents(*(bbox.extents + np.array(expand)))
+			bbox = bbox.transformed(fig.dpi_scale_trans.inverted())
+			fig.savefig(filename_legend+'.pdf', dpi="figure", bbox_inches=bbox)
+			fig.savefig(filename_legend+'.png', dpi="figure", bbox_inches=bbox)
+			print(f'Exported legend to {filename_legend}')
+		
+
+		export_legend(legend)
+		return
+
 	plt.subplots_adjust(bottom=0.25)
 
 	x_0, x_1 = samples[0], samples[-1]
@@ -60,8 +80,8 @@ def plot_samples(m, n, samples=[5, 10, 15], bins=[3, 4], noise_factor=2, n_runs=
 	# plt.ylim(y_0, y_1)
 
 	ax.set_xlabel('samples', fontsize=20)
-	ax.set_ylabel('mutual information', fontsize=20)
-	plt.title(f'$\Sigma_{{xx}} \in \mathbb{{R}}^{{{m}x{m}}}, \Sigma_{{yy}} \in \mathbb{{R}}^{{{n}x{n}}}, A \in \mathbb{{R}}^{{{n}x{m}}}$, {"w/" if bool(noise_factor) else "w/o"} noise', fontsize=20)
+	ax.set_ylabel('$MI[X;Y]$', fontsize=20)
+	# plt.title(f'$\Sigma_{{xx}} \in \mathbb{{R}}^{{{m}x{m}}}, \Sigma_{{yy}} \in \mathbb{{R}}^{{{n}x{n}}}, A \in \mathbb{{R}}^{{{n}x{m}}}$, {"w/" if bool(noise_factor) else "w/o"} noise', fontsize=20)
 
 	plt.tight_layout()
 	plt.grid()
@@ -78,10 +98,11 @@ if __name__ == '__main__':
 	os.makedirs(img_dir, exist_ok=True)
 	os.makedirs(data_dir, exist_ok=True)
 
-	plot_samples(m=10, n=1, samples=np.arange(10, 500, 25), bins=[3,4], noise_factor=0., n_runs=1, log_dir=log_dir, random_seed=42, override=True)
+	plot_samples(m=5, n=1, samples=np.arange(25, 500, 25), bins=[4, 8, 16], noise_factor=0., n_runs=25, log_dir=log_dir, override=True, save_legend=True)
+	# plot_samples(m=5, n=1, samples=np.arange(25, 500, 25), bins=[4, 8, 16], noise_factor=1., n_runs=25, log_dir=log_dir, override=False)
 
-	# plot_samples(m=10, n=1, samples=np.arange(10, 500, 25), bins=[4], noise_factor=0., n_runs=25, log_dir=log_dir, random_seed=42, override=True)
+	# plot_samples(m=25, n=1, samples=np.arange(25, 500, 25), bins=[4, 8, 16], noise_factor=0., n_runs=25, log_dir=log_dir, override=False)
+	# plot_samples(m=25, n=1, samples=np.arange(25, 500, 25), bins=[4, 8, 16], noise_factor=1., n_runs=1, log_dir=log_dir, override=False)
 
-	# plot_samples(m=100, n=1, samples=np.arange(10, 500, 25), bins=[3,4,5], noise_factor=0., n_runs=25, log_dir=log_dir, random_seed=42, override=True)
-	
-	# plot_samples(m=500, n=1, samples=np.arange(10, 500, 25), bins=[3,4,5], noise_factor=0., n_runs=25, log_dir=log_dir, random_seed=42, override=True)
+	# plot_samples(m=50, n=1, samples=np.arange(25, 500, 25), bins=[4, 8, 16], noise_factor=0., n_runs=25, log_dir=log_dir, override=False)
+	# plot_samples(m=50, n=1, samples=np.arange(25, 500, 25), bins=[4, 8, 16], noise_factor=1., n_runs=25, log_dir=log_dir, override=False)
