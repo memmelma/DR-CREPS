@@ -6,8 +6,8 @@ from torch import nn
 
 from .utils import rank_transformation
 
-class MushroomAgent(nn.Module):
-    def __init__(self, input_size, output_size, population_size=256, n_rollout: int = 2, sigma=1e-3, lr=0.002, l_decay=0.999, l2_decay=0.005, features=None, discrete=False):
+class NESAgent(nn.Module):
+    def __init__(self, population_size=256, n_rollout: int = 2, sigma=1e-3, lr=0.002, l_decay=0.999, l2_decay=0.005, features=None, discrete=False):
         super().__init__()
 
         self.population_size = population_size
@@ -58,12 +58,15 @@ class MushroomAgent(nn.Module):
         optim.param_groups[0]["lr"] = self.lr * self.l_decay # Decay
         print(f'reduced lr to {optim.param_groups[0]["lr"]}')
 
-class LinearRegressorNES(MushroomAgent):
-    def __init__(self, input_size, output_size, population_size=256, n_rollout=2, sigma=1e-3, l_decay=0.999, l2_decay=0.005, features=None, discrete=False):
-        super().__init__(input_size, output_size, population_size=population_size, n_rollout=n_rollout, sigma=sigma, l_decay=l_decay, l2_decay=l2_decay, features=features, discrete=discrete)
+
+class LinearRegressorNES(NESAgent):
+    def __init__(self, input_size, output_size, population_size=256, n_rollout=2, sigma=1e-3, l_decay=0.999, l2_decay=0.005, \
+                features=None, discrete=False):
+        super().__init__(population_size=population_size, n_rollout=n_rollout, sigma=sigma, l_decay=l_decay, l2_decay=l2_decay, \
+                    features=features, discrete=discrete)
         
-        self.w = nn.Parameter(torch.zeros((input_size, output_size)))
-        
+        normal = torch.distributions.normal.Normal(0, sigma)
+        self.weights = nn.Parameter(normal.sample([input_size, output_size]))
 
     def draw_action(self, state):
         if self.phi is not None:
@@ -71,7 +74,7 @@ class LinearRegressorNES(MushroomAgent):
         else:
             obs_tensor = torch.from_numpy(state).float()
 
-        action = obs_tensor@self.w
+        action = obs_tensor@self.weights
 
         if self.discrete:
             return torch.tensor([0]) if action < 0.5 else torch.tensor([1])
@@ -83,9 +86,12 @@ class LinearRegressorNES(MushroomAgent):
             return
         torch.nn.utils.vector_to_parameters(weights, self.parameters())
 
-class ProMPNES(MushroomAgent):
-    def __init__(self, input_size, output_size, population_size=256, n_rollout=2, sigma=1e-3, l_decay=0.999, l2_decay=0.005, features=None, discrete=False, n_basis=30, basis_width=1e-3, c=None, maxSteps=1000, time_scale=1):
-        super().__init__(input_size, output_size, population_size=population_size, n_rollout=n_rollout, sigma=sigma, l_decay=l_decay, l2_decay=l2_decay, features=features, discrete=discrete)
+
+class ProMPNES(NESAgent):
+    def __init__(self, input_size, output_size, population_size=256, n_rollout=2, sigma=1e-3, l_decay=0.999, l2_decay=0.005, \
+                features=None, discrete=False, n_basis=30, basis_width=1e-3, c=None, maxSteps=1000, time_scale=1):
+        super().__init__(population_size=population_size, n_rollout=n_rollout, sigma=sigma, l_decay=l_decay, l2_decay=l2_decay, \
+                        features=features, discrete=discrete)
         
         self.n_basis = n_basis
         self.basis_width = basis_width
@@ -98,7 +104,9 @@ class ProMPNES(MushroomAgent):
         self.trajectory = None
 
         self.dim = output_size
-        self.weights = nn.Parameter(torch.zeros(self.dim*self.n_basis))
+
+        normal = torch.distributions.normal.Normal(0, sigma)
+        self.weights = nn.Parameter(normal.sample([self.dim, self.n_basis]))
 
         self.time_scale = time_scale
         self.basis_width = basis_width

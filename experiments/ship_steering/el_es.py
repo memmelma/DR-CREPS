@@ -9,7 +9,7 @@ from mushroom_rl.features.tiles import Tiles
 
 from algorithms import CoreNES, LinearRegressorNES
 
-from experiments.utils import save_results
+from experiments.utils import init_distribution, save_results
 
 def experiment(
     env, seed, env_seed, \
@@ -32,7 +32,7 @@ def experiment(
     np.random.seed(seed)
     os.makedirs(results_dir, exist_ok=True)
 
-   # MDP
+    # MDP
     mdp = ShipSteering()
 
     # features
@@ -54,6 +54,12 @@ def experiment(
     policy = LinearRegressorNES(features.size, mdp.info.action_space.shape[0],
                     population_size=population_size, l_decay=1., l2_decay=0., sigma=sigma_init, n_rollout=n_rollout, features=features)
     
+    # intialize same as policy search
+    policy.weights_size = len(policy.weights.flatten())
+    distribution = init_distribution(mu_init=0., sigma_init=sigma_init, size=policy.weights_size, sample_strat=None, lambd=0., distribution_class='diag')
+    weights_init = torch.tensor(distribution.sample(), dtype=torch.float32)
+    policy.set_weights(weights_init)
+
     # train
     nes = CoreNES(policy, mdp, alg=alg, optimizer=torch.optim.Adam, optimizer_lr=optim_lr,
                     n_step=(n_epochs), seed=seed)

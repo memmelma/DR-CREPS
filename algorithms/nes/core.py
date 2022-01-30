@@ -10,14 +10,11 @@ from copy import deepcopy
 
 from .utils import *
 
-import joblib
-
 class CoreNES():
     """
     """
     def __init__(self, policy, mdp,  alg='nes', optimizer=torch.optim.Adam, optimizer_lr=0.02, 
                     n_step=300, n_rollout=2, prepro=None, seed=42):
-
 
         np.random.seed(seed)
         torch.manual_seed(seed)
@@ -77,7 +74,7 @@ class CoreNES():
                 if horizon_counter == self.horizon:
                     done = True
 
-                total_reward += gamma ** horizon_counter * reward
+                total_reward += np.power(gamma, horizon_counter) * reward
 
         return total_reward / self.n_rollout
 
@@ -124,7 +121,6 @@ class CoreNES():
                 return
 
             n_samples += self.policy.population_size*self.n_rollout
-            print(f'samples total: {n_samples}')
             
             reward = self.evaluate_policy(self.policy)
 
@@ -132,7 +128,7 @@ class CoreNES():
             
             if reward > self.best_reward:
                 self.best_reward = reward
-            print(f'Gen: {self.gen+1} Test Reward: {reward} Best Reward: {self.best_reward}')
+            print(f'Gen: {self.gen+1} Total Samples: {n_samples} Test Reward: {reward} Best Reward: {self.best_reward}')
 
         sys.stdout = sys.__stdout__
         torch.set_grad_enabled(True)

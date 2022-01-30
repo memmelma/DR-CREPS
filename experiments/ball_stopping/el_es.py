@@ -4,9 +4,9 @@ import torch
 
 from environments.ball_rolling_gym_env import BallRollingGym
 
-from algorithms import CoreNES, LinearRegressorNES
+from algorithms import CoreNES, ProMPNES
 
-from experiments.utils import save_results
+from experiments.utils import init_distribution, save_results
 
 def experiment(
     env, seed, env_seed, \
@@ -33,9 +33,15 @@ def experiment(
     mdp = BallRollingGym(horizon=horizon, gamma=0.99, observation_ids=[0,1,2,3], render=not verbose, save_render_path=save_render_path)
 
     # policy
-    policy = LinearRegressorNES(mdp.info.observation_space.shape[0], mdp.info.action_space.shape[0],
-                    population_size=population_size, l_decay=1., l2_decay=0., sigma=sigma_init, n_rollout=n_rollout, features=None)
+    policy = ProMPNES(mdp.info.observation_space.shape[0], mdp.info.action_space.shape[0], 
+                        population_size=population_size, l_decay=1., l2_decay=0., sigma=sigma_init, n_rollout=n_rollout, 
+                        features=None, n_basis=n_basis, basis_width=1e-3, maxSteps=horizon)
     
+    # intialize same as policy search
+    policy.weights_size = len(policy.weights.flatten())
+    distribution = init_distribution(mu_init=0., sigma_init=sigma_init, size=policy.weights_size, sample_strat=None, lambd=0., distribution_class='diag')
+    policy.weights = torch.nn.Parameter(torch.tensor(distribution.sample()))
+
     # train
     nes = CoreNES(policy, mdp, alg=alg, optimizer=torch.optim.Adam, optimizer_lr=optim_lr,
                     n_step=(n_epochs), seed=seed)
