@@ -1,5 +1,6 @@
 import os
 import utils
+from matplotlib.lines import Line2D
 
 if __name__ == '__main__':
 
@@ -25,11 +26,22 @@ if __name__ == '__main__':
     x_ticks = 1000
     y_ticks = 10
     
+    legend_elements = [Line2D([0], [0], color='red', linestyle='dashed', lw=1, label='optimal control')]
+
+    # legend
     utils.plot_data(data_dict, exp_name, title,
                 labels, colors, line_styles,
                 x_lim=x_lim, max_runs=25, 
                 axis=[y_0, y_1, y_ticks, x_0, x_1, x_ticks],
-                # legend_params={'loc':'upper left', 'bbox_to_anchor': (-0.15,-0.3), 'fontsize': 12, 'prop': {'size': 12}, 'ncol': 10},
-                legend_params={'loc':'lower right', 'fontsize': 12, 'prop': {'size': 12}, 'ncol': 1},
+                legend_params={'loc':'lower right', 'bbox_to_anchor': (-1,-1), 'fontsize': 12, 'prop': {'size': 12}, 'ncol': 10}, save_legend=True,
+                filename='results_lqr', out_path=out_path, pdf=True)
+
+    # plot
+    utils.plot_data(data_dict, exp_name, title,
+                labels, colors, line_styles,
+                x_lim=x_lim, max_runs=25, 
+                axis=[y_0, y_1, y_ticks, x_0, x_1, x_ticks],
+                legend_params={'handles': legend_elements, 'loc': 'lower right', 'fontsize': 16, 'prop': {'size': 16}, 'ncol': 1},
+                # legend_params={'loc':'lower right', 'fontsize': 12, 'prop': {'size': 12}, 'ncol': 1},
                 optimal_key='optimal control',
                 filename='results_lqr', out_path=out_path, pdf=True)

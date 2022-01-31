@@ -25,6 +25,5 @@ if __name__ == '__main__':
                 labels, colors, line_styles,
                 x_lim=x_lim, max_runs=25, 
                 axis=[y_0, y_1, y_ticks, x_0, x_1, x_ticks],
-                # legend_params={'loc':'upper left', 'bbox_to_anchor': (-0.15,-0.3), 'fontsize': 12, 'prop': {'size': 12}, 'ncol': 10},
                 optimal_key=None,
                 filename='results_ballstopping',out_path=out_path, pdf=True)

@@ -3,7 +3,7 @@ import utils
 
 if __name__ == '__main__':
 
-    exp_name = 'lqr_rebuttal'
+    exp_name = 'CR_LQR_apx'
     title = ''
     
     data_path = os.path.join('/work/scratch/pl29zovi/', exp_name)

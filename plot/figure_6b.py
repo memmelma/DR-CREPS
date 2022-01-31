@@ -25,8 +25,6 @@ if __name__ == '__main__':
                 labels, colors, line_styles,
                 x_lim=x_lim, max_runs=20, 
                 axis=[y_0, y_1, y_ticks, x_0, x_1, x_ticks],
-                # legend_params={'loc':'upper left', 'bbox_to_anchor': (-0.15,-0.3), 'fontsize': 12, 'prop': {'size': 12}, 'ncol': 10},
-                # legend_params={'loc': 'upper left', 'prop':{'size': 12}, 'ncol':1},
                 optimal_key=None,
                 smooth_algo=['Nelder-Mead simplex'],
                 filename='results_airhockey', out_path=out_path, pdf=True)
