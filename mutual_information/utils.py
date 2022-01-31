@@ -35,11 +35,15 @@ def calc_MI_sklearn_regression(x, y, n_neighbors=3, random_state=None):
 	# KSG implementation of sklearn
 	# https://github.com/scikit-learn/scikit-learn/blob/15a949460/sklearn/feature_selection/_mutual_info.py#L291
 	# Same except preprocessing (scaling of X, noise to X)
-	return  mutual_info_regression(x, y.ravel(), discrete_features=False, n_neighbors=n_neighbors, random_state=random_state)[0]
+	reg = mutual_info_regression(x, y.ravel(), discrete_features=False, n_neighbors=n_neighbors, random_state=random_state)[0]
+
+	return reg
 
 def calc_MI_KSG(x, y, n_neighbors=3):
 	# "It is (KSG)’s inability to handle noise that diminishes it’s effectiveness in real data sets." - On the Estimation of Mutual Information
-	return kraskov_mi(x, y, k=n_neighbors)
+	ksg = kraskov_mi(x, y, k=n_neighbors)
+
+	return ksg
 
 def calc_MI_revised_KSG(x, y, n_neighbors=3):
 	return revised_mi(x, y, k=n_neighbors)
@@ -47,8 +51,6 @@ def calc_MI_revised_KSG(x, y, n_neighbors=3):
 def calc_MI_samples(x, y, bins):
 	# https://stackoverflow.com/a/20505476
 	
-	# x = x.ravel()
-	# y = y.ravel()
 	MI = 0
 	for i in range(x.shape[1]):
 
@@ -70,7 +72,7 @@ def calc_PCC(x,y):
 		PCC += pearsonr(x[:,i], y)[0]
 	return PCC
 
-def analytical_MI(noise_factor, m, n, samples, random_seed):
+def analytical_MI(m, n, samples, random_seed):
 	rng = default_rng(random_seed)
 
 	# p(X)
@@ -78,23 +80,20 @@ def analytical_MI(noise_factor, m, n, samples, random_seed):
 	sig_x = np.atleast_2d(rng.random((m,m)))
 	sig_x = sig_x @ sig_x.T
 
-	# linear transformation matrix A (full rank)
+	# linear transformation matrix A (full rank) and vector b
 	A = np.atleast_2d(rng.random((n,m)))
 	if n == m:
 		A = A @ A.T
-
-	# noise distribution p(E)
-	mu_e = np.atleast_1d(rng.random(n)) * noise_factor
-	sig_e = np.atleast_2d(rng.random((n,n)))
-	sig_e = (sig_e @ sig_e.T) * noise_factor
+	b = np.atleast_1d(rng.random(n))
 
 	# p(Y|X)
 	# https://ssl2.cms.fu-berlin.de/ewi-psy/einrichtungen/arbeitsbereiche/computational_cogni_neurosc/PMFN/10-Gaussian-distributions.pdf
 	# eq. 10.20
-	sig_y_x = A @ sig_x @ A.T + sig_e
+	sig_y_x = A @ sig_x @ A.T + b
 
 	# p(Y)
 	# Bishop p.93 eq. 2.115
+	mu_y = A@mu_x + b
 	sig_y = sig_y_x + A @ sig_x @ A.T
 
 	# p(X|Y)
@@ -114,19 +113,11 @@ def analytical_MI(noise_factor, m, n, samples, random_seed):
 	I_2 = H_xy - H_x_y - H_y_x
 	I_3 = H_x + H_y - H_xy
 	
-	# assert np.round(I_0,2) == np.round(I_1,2) and np.round(I_1,2) == np.round(I_2,2) and np.round(I_2,2) == np.round(I_3,2), \
-	# 	f'all MI formulations should yield the same result! got: {I_0} {I_1} {I_2} {I_3}'
+	assert np.round(I_0,2) == np.round(I_1,2) and np.round(I_1,2) == np.round(I_2,2) and np.round(I_2,2) == np.round(I_3,2), \
+		f'all MI formulations should yield the same result! got: {I_0} {I_1} {I_2} {I_3}'
 	
-	# [s,m]
 	x = rng.multivariate_normal(mu_x, sig_x, size=samples)
-	e = rng.multivariate_normal(mu_e, sig_e, size=samples)
-
-	# sample y values
-	# [s,m] -> [m,s]
-	y = A @ x.T + e.T
-	
-	# [s,m]
-	y = y.T
+	y = rng.multivariate_normal(mu_y, sig_y, size=samples)
 
 	return x, y, I_3, H_x
 
@@ -150,6 +141,7 @@ def compute_MI(x, y, I, H_x, bins, random_seed):
 
 	# {'orange': '#EE7733', 'blue': '#0077BB', 'cyan': '#33BBEE', 'magenta': '#EE3377', 'red': '#CC3311', 
 	# 	'teal': '#009988', 'grey':'#BBBBBB', 'yellow': '#CCBB44', 'black': '#000000'}
+	
 	colors = ['#CC3311', '#EE3377', '#0077BB', '#009988']
 	# colors = ['#CC3311', '#EE3377', '#009988']
 
