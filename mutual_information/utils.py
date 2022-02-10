@@ -79,8 +79,8 @@ def analytical_MI(m, n, samples, random_seed):
 
 	# non zero noise
 	mu_e = np.atleast_1d(seed_rng.random(n))
-	# sig_e = np.atleast_2d(seed_rng.random((n,n)))
-	sig_e = np.diag(seed_rng.random(n))
+	sig_e = np.atleast_2d(seed_rng.random((n,n)))
+	# sig_e = np.diag(seed_rng.random(n))
 	sig_e = sig_e @ sig_e.T
 
 	# zero noise -> determinisitic function f(X) = Y -> https://stats.stackexchange.com/questions/465056/mutual-information-between-x-and-fx
