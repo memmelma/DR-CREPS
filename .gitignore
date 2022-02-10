@@ -141,3 +141,5 @@ results/
 
 /logs_mi*
 /video_log
+
+plot/*/
