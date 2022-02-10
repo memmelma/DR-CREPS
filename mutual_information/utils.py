@@ -14,6 +14,7 @@ def get_mean_and_confidence(data):
     Returns:
         The mean of the dataset at each epoch along with the confidence interval.
     """
+
     mean = np.mean(data, axis=0)
     se = st.sem(data, axis=0)
     n = len(data)
@@ -36,13 +37,11 @@ def calc_MI_sklearn_regression(x, y, n_neighbors=3, random_state=None):
 	# https://github.com/scikit-learn/scikit-learn/blob/15a949460/sklearn/feature_selection/_mutual_info.py#L291
 	# Same except preprocessing (scaling of X, noise to X)
 	reg = mutual_info_regression(x, y.ravel(), discrete_features=False, n_neighbors=n_neighbors, random_state=random_state)[0]
-
 	return reg
-
+	
 def calc_MI_KSG(x, y, n_neighbors=3):
 	# "It is (KSG)’s inability to handle noise that diminishes it’s effectiveness in real data sets." - On the Estimation of Mutual Information
 	ksg = kraskov_mi(x, y, k=n_neighbors)
-
 	return ksg
 
 def calc_MI_revised_KSG(x, y, n_neighbors=3):
@@ -61,6 +60,7 @@ def calc_MI_samples(x, y, bins):
 		H_X = shan_entropy(c_X)
 		H_Y = shan_entropy(c_Y)
 		H_XY = shan_entropy(c_XY)
+
 		MI += H_X + H_Y - H_XY
 
 	return MI
@@ -73,36 +73,52 @@ def calc_PCC(x,y):
 	return PCC
 
 def analytical_MI(m, n, samples, random_seed):
-	rng = default_rng(random_seed)
+
+	# fixed rng for p(X)
+	fixed_rng = default_rng(0)
+	# seeded rng for p(E), A, X~p(X), E~p(E)
+	seed_rng = default_rng(random_seed)
 
 	# p(X)
-	mu_x = np.atleast_1d(rng.random(m))
-	sig_x = np.atleast_2d(rng.random((m,m)))
+	mu_x = np.atleast_1d(fixed_rng.random(m))
+	sig_x = np.atleast_2d(fixed_rng.random((m,m)))
 	sig_x = sig_x @ sig_x.T
 
-	# linear transformation matrix A (full rank) and vector b
-	A = np.atleast_2d(rng.random((n,m)))
+	# non zero noise
+	mu_e = np.atleast_1d(seed_rng.random(n))
+	# sig_e = np.atleast_2d(seed_rng.random((n,n)))
+	sig_e = np.diag(seed_rng.random(n))
+	sig_e = sig_e @ sig_e.T
+
+	# zero noise -> determinisitic function f(X) = Y ->  https://stats.stackexchange.com/questions/465056/mutual-information-between-x-and-fx
+	# mu_e = np.zeros(n)
+	# sig_e = np.zeros((n,n))
+
+	# linear transformation matrix A (full rank)
+	A = np.atleast_2d(seed_rng.random((n,m)))
 	if n == m:
 		A = A @ A.T
-	b = np.atleast_1d(rng.random(n))
 
 	# p(Y|X)
 	# https://ssl2.cms.fu-berlin.de/ewi-psy/einrichtungen/arbeitsbereiche/computational_cogni_neurosc/PMFN/10-Gaussian-distributions.pdf
 	# eq. 10.20
-	sig_y_x = A @ sig_x @ A.T + b
+	mu_y_x = A @ mu_x + mu_e
+	sig_y_x = A @ sig_x @ A.T + sig_e
 
 	# p(Y)
 	# Bishop p.93 eq. 2.115
-	mu_y = A@mu_x + b
+	mu_y = A @ mu_x
 	sig_y = sig_y_x + A @ sig_x @ A.T
 
 	# p(X|Y)
 	# Bishop p.93 eq. 2.116
 	sig_x_y = np.linalg.inv(np.linalg.inv(sig_x) + A.T @ np.linalg.inv(sig_y_x) @ A)
+	mu_x_y = sig_x_y @ (A.T @ np.linalg.inv(sig_y_x) @ (mu_y - mu_e) + np.linalg.inv(sig_x) @ mu_x)
 
 	# p(X,Y)
 	# https://ssl2.cms.fu-berlin.de/ewi-psy/einrichtungen/arbeitsbereiche/computational_cogni_neurosc/PMFN/10-Gaussian-distributions.pdf
 	# eq. 10.26 : \sigma_{yy} is covariance of p(Y|X) !
+	mu_xy = np.concatenate([mu_x, A @ mu_x + mu_e])
 	sig_xy = np.block( [[sig_x,	sig_x @ A.T], 
 						[A @ sig_x,   sig_y_x + A @ sig_x @ A.T]] )
 
@@ -115,11 +131,13 @@ def analytical_MI(m, n, samples, random_seed):
 	
 	assert np.round(I_0,2) == np.round(I_1,2) and np.round(I_1,2) == np.round(I_2,2) and np.round(I_2,2) == np.round(I_3,2), \
 		f'all MI formulations should yield the same result! got: {I_0} {I_1} {I_2} {I_3}'
-	
-	x = rng.multivariate_normal(mu_x, sig_x, size=samples)
-	y = rng.multivariate_normal(mu_y, sig_y, size=samples)
 
-	return x, y, I_3, H_x
+	X = seed_rng.multivariate_normal(mu_x, sig_x, size=samples)
+	E = seed_rng.multivariate_normal(mu_e, sig_e, size=samples)
+
+	Y = (A@X.T).T + E
+
+	return X, Y, I_1, H_x
 
 def compute_MI(x, y, I, H_x, bins, random_seed):
 
@@ -160,12 +178,13 @@ def compute_MI(x, y, I, H_x, bins, random_seed):
 				I_xy_ksg += [calc_MI_KSG(x_tmp, y_tmp[:,None], bin)]
 				# I_xy_ksg_rev += [calc_MI_revised_KSG(x_tmp, y_tmp[:,None], bin)]
 				I_xy_sklearn_regression += [calc_MI_sklearn_regression(x, y_tmp, n_neighbors=bin, random_state=random_seed)]
-
+				# print(type(calc_MI_sklearn_regression(x, y_tmp, n_neighbors=bin, random_state=random_seed)))
 			else:
 				I_xy_samples[bin_i] += calc_MI_samples(x_tmp, y_tmp, bin)
 				I_xy_ksg[bin_i] += calc_MI_KSG(x_tmp, y_tmp[:,None], bin)
 				# I_xy_ksg_rev[bin_i] += calc_MI_revised_KSG(x_tmp, y_tmp[:,None], bin)
 				I_xy_sklearn_regression[bin_i] += [calc_MI_sklearn_regression(x, y_tmp, n_neighbors=bin, random_state=random_seed)]
+				# print(type(float(calc_MI_sklearn_regression(x, y_tmp, n_neighbors=bin, random_state=random_seed).item())))
 		
 		# PCC_xy += calc_PCC(x_tmp, y_tmp)
 
@@ -182,5 +201,4 @@ def compute_MI(x, y, I, H_x, bins, random_seed):
 	
 	# results = [I, *I_xy_sklearn_regression, *I_xy_ksg]
 	results = [I, *I_xy_sklearn_regression, *I_xy_samples, *I_xy_ksg]
-
 	return results, legend, colors, linestyles
