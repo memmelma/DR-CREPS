@@ -14,13 +14,19 @@ def get_mean_and_confidence(data):
     Returns:
         The mean of the dataset at each epoch along with the confidence interval.
     """
-
     mean = np.mean(data, axis=0)
     se = st.sem(data, axis=0)
     n = len(data)
     interval  = st.t.interval(0.95, n - 1, scale=se)
     return mean, interval
 
+def get_style():
+	legend = ['$MI_{true}$', '$MI_{regression}$', '$MI_{histogram}$', '$MI_{KSG}$']
+	colors = ['#CC3311', '#EE3377', '#0077BB', '#009988']
+	linestyles = ['-', ':', '--', '-.', 'solid', 'dashed', 'dashdot', 'dotted']
+
+	return legend, colors, linestyles
+	
 def entropy(sig):
 	n = sig.shape[0]
 	return 0.5*np.linalg.slogdet(sig)[1] + (n*np.log(2*np.pi))/2 + n/2
@@ -28,47 +34,34 @@ def entropy(sig):
 def shan_entropy(c):
 	c_normalized = c / float(np.sum(c))
 	c_normalized = c_normalized[np.nonzero(c_normalized)]
-
 	H = - np.sum( c_normalized * np.log( c_normalized ) )
 	return H
 	
 def calc_MI_sklearn_regression(x, y, n_neighbors=3, random_state=None):
-	# KSG implementation of sklearn
+	# KSG implementation of sklearn (uses standardization of input)
 	# https://github.com/scikit-learn/scikit-learn/blob/15a949460/sklearn/feature_selection/_mutual_info.py#L291
-	# Same except preprocessing (scaling of X, noise to X)
-	reg = mutual_info_regression(x, y.ravel(), discrete_features=False, n_neighbors=n_neighbors, random_state=random_state)[0]
-	return reg
+	return mutual_info_regression(x, y.ravel(), discrete_features=False, n_neighbors=n_neighbors, random_state=random_state)[0]
 	
 def calc_MI_KSG(x, y, n_neighbors=3):
 	# "It is (KSG)’s inability to handle noise that diminishes it’s effectiveness in real data sets." - On the Estimation of Mutual Information
-	ksg = kraskov_mi(x, y, k=n_neighbors)
-	return ksg
+	return kraskov_mi(x, y, k=n_neighbors)
 
 def calc_MI_revised_KSG(x, y, n_neighbors=3):
 	return revised_mi(x, y, k=n_neighbors)
 
 def calc_MI_samples(x, y, bins):
 	# https://stackoverflow.com/a/20505476
-	
-	MI = 0
-	for i in range(x.shape[1]):
-
-		c_X = np.histogram(x[:,i], bins=bins)[0]
-		c_Y = np.histogram(y, bins=bins)[0]
-		c_XY = np.histogram2d(x[:,i], y, bins=bins)[0]
-
-		H_X = shan_entropy(c_X)
-		H_Y = shan_entropy(c_Y)
-		H_XY = shan_entropy(c_XY)
-
-		MI += H_X + H_Y - H_XY
-
-	return MI
+	c_X = np.histogram(x.squeeze(), bins=bins)[0]
+	c_Y = np.histogram(y, bins=bins)[0]
+	c_XY = np.histogram2d(x.squeeze(), y, bins=bins)[0]
+	H_X = shan_entropy(c_X)
+	H_Y = shan_entropy(c_Y)
+	H_XY = shan_entropy(c_XY)
+	return H_X + H_Y - H_XY
 
 def calc_PCC(x,y):
 	PCC = 0
 	for i in range(x.shape[1]):
-
 		PCC += pearsonr(x[:,i], y)[0]
 	return PCC
 
@@ -90,7 +83,7 @@ def analytical_MI(m, n, samples, random_seed):
 	sig_e = np.diag(seed_rng.random(n))
 	sig_e = sig_e @ sig_e.T
 
-	# zero noise -> determinisitic function f(X) = Y ->  https://stats.stackexchange.com/questions/465056/mutual-information-between-x-and-fx
+	# zero noise -> determinisitic function f(X) = Y -> https://stats.stackexchange.com/questions/465056/mutual-information-between-x-and-fx
 	# mu_e = np.zeros(n)
 	# sig_e = np.zeros((n,n))
 
@@ -137,68 +130,25 @@ def analytical_MI(m, n, samples, random_seed):
 
 	Y = (A@X.T).T + E
 
-	return X, Y, I_1, H_x
+	return X, Y, I_1
 
-def compute_MI(x, y, I, H_x, bins, random_seed):
+def compute_MI(x, y, I_gt, bins, random_seed):
 
-	I_xy_sklearn_regression = []
-	I_xy_samples = []
-	I_xy_ksg = []
-	I_xy_ksg_rev = []
-	PCC_xy = 0
+	I_xy_sklearn_regression, I_xy_samples, I_xy_ksg= [], [], []
 
-	legend = [
-		'$MI_{true}$',
-		'$MI_{regression}$',
-		'$MI_{histogram}$',
-		'$MI_{KSG}$',
-		# '$I_{revKSG}$',
-		# '$I_{revKSGone}$',
-		# '$I_{revKSGdiv}$',
-	]
-
-	# {'orange': '#EE7733', 'blue': '#0077BB', 'cyan': '#33BBEE', 'magenta': '#EE3377', 'red': '#CC3311', 
-	# 	'teal': '#009988', 'grey':'#BBBBBB', 'yellow': '#CCBB44', 'black': '#000000'}
-	
-	colors = ['#CC3311', '#EE3377', '#0077BB', '#009988']
-	# colors = ['#CC3311', '#EE3377', '#009988']
-
-	linestyles = ['-', ':', '--', '-.', 'solid', 'dashed', 'dashdot', 'dotted']
-	assert len(linestyles) >= len(bins), 'define more linestyles'
-	
 	for i in range(y.shape[1]):
-
 		x_tmp = x
 		y_tmp = y[:,i]
-		
 		for bin_i, bin in enumerate(bins):
-			
 			if i == 0:
 				I_xy_samples += [calc_MI_samples(x_tmp, y_tmp, bin)]
 				I_xy_ksg += [calc_MI_KSG(x_tmp, y_tmp[:,None], bin)]
-				# I_xy_ksg_rev += [calc_MI_revised_KSG(x_tmp, y_tmp[:,None], bin)]
 				I_xy_sklearn_regression += [calc_MI_sklearn_regression(x, y_tmp, n_neighbors=bin, random_state=random_seed)]
-				# print(type(calc_MI_sklearn_regression(x, y_tmp, n_neighbors=bin, random_state=random_seed)))
 			else:
 				I_xy_samples[bin_i] += calc_MI_samples(x_tmp, y_tmp, bin)
 				I_xy_ksg[bin_i] += calc_MI_KSG(x_tmp, y_tmp[:,None], bin)
-				# I_xy_ksg_rev[bin_i] += calc_MI_revised_KSG(x_tmp, y_tmp[:,None], bin)
 				I_xy_sklearn_regression[bin_i] += [calc_MI_sklearn_regression(x, y_tmp, n_neighbors=bin, random_state=random_seed)]
-				# print(type(float(calc_MI_sklearn_regression(x, y_tmp, n_neighbors=bin, random_state=random_seed).item())))
-		
-		# PCC_xy += calc_PCC(x_tmp, y_tmp)
 
-		# I_xy_ksg_rev_one = calc_MI_revised_KSG(x, y, bin)
-	# I_xy_ksg_rev_div = (np.array(I_xy_ksg_rev) / (i+1)).tolist()
+	return [I_gt, *I_xy_sklearn_regression, *I_xy_samples, *I_xy_ksg]
 
-	if len(bins) > 1:
-		results = [I, *I_xy_sklearn_regression, *I_xy_samples, *I_xy_ksg]
-	else:
-		legend += ['$MI_{PCC}$']
-		results = [I, *I_xy_sklearn_regression, *I_xy_samples, *I_xy_ksg, PCC_xy]
-	
-	# results = [I, *I_xy_sklearn_regression, *I_xy_samples, *I_xy_ksg, *I_xy_ksg_rev, I_xy_ksg_rev_one, *I_xy_ksg_rev_div, PCC_xy]
-	
-	# results = [I, *I_xy_sklearn_regression, *I_xy_ksg]
-	results = [I, *I_xy_sklearn_regression, *I_xy_samples, *I_xy_ksg]
-	return results, legend, colors, linestyles
+
