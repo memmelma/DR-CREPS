@@ -39,5 +39,8 @@ To get an idea of how to setup more detailed experiments please have a look at `
 - ```el_optim.py```: classic optimizers (Nelder-Mead, L-BFGS-B)
 - ```el_bbo.py```: policy search algorithms (RWR, REPS, CREPS, CEM, MORE, **DR-REPS**, **DR-CREPS**, PRO)
 
+### Mutual Information Estimation
+We provide an ablation of different Mutual Information estimators in ```mutual_information```. You can reproduce the experiments on our toy example that we introduce in the appendix. Specify your own experiments and plot the results by exectuing ```mi.py```.
+
 ### Reuse Our Code!
 Our implementation builds on [MushroomRL](https://github.com/MushroomRL/mushroom-rl). It also integrates nicely with it, i.e., all of our algorithms and environments either inherit directly from MushroomRL modules or implement the same intuitive interfaces.
