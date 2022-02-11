@@ -9,15 +9,15 @@ from mushroom_rl.algorithms.policy_search.black_box_optimization import BlackBox
 class CEM(BlackBoxOptimization):
     """
     Cross Entropy Method.
+    [1] P.T. de Boer, D.P. Kroese, S. Mannor, R.Y. Rubinstein, "A Tutorial on the Cross-Entropy Method", Annals OR, 2005
+    [2] I. Szita, A. Lörnicz, "Learning Tetris Using the NoisyCross-Entropy Method", Neural Computation, 2006
     """
     def __init__(self, mdp_info, distribution, policy, eps, soft_update_factor=1., extra_expl_decay_iter=5, extra_expl_std_init=0., features=None):
         """
         Constructor.
+        
         Args:
             eps ([int, Parameter]): # of samples to select as elites.
-        [1] P.T. de Boer, D.P. Kroese, S. Mannor, R.Y. Rubinstein, "A Tutorial on the Cross-Entropy Method",
-        Annals OR, 2005
-        [2] I. Szita, A. Lörnicz, "Learning Tetris Using the NoisyCross-Entropy Method", Neural Computation, 2006
         
         """
         self._samples = to_parameter(int(eps))

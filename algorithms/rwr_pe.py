@@ -13,6 +13,10 @@ class RWR_PE(BlackBoxOptimization):
     "A Survey on Policy Search for Robotics", Deisenroth M. P., Neumann G.,
     Peters J.. 2013.
 
+    Pearson-Correlation-Based Relevance Weighted PolicyOptimization (PRO)
+    "Learning Trajectory Distributions for Assisted Teleoperation and Path Planning",
+    Ewerton M., Arenz O., Maeda G., Koert D., Kolev Z.,  Takahashi M., Peters J.. 2019.
+
     """
     def __init__(self, mdp_info, distribution, policy, eps, lambd, k, C='PCC', mi_estimator=None, pro=True, features=None):
         """

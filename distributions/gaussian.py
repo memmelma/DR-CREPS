@@ -9,7 +9,7 @@ class GaussianDiagonalDistribution(mushroom_rl.distributions.distribution.Distri
     """
     Gaussian distribution with diagonal covariance matrix. The parameters
     vector represents the mean and the standard deviation for each dimension.
-
+    Implements Prioritized Exploration.
     """
     def __init__(self, mu, std):
         """
@@ -158,10 +158,9 @@ class GaussianDiagonalDistribution(mushroom_rl.distributions.distribution.Distri
 class GaussianDistributionGDR(mushroom_rl.distributions.distribution.Distribution):
     """
     Gaussian distribution with full covariance matrix. The parameters
-    vector represents the mean and the Cholesky decomposition of the
-    covariance matrix. This parametrization enforce the covariance matrix to be
-    positive definite.
-
+    vector represents the mean and the current diagonal matrix containing
+    the singular values of the current covariance matrix obtained by SVD.
+    Implements Prioritized Exploration.
     """
     def __init__(self, mu, sigma):
         """
@@ -185,7 +184,7 @@ class GaussianDistributionGDR(mushroom_rl.distributions.distribution.Distributio
 
         self._add_save_attr(
             _mu='numpy',
-            _chol_sigma='numpy'
+            _s='numpy'
         )
     
     def set_sample_strat(self, sample_strat, lambd):

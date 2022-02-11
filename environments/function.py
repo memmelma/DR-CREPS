@@ -1,3 +1,5 @@
+# Code adapted from https://github.com/hanyas/reps/blob/master/reps/envs/episodic/benchmarks.py
+
 import numpy as np
 
 from mushroom_rl.core import Environment, MDPInfo
@@ -6,11 +8,14 @@ from mushroom_rl.utils import spaces
 
 class Function(Environment):
     """
-    Episodic functions to optimize. Largely adapted from: https://github.com/hanyas/reps/blob/master/reps/envs/episodic/benchmarks.py
+    Episodic functions to optimize.
     """
     def __init__(self, function, dim):
         """
         Constructor.
+
+        Args:
+             dim (int): dimensionality of the optimization function.
         """
 
         self._function = function

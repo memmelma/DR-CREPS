@@ -12,7 +12,7 @@ from distributions import GaussianDistributionGDR, GaussianDiagonalDistribution
 class DR_CREPS_PE(BlackBoxOptimization):
 	"""
 	Episodic Relative Entropy Policy Search algorithm with constrained policy update, Guided Dimensionality Reduction, and Prioritized Exploration.
-	"High Acceleration Reinforcement Learning for Real-World Juggling with Binary Rewards", Ploeger K., Lutter M.,
+	Based on "High Acceleration Reinforcement Learning for Real-World Juggling with Binary Rewards", Ploeger K., Lutter M.,
 	Peters, J.. 2013.
 	"""
 	def __init__(self, mdp_info, distribution, policy, eps, kappa, lambd, k, gdr=True, C='MI', mi_estimator='regression', features=None):

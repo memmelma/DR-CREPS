@@ -3,7 +3,7 @@ from mushroom_rl.policy import ParametricPolicy
 
 class PassPolicy(ParametricPolicy):
     """
-    Dummy policy to that returns it's weights as action. Used for function optimization. 
+    Policy that returns its weights as action. Used for function optimization. 
 
     """
     def __init__(self, weight_size):
