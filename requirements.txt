@@ -1,0 +1,6 @@
+-e git+https://git.ias.informatik.tu-darmstadt.de/common/experiment_launcher.git@fcc3169f79cbf5d41d341f380eccb07e4b8bafa9#egg=experiment_launcher
+-e git+https://github.com/MushroomRL/mushroom-rl.git@a0eaa2cf8001e433419234a9fc48b64170e3f61c#egg=mushroom_rl
+-e git+https://github.com/MushroomRL/mushroom-rl-benchmark.git@192ab521a693f5a210b851c87a1f7d31aedfaa2f#egg=mushroom_rl_benchmark
+pybullet==3.2.0
+cloudpickle==2.0.0
+gym==0.21.0
