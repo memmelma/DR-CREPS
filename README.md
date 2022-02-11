@@ -44,3 +44,13 @@ We provide an ablation study of different Mutual Information estimators in ```mu
 
 ### Reuse Our Code!
 Our implementation builds on [MushroomRL](https://github.com/MushroomRL/mushroom-rl). It also integrates nicely with it, i.e., all of our algorithms and environments either inherit directly from MushroomRL modules or implement the same intuitive interfaces.
+
+### Bibtex
+```bibtex
+@inproceedings{AISTATS_2022_Dimensionality_Reduction
+  author    = "Memmel, M. and Liu, P. and Tateo, D. and Peters, J.",
+  year      = "2022",
+  title     = "Dimensionality Reduction and Prioritized Exploration for Policy Search",
+  booktitle = "Proceedings of The International Conference on Artificial Intelligence and Statistics"
+}
+```
