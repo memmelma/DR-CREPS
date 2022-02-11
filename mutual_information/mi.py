@@ -15,7 +15,7 @@ def run(args):
 		mi_trial += [compute_MI(x, y, I_gt, bins, random_seed=random_seed+i)]
 	return mi_trial
 	
-def plot_samples(m, n, samples=[5, 10, 15], bins=[3, 4], n_runs=25, y_axis=None, log_dir='', random_seed=42, pool=False, override=False, print_legend=False, save_legend=False, pdf=False):
+def plot_samples(m, n, samples=[5, 10, 15], bins=[3, 4], n_runs=25, y_axis=None, log_dir='', random_seed=0, pool=False, override=False, print_legend=False, save_legend=False, pdf=False):
 	
 	file_name = f'mi_m_{m}_n_{n}_bins_{bins}'
 	mi_runs = []
@@ -90,7 +90,7 @@ def plot_samples(m, n, samples=[5, 10, 15], bins=[3, 4], n_runs=25, y_axis=None,
 			plt.ylim(y_0, y_1)
 
 		ax.set_xlabel('samples', fontsize=20)
-		ax.set_ylabel('$MI[X;Y]$', fontsize=20)
+		ax.set_ylabel(f'$MI[X;Y]$', fontsize=20)
 
 		plt.tight_layout()
 		plt.grid()

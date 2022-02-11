@@ -75,13 +75,14 @@ def analytical_MI(m, n, samples, random_seed):
 	# p(X)
 	mu_x = np.atleast_1d(fixed_rng.random(m))
 	sig_x = np.atleast_2d(fixed_rng.random((m,m)))
-	sig_x = sig_x @ sig_x.T
+	if m > 1:
+		sig_x = sig_x @ sig_x.T
 
 	# non zero noise
 	mu_e = np.atleast_1d(seed_rng.random(n))
 	sig_e = np.atleast_2d(seed_rng.random((n,n)))
-	# sig_e = np.diag(seed_rng.random(n))
-	sig_e = sig_e @ sig_e.T
+	if n > 1:
+		sig_e = sig_e @ sig_e.T
 
 	# zero noise -> determinisitic function f(X) = Y -> https://stats.stackexchange.com/questions/465056/mutual-information-between-x-and-fx
 	# mu_e = np.zeros(n)
@@ -89,7 +90,7 @@ def analytical_MI(m, n, samples, random_seed):
 
 	# linear transformation matrix A (full rank)
 	A = np.atleast_2d(seed_rng.random((n,m)))
-	if n == m:
+	if n == m and n > 1 and m > 1:
 		A = A @ A.T
 
 	# p(Y|X)
